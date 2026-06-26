@@ -678,7 +678,7 @@ async function genNo(){
 
 function genNoLocal(){
   // Ambil nomor terakhir dari localStorage, naik 1
-  const last = parseInt(localStorage.getItem('alima_last_no')) || 10399;
+  const last = parseInt(localStorage.getItem('alima_last_no')) || 10459;
   const next = last + 1;
   localStorage.setItem('alima_last_no', String(next));
   return String(next).padStart(6,'0');
