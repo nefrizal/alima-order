@@ -327,7 +327,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 // ══ KONFIGURASI ══════════════════════
 const APP = {
   GAS_URL:      "https://script.google.com/macros/s/AKfycbzqS_xoX-qvkzkk8nlCq-Urgh4v4dQDmaA5v4zmjNR1yWwSw7iJSs4RfBP-pHiY0UxL/exec",
-  FONNTE_TOKEN: "GANTI_TOKEN_FONNTE",
+  FONNTE_TOKEN: "o3iKrUUBhRaF2qHHqsD7",
   WA_NOTIF:     "6285272739729",
   PREFIX:       "ALM"
 };
@@ -378,8 +378,12 @@ let allOrders = [];
 document.addEventListener('DOMContentLoaded', () => {
   setDefaults();
   genNo();
-  loadMasterFromGAS();
-  loadCustomers();
+  // Load semua data paralel — lebih cepat
+  Promise.all([
+    loadMasterFromGAS(),
+    loadCustomers(),
+    loadSales()
+  ]);
   checkConn();
 });
 
@@ -536,7 +540,20 @@ async function loadMasterFromGAS() {
   }
 }
 
-function renderSalesDropdown() {
+// ══ LOAD SALES ════════════════════════
+async function loadSales() {
+  try {
+    const json = await gasFetch(APP.GAS_URL + '?action=getSales&t=' + Date.now());
+    if (json.success && json.data) {
+      SALES_DATA = json.data;
+      renderSalesDropdown();
+    }
+  } catch(e) {
+    console.warn('loadSales error:', e.message);
+    // Fallback dari getMaster jika sudah ada
+    if (SALES_DATA.length) renderSalesDropdown();
+  }
+}
   const sel = document.getElementById('f-sales');
   if (!sel || !SALES_DATA.length) return;
   sel.innerHTML = '<option value="">— Pilih Sales —</option>' +
