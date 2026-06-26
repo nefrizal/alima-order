@@ -538,13 +538,15 @@ async function loadMasterFromGAS() {
 // ══ PRODUK → PAKET (dinamis) ══════════
 function renderProdukDropdown() {
   const sel = document.getElementById('f-produk');
+  if (!sel) return;
   const keys = Object.keys(PAKET_DATA);
-  if (!keys.length) return; // belum ada data
-  sel.innerHTML = '<option value="">— Pilih —</option>' +
+  if (!keys.length) return;
+  sel.innerHTML = '<option value="">— Pilih Produk —</option>' +
     keys.map(k => {
       const label = k.charAt(0).toUpperCase() + k.slice(1);
       return `<option value="${k}">${label}</option>`;
     }).join('');
+  console.log('Produk dropdown rendered:', keys.length, 'items');
 }
 
 function onProduk() {
