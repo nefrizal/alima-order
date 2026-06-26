@@ -639,7 +639,15 @@ async function sendWASales(o,hp){
 }
 async function sendWAKlien(o){
   if(APP.FONNTE_TOKEN.includes('GANTI'))return;
-  const msg=`Halo *${o.penerima||'Bapak/Ibu'}*! 👋\n\nTerima kasih telah memesan di *Alima Katering Batam* 🧡\n\n📋 *Konfirmasi Order ${o.no_order}*\n📦 ${o.produk}${o.paket?' · '+o.paket:''}\n👥 ${o.qty} pax\n📅 ${fd(o.tgl_kirim)}${o.jam_sampai?' · Jam '+o.jam_sampai:''}\n📍 ${o.alamat||'—'}\n💰 Total: *Rp ${(o.jumlah_total||0).toLocaleString('id-ID')}*\n\nTim kami akan segera konfirmasi.\nSalam, *Alima Katering* 🍱`;
+  // Cari gender dari CUSTOMERS
+  const cust = CUSTOMERS.find(c => c.id === o.customer_id);
+  const gender = cust?.gender || '';
+  const sapaMap = {'bu':'Bu','bp.':'Bp.','bp':'Bp.','kak':'Kak','mba':'Mba'};
+  const sapa = sapaMap[gender.toLowerCase()] || '';
+  const nama = o.penerima || 'Bapak/Ibu';
+  const sapaNama = sapa ? `${sapa} ${nama}` : nama;
+
+  const msg=`Halo *${sapaNama}*! 👋\n\nTerima kasih telah memesan di *Alima Katering Batam* 🧡\n\n📋 *Konfirmasi Order ${o.no_order}*\n📦 ${o.produk}${o.paket?' · '+o.paket:''}\n👥 ${o.qty} pax\n📅 ${fd(o.tgl_kirim)}${o.jam_sampai?' · Jam '+o.jam_sampai:''}\n📍 ${o.alamat||'—'}\n💰 Total: *Rp ${(o.jumlah_total||0).toLocaleString('id-ID')}*\n\nTim kami akan segera konfirmasi.\nSalam, *Alima Katering* 🍱`;
   await fPost(o.hp_penerima,msg);
 }
 async function fPost(target,message){
