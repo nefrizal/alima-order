@@ -301,7 +301,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 // ══ KONFIGURASI ══════════════════════
 const APP = {
   GAS_URL:      "https://script.google.com/macros/s/AKfycbzqS_xoX-qvkzkk8nlCq-Urgh4v4dQDmaA5v4zmjNR1yWwSw7iJSs4RfBP-pHiY0UxL/exec",
-  FONNTE_TOKEN: "o3iKrUUBhRaF2qHHqsD7",
+  FONNTE_TOKEN: "GANTI_TOKEN_FONNTE",
   WA_NOTIF:     "6285272739729"
 };
 
@@ -317,7 +317,7 @@ const DEFAULT_MENU = {
   sambal:     'Sambal terasi',
   kerupuk:    'Kerupuk udang kecil',
   buah:       'Jeruk Kotak',
-  air_mineral:'sanford 220',
+  air_mineral:'Sanford 220',
   kotak:      'Kotak warna 19x19',
 };
 
@@ -325,8 +325,11 @@ function applyDefaultMenu(){
   Object.entries(DEFAULT_MENU).forEach(([fk, val])=>{
     const sel = document.getElementById('mdyn-'+fk);
     if(!sel) return;
-    // Cari option yang cocok (case-insensitive)
-    const opt = Array.from(sel.options).find(o => o.value.toLowerCase() === val.toLowerCase());
+    const valLow = val.toLowerCase();
+    // 1. Exact match (case-insensitive)
+    let opt = Array.from(sel.options).find(o => o.value.toLowerCase() === valLow);
+    // 2. Partial match jika tidak ketemu
+    if(!opt) opt = Array.from(sel.options).find(o => o.value.toLowerCase().includes(valLow) || valLow.includes(o.value.toLowerCase()));
     if(opt) sel.value = opt.value;
   });
 }
