@@ -114,10 +114,16 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       <div class="fld"><label>No. Order</label><input id="f-no" type="text" readonly placeholder="Auto"></div>
     </div>
     <div class="g2">
-      <div class="fld"><label>Customer <span class="req">*</span></label>
-        <div style="display:flex;gap:6px;align-items:center;">
-          <select id="f-cid" onchange="onCustChange()" style="flex:1;"><option value="">⏳ Memuat…</option></select>
-          <button type="button" onclick="openCustModal()" style="background:var(--or);color:#fff;border:none;border-radius:7px;padding:9px 11px;cursor:pointer;font-size:14px;flex-shrink:0;">＋</button>
+      <div class="fld">
+        <label>Customer <span class="req">*</span></label>
+        <div style="display:flex;gap:6px;align-items:flex-start;">
+          <div style="flex:1;position:relative;">
+            <input id="f-cid-search" type="text" placeholder="Ketik nama / instansi…" autocomplete="off"
+              oninput="filterCust()" onfocus="filterCust()" onblur="setTimeout(hideCustDD,200)">
+            <input id="f-cid" type="hidden" value="">
+            <div id="cust-dd" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--or);border-radius:0 0 8px 8px;max-height:200px;overflow-y:auto;z-index:100;box-shadow:var(--sh);"></div>
+          </div>
+          <button type="button" onclick="openCustModal()" style="background:var(--or);color:#fff;border:none;border-radius:7px;padding:9px 11px;cursor:pointer;font-size:14px;flex-shrink:0;margin-top:1px;">＋</button>
         </div>
       </div>
       <div class="fld"><label>Golongan</label><input id="f-gol" type="text" readonly placeholder="Auto dari customer"></div>
@@ -442,23 +448,63 @@ async function loadCustomers(){
   }catch(e){sel.innerHTML='<option value="">⚠️ Gagal load customer</option>';}
 }
 function renderCustDD(){
-  const sel=document.getElementById('f-cid');
-  sel.innerHTML='<option value="">— Pilih Customer —</option>'+
-    CUSTOMERS.map(c=>`<option value="${c.id}" data-nama="${c.nama||''}" data-instansi="${c.nama_instansi||''}" data-hp="${c.no_hp||''}" data-gol="${c.instansi||''}" data-alamat="${(c.alamat||'').replace(/"/g,'&quot;')}">${c.nama||''}${c.nama_instansi?' — '+c.nama_instansi:''}</option>`).join('');
+  // Tidak perlu render dropdown — pakai autocomplete
+  const inp = document.getElementById('f-cid-search');
+  if(inp && inp.value === '') inp.placeholder = `Ketik nama (${CUSTOMERS.length} customer)`;
 }
-function onCustChange(){
-  const sel=document.getElementById('f-cid');
-  const opt=sel.options[sel.selectedIndex];
-  const info=document.getElementById('cust-info');
-  if(!sel.value){info.style.display='none';document.getElementById('f-gol').value='';return;}
-  document.getElementById('f-gol').value=opt.dataset.gol||'';
+
+function filterCust(){
+  const q = document.getElementById('f-cid-search').value.toLowerCase().trim();
+  const dd = document.getElementById('cust-dd');
+  // Reset hidden field jika user ketik ulang
+  document.getElementById('f-cid').value = '';
+  document.getElementById('cust-info').style.display = 'none';
+  document.getElementById('f-gol').value = '';
+
+  const filtered = q.length < 1
+    ? CUSTOMERS.slice(0, 20)  // tampilkan 20 pertama saat kosong
+    : CUSTOMERS.filter(c =>
+        (c.nama||'').toLowerCase().includes(q) ||
+        (c.nama_instansi||'').toLowerCase().includes(q) ||
+        (c.id||'').toLowerCase().includes(q)
+      ).slice(0, 20);
+
+  if(!filtered.length){
+    dd.style.display = 'none';
+    return;
+  }
+  dd.innerHTML = filtered.map(c => `
+    <div onclick="selectCust('${c.id}')"
+      style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--bdr);font-size:13px;"
+      onmouseover="this.style.background='var(--orl)'" onmouseout="this.style.background=''">
+      <strong>${c.nama||'—'}</strong>
+      ${c.nama_instansi?`<span style="color:var(--inks);font-size:11px;"> — ${c.nama_instansi}</span>`:''}
+      <br><span style="color:var(--inks);font-size:11px;">📱 ${c.no_hp||'—'} · ${c.instansi||'—'}</span>
+    </div>`).join('');
+  dd.style.display = 'block';
+}
+
+function hideCustDD(){
+  document.getElementById('cust-dd').style.display = 'none';
+}
+
+function selectCust(id){
+  const c = CUSTOMERS.find(x => x.id === id);
+  if(!c) return;
+  document.getElementById('f-cid').value = id;
+  document.getElementById('f-cid-search').value = c.nama + (c.nama_instansi?' — '+c.nama_instansi:'');
+  document.getElementById('cust-dd').style.display = 'none';
+  document.getElementById('f-gol').value = c.instansi||'';
   const pen=document.getElementById('f-pen'),fhp=document.getElementById('f-hp'),fadr=document.getElementById('f-adr');
-  if(!pen.value)pen.value=opt.dataset.nama||'';
-  if(!fhp.value)fhp.value=opt.dataset.hp||'';
-  if(!fadr.value)fadr.value=opt.dataset.alamat||'';
-  info.style.display='block';
-  info.innerHTML=`<strong>${opt.dataset.nama}</strong>${opt.dataset.instansi?' · '+opt.dataset.instansi:''}<br>📱 ${opt.dataset.hp||'—'} · ${opt.dataset.gol||'—'}<br>📍 ${opt.dataset.alamat||'—'}`;
+  if(!pen.value) pen.value = c.nama||'';
+  if(!fhp.value) fhp.value = c.no_hp||'';
+  if(!fadr.value) fadr.value = c.alamat||'';
+  const info = document.getElementById('cust-info');
+  info.style.display = 'block';
+  info.innerHTML = `<strong>${c.nama}</strong>${c.nama_instansi?' · '+c.nama_instansi:''}<br>📱 ${c.no_hp||'—'} · ${c.instansi||'—'}<br>📍 ${c.alamat||'—'}`;
 }
+
+function onCustChange(){} // tidak dipakai lagi
 function openCustModal(){
   document.getElementById('cust-modal').classList.remove('hide');
   const s=document.getElementById('f-sales')?.value||'';
@@ -480,7 +526,7 @@ async function saveNewCustomer(){
   try{
     if(!APP.GAS_URL.includes('GANTI'))await fetch(APP.GAS_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'addCustomer',data})});
     CUSTOMERS.push(data);cSet('alima_custs',CUSTOMERS);renderCustDD();
-    document.getElementById('f-cid').value=newId;onCustChange();
+    selectCust(newId);
     toast(`Customer ${nama} ditambahkan ✓`,'ok');closeCustModal();
   }catch(e){toast('Gagal: '+e.message,'err');}
   finally{btn.disabled=false;btn.textContent='💾 Simpan Customer';}
@@ -614,6 +660,7 @@ function toast(msg,type=''){const el=document.getElementById('toast');el.textCon
 function goTab(id,btn){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('on'));document.getElementById('panel-'+id).classList.add('on');btn.classList.add('on');if(id==='list'&&allOrders.length===0)loadOrders();}
 function resetForm(){
   ['f-cid','f-gol','f-produk','f-qty','f-hjual','f-fee','f-hksm','f-hmin','f-del','f-ket','f-pen','f-hp','f-adr','f-krd'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  const cs=document.getElementById('f-cid-search');if(cs)cs.value='';
   document.getElementById('f-paket').innerHTML='<option value="">— Pilih Produk dulu —</option>';
   document.getElementById('cust-info').style.display='none';
   resetMenuSelects();recalc();genNo();setDefaults();loadSalesLocal();
