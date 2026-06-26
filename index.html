@@ -665,9 +665,9 @@ function setDefaults(){
   setTimeout(loadMenuInfo, 1500);
 }
 function genNoLocal(){
-  const last = parseInt(localStorage.getItem('alima_last_no')) || 10459;
+  const last = parseInt(localStorage.getItem('alima_last_no_v2')) || 10459;
   const next = last + 1;
-  localStorage.setItem('alima_last_no', String(next));
+  localStorage.setItem('alima_last_no_v2', String(next));
   return String(next).padStart(6,'0');
 }
 
@@ -677,7 +677,7 @@ function initNoDisplay(){
   el.value = '— akan di-generate —';
   // Sync nomor terakhir dari GAS di background (tanpa increment)
   gasFetch(APP.GAS_URL + '?action=getLastNo&t=' + Date.now())
-    .then(j => { if(j.success && j.no) localStorage.setItem('alima_last_no', String(j.no)); })
+    .then(j => { if(j.success && j.no) localStorage.setItem('alima_last_no_v2', String(j.no)); })
     .catch(()=>{});
 }
 
@@ -899,7 +899,9 @@ function hideCustDD(){
 function selectCust(id){
   const c = CUSTOMERS.find(x => x.id === id);
   if(!c) return;
-  document.getElementById('f-cid').value = id;
+  // Customer ID = nomor HP customer
+  const custIdValue = c.no_hp || c.id;
+  document.getElementById('f-cid').value = custIdValue;
   document.getElementById('f-cid-search').value = c.nama + (c.nama_instansi?' — '+c.nama_instansi:'');
   document.getElementById('cust-dd').style.display = 'none';
   document.getElementById('f-gol').value = c.instansi||'';
@@ -928,8 +930,9 @@ async function saveNewCustomer(){
   const hp=document.getElementById('nc-hp').value.trim();
   if(!nama)return toast('Nama customer wajib.','err');
   if(!hp)return toast('No. HP wajib.','err');
-  const newId='C-'+Date.now().toString(36).toUpperCase();
-  const data={id:newId,sales:document.getElementById('nc-sales').value.trim(),gender:document.getElementById('nc-gender').value,nama,nama_instansi:document.getElementById('nc-instansi').value.trim(),no_hp:normalizeWA(hp),instansi:document.getElementById('nc-tipe').value,alamat:document.getElementById('nc-alamat').value.trim()};
+  const waHp = normalizeWA(hp);
+  const newId = waHp; // ID = nomor HP
+  const data={id:newId,sales:document.getElementById('nc-sales').value.trim(),gender:document.getElementById('nc-gender').value,nama,nama_instansi:document.getElementById('nc-instansi').value.trim(),no_hp:waHp,instansi:document.getElementById('nc-tipe').value,alamat:document.getElementById('nc-alamat').value.trim()};
   const btn=document.getElementById('btn-save-cust');btn.disabled=true;btn.textContent='Menyimpan…';
   try{
     if(!APP.GAS_URL.includes('GANTI'))await fetch(APP.GAS_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'addCustomer',data})});
@@ -957,7 +960,7 @@ async function submitOrder(){
     const j = await gasFetch(APP.GAS_URL + '?action=getNextNo&t=' + Date.now());
     if (j.success && j.no) {
       no = j.no;
-      localStorage.setItem('alima_last_no', String(parseInt(j.no)));
+      localStorage.setItem('alima_last_no_v2', String(parseInt(j.no)));
     } else throw new Error('GAS no error');
   } catch(e) {
     no = genNoLocal() + '-L'; // suffix -L = Local fallback, perlu dicek manual
