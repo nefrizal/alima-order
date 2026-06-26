@@ -200,17 +200,30 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     </div>
   </div>
 
-  <!-- Komposisi Menu -->
+  <!-- Komposisi Menu — INPUT TEKS, tidak perlu load dari GAS -->
   <div class="sec">
-    <div class="stitle">🥘 Komposisi Menu
-      <span id="menu-status" style="font-family:'Inter',sans-serif;font-size:10px;font-weight:500;color:var(--inks);margin-left:auto;">⏳ Memuat…</span>
-    </div>
+    <div class="stitle">🥘 Komposisi Menu</div>
     <div class="mgrid" id="menu-dynamic-grid">
-      <div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--inks);font-size:12px;">
-        <div class="sp" style="margin:0 auto 8px;"></div>Memuat pilihan menu…
-      </div>
+      <div class="fld"><label>Nasi</label><input type="text" id="mdyn-nasi" data-field="nasi" placeholder="Nasi putih"></div>
+      <div class="fld"><label>Lauk Utama</label><input type="text" id="mdyn-lauk_utama" data-field="lauk_utama" placeholder="Ayam bakar padang"></div>
+      <div class="fld"><label>Tambahan</label><input type="text" id="mdyn-tambahan" data-field="tambahan" placeholder="Orek tempe"></div>
+      <div class="fld"><label>Sayur</label><input type="text" id="mdyn-sayur" data-field="sayur" placeholder="Tumis buncis wortel"></div>
+      <div class="fld"><label>Sambal</label><input type="text" id="mdyn-sambal" data-field="sambal" placeholder="Sambal terasi"></div>
+      <div class="fld"><label>Kerupuk</label><input type="text" id="mdyn-kerupuk" data-field="kerupuk" placeholder="Kerupuk udang kecil"></div>
+      <div class="fld"><label>Buah</label><input type="text" id="mdyn-buah" data-field="buah" placeholder="Jeruk Kotak"></div>
+      <div class="fld"><label>Air Mineral</label><input type="text" id="mdyn-air_mineral" data-field="air_mineral" placeholder="Sanford 220"></div>
+      <div class="fld"><label>Packaging</label><input type="text" id="mdyn-kotak" data-field="kotak" placeholder="Kotak warna 19x19"></div>
+      <div class="fld"><label>Puding</label><input type="text" id="mdyn-puding" data-field="puding" placeholder="—"></div>
+      <div class="fld"><label>Minuman</label><input type="text" id="mdyn-minuman" data-field="minuman" placeholder="—"></div>
+      <div class="fld"><label>Snack</label><input type="text" id="mdyn-snack" data-field="snack" placeholder="—"></div>
     </div>
-    <div class="mgrid" style="margin-top:8px;" id="pilihan-lain-grid"></div>
+    <div class="mgrid" style="margin-top:8px;" id="pilihan-lain-grid">
+      <div class="fld"><label>Pilihan 1</label><input type="text" id="mdyn-lain1" data-field="lain1" placeholder="—"></div>
+      <div class="fld"><label>Pilihan 2</label><input type="text" id="mdyn-lain2" data-field="lain2" placeholder="—"></div>
+      <div class="fld"><label>Pilihan 3</label><input type="text" id="mdyn-lain3" data-field="lain3" placeholder="—"></div>
+      <div class="fld"><label>Pilihan 4</label><input type="text" id="mdyn-lain4" data-field="lain4" placeholder="—"></div>
+      <div class="fld"><label>Pilihan 5</label><input type="text" id="mdyn-lain5" data-field="lain5" placeholder="—"></div>
+    </div>
     <div class="fld" style="margin-top:10px;">
       <label>Keterangan</label>
       <textarea id="f-ket" placeholder="Catatan khusus, alergi, permintaan dsb…"></textarea>
@@ -301,7 +314,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 // ══ KONFIGURASI ══════════════════════
 const APP = {
   GAS_URL:      "https://script.google.com/macros/s/AKfycbzqS_xoX-qvkzkk8nlCq-Urgh4v4dQDmaA5v4zmjNR1yWwSw7iJSs4RfBP-pHiY0UxL/exec",
-  FONNTE_TOKEN: "GANTI_TOKEN_FONNTE",
+  FONNTE_TOKEN: "o3iKrUUBhRaF2qHHqsD7",
   WA_NOTIF:     "6285272739729"
 };
 
@@ -323,14 +336,8 @@ const DEFAULT_MENU = {
 
 function applyDefaultMenu(){
   Object.entries(DEFAULT_MENU).forEach(([fk, val])=>{
-    const sel = document.getElementById('mdyn-'+fk);
-    if(!sel) return;
-    const valLow = val.toLowerCase();
-    // 1. Exact match (case-insensitive)
-    let opt = Array.from(sel.options).find(o => o.value.toLowerCase() === valLow);
-    // 2. Partial match jika tidak ketemu
-    if(!opt) opt = Array.from(sel.options).find(o => o.value.toLowerCase().includes(valLow) || valLow.includes(o.value.toLowerCase()));
-    if(opt) sel.value = opt.value;
+    const el = document.getElementById('mdyn-'+fk);
+    if(el && !el.value) el.value = val;
   });
 }
   'nasi':'nasi','lauk utama':'lauk_utama','tambahan':'tambahan',
@@ -372,8 +379,8 @@ function updateMenuHints() {
     'lain4':'pilihan lain 4','lain5':'pilihan lain 5',
     'puding':'puding','snack':'snack','minuman':'minuman'
   };
-  document.querySelectorAll('select[data-field]').forEach(sel => {
-    const field  = sel.dataset.field;
+  document.querySelectorAll('[data-field]').forEach(el => {
+    const field  = el.dataset.field;
     const colKey = colMap[field] || field;
     const info   = menuInfoData[colKey];
     const hintEl = document.getElementById('hint-' + field);
@@ -665,6 +672,7 @@ function cGet(k){try{const r=JSON.parse(localStorage.getItem(k));return r&&Date.
 // ══ INIT ══════════════════════════════
 document.addEventListener('DOMContentLoaded',()=>{
   setDefaults(); initNoDisplay(); loadSalesLocal();
+  applyDefaultMenu();
   loadMasterFromGAS();
   loadCustomers();
   checkConn();
@@ -733,38 +741,23 @@ async function gasFetch(url){
   return JSON.parse(text);
 }
 
-// ══ MASTER (Paket + Menu) ═════════════
+// ══ MASTER (hanya Paket) ══════════════
 async function loadMasterFromGAS(){
-  const stat=document.getElementById('menu-status');
-  // Cache dulu — instant
-  const cached=cGet('alima_master');
-  if(cached){
-    if(cached.paket){PAKET_DATA=cached.paket;renderProdukDropdown();}
-    if(cached.menu){MENU_DATA=cached.menu;renderMenuGrid(cached.menu);}
-    stat.textContent=`✓ ${Object.keys(cached.menu||{}).length} komponen`;
-    // Refresh di background
-    gasFetch(APP.GAS_URL+'?action=getMaster&t='+Date.now())
-      .then(j=>{if(j?.success){cSet('alima_master',j);if(j.paket){PAKET_DATA=j.paket;renderProdukDropdown();}if(j.menu){MENU_DATA=j.menu;renderMenuGrid(j.menu);}}})
-      .catch(()=>{});
-    return;
-  }
-  stat.textContent='⏳ Memuat…';
-  try{
-    const j=await gasFetch(APP.GAS_URL+'?action=getMaster&t='+Date.now());
-    if(j.success){
-      cSet('alima_master',j);
-      if(j.paket){PAKET_DATA=j.paket;renderProdukDropdown();}
-      if(j.menu&&Object.keys(j.menu).length){MENU_DATA=j.menu;renderMenuGrid(j.menu);stat.textContent=`✓ ${Object.keys(j.menu).length} komponen`;}
-    }
-  }catch(e){
-    stat.textContent='⚠️ Gagal';
-    // Fallback statis
-    PAKET_DATA={"nasi kotak":[{nama:"nasi kotak A",harga_default:25},{nama:"nasi kotak B",harga_default:32},{nama:"nasi kotak C",harga_default:40}],"prasmanan":[{nama:"prasmanan A",harga_default:32},{nama:"prasmanan B",harga_default:40}],"coffee break":[{nama:"coffee break",harga_default:20}]};
-    renderProdukDropdown();
-    const fb={'nasi':['Nasi Putih','Nasi Uduk','Nasi Kuning'],'lauk utama':['Ayam Bakar','Rendang','Ikan Goreng'],'sayur':['Cap Cay','Kangkung'],'sambal':['Sambal Merah','Sambal Ijo'],'packaging':['Kotak Kertas','Kotak MiCo'],'buah':['Semangka','Melon'],'air mineral':['Aqua 330','Le Minerale 330'],'kerupuk':['Kerupuk Udang'],'puding':['Puding Coklat'],'snack':['Risol','Lumpia'],'minuman':['Teh Manis']};
-    MENU_DATA=fb;renderMenuGrid(fb);
-  }
+  // Cek cache dulu
+  const cached = cGet('alima_master');
+  if(cached && cached.paket){ PAKET_DATA=cached.paket; renderProdukDropdown(); }
+  // Refresh di background
+  gasFetch(APP.GAS_URL+'?action=getMaster&t='+Date.now())
+    .then(j=>{
+      if(j?.success){
+        cSet('alima_master',j);
+        if(j.paket){PAKET_DATA=j.paket;renderProdukDropdown();}
+      }
+    }).catch(()=>{});
 }
+
+// renderMenuGrid tidak dipakai lagi — menu pakai input teks
+function renderMenuGrid(){ applyDefaultMenu(); }
 
 // ══ RENDER MENU GRID ══════════════════
 function renderMenuGrid(menuData){
@@ -810,11 +803,13 @@ function renderMenuGrid(menuData){
 
 function collectMenuValues(){
   const r={};
-  document.querySelectorAll('#menu-dynamic-grid select[data-field],#pilihan-lain-grid select[data-field]').forEach(s=>{r[s.dataset.field]=s.value||'';});
+  document.querySelectorAll('#menu-dynamic-grid [data-field],#pilihan-lain-grid [data-field]').forEach(el=>{
+    r[el.dataset.field]=el.value?.trim()||'';
+  });
   return r;
 }
 function resetMenuSelects(){
-  document.querySelectorAll('#menu-dynamic-grid select[data-field],#pilihan-lain-grid select[data-field]').forEach(s=>{s.value='';});
+  document.querySelectorAll('#menu-dynamic-grid [data-field],#pilihan-lain-grid [data-field]').forEach(el=>{el.value='';});
   applyDefaultMenu();
 }
 
