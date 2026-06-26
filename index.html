@@ -328,7 +328,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 
 <script>
 // ══ KONFIGURASI ══════════════════════
-const CFG = {
+const APP = {
   GAS_URL:      "https://script.google.com/macros/s/AKfycbzqS_xoX-qvkzkk8nlCq-Urgh4v4dQDmaA5v4zmjNR1yWwSw7iJSs4RfBP-pHiY0UxL/exec",
   FONNTE_TOKEN: "GANTI_TOKEN_FONNTE",
   WA_NOTIF:     "6285272739729",
@@ -395,7 +395,7 @@ function setDefaults() {
 
 function genNo() {
   const n = new Date();
-  document.getElementById('f-no').value = `${CFG.PREFIX}-${yy(n)}${mm(n)}${dd(n)}-${rnd()}`;
+  document.getElementById('f-no').value = `${APP.PREFIX}-${yy(n)}${mm(n)}${dd(n)}-${rnd()}`;
 }
 function yy(d){return String(d.getFullYear()).slice(-2);}
 function mm(d){return String(d.getMonth()+1).padStart(2,'0');}
@@ -483,7 +483,7 @@ async function loadMasterFromGAS() {
   stat.textContent = '⏳ Memuat…';
 
   try {
-    const json = await gasFetch(CFG.GAS_URL + '?action=getMaster&t=' + Date.now());
+    const json = await gasFetch(APP.GAS_URL + '?action=getMaster&t=' + Date.now());
     if (json.success) {
       if (json.paket) {
         PAKET_DATA = json.paket;
@@ -679,8 +679,8 @@ async function submitOrder() {
 
 // ══ SHEETS ════════════════════════════
 async function saveToSheets(data) {
-  if(CFG.GAS_URL.includes('GANTI')){ await sleep(700); return; }
-  await fetch(CFG.GAS_URL,{
+  if(APP.GAS_URL.includes('GANTI')){ await sleep(700); return; }
+  await fetch(APP.GAS_URL,{
     method:'POST', mode:'no-cors',
     headers:{'Content-Type':'application/json'},
     body: JSON.stringify({action:'addOrder',data})
@@ -690,13 +690,13 @@ async function saveToSheets(data) {
 async function loadOrders() {
   const w = document.getElementById('lw');
   w.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat…</div>';
-  if(CFG.GAS_URL.includes('GANTI')){
+  if(APP.GAS_URL.includes('GANTI')){
     await sleep(600);
     w.innerHTML='<div class="empty"><div class="eico">⚙️</div><p>GAS belum dikonfigurasi.</p></div>';
     return;
   }
   try {
-    const json = await gasFetch(CFG.GAS_URL+'?action=getOrders&t='+Date.now());
+    const json = await gasFetch(APP.GAS_URL+'?action=getOrders&t='+Date.now());
     if(json.success){ allOrders=json.data||[]; renderList(); toast(allOrders.length+' order dimuat.','ok'); }
     else throw new Error(json.message);
   } catch(e){
@@ -705,9 +705,9 @@ async function loadOrders() {
 }
 
 async function updateStatus(no, st) {
-  if(CFG.GAS_URL.includes('GANTI')){ toast('GAS belum dikonfigurasi.','err'); return; }
+  if(APP.GAS_URL.includes('GANTI')){ toast('GAS belum dikonfigurasi.','err'); return; }
   try {
-    await fetch(CFG.GAS_URL,{method:'POST',mode:'no-cors',
+    await fetch(APP.GAS_URL,{method:'POST',mode:'no-cors',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({action:'updateStatus',no_order:no,status:st})});
     const o=allOrders.find(x=>x.no_order===no); if(o) o.status=st;
@@ -756,7 +756,7 @@ function renderList() {
 
 // ══ FONNTE ════════════════════════════
 async function sendWAInternal(o) {
-  if(CFG.FONNTE_TOKEN.includes('GANTI')) return;
+  if(APP.FONNTE_TOKEN.includes('GANTI')) return;
 
   // Bangun list menu dari semua field menu yang ada nilainya
   const menuFields = {
@@ -791,11 +791,11 @@ ${o.keterangan?'\n📝 '+o.keterangan:''}
 
 _${new Date().toLocaleString('id-ID')}_`;
 
-  await fPost(CFG.WA_NOTIF, msg);
+  await fPost(APP.WA_NOTIF, msg);
 }
 
 async function sendWAKlien(o) {
-  if(CFG.FONNTE_TOKEN.includes('GANTI')) return;
+  if(APP.FONNTE_TOKEN.includes('GANTI')) return;
   const msg =
 `Halo *${o.penerima||'Bapak/Ibu'}*! 👋
 
@@ -817,7 +817,7 @@ Salam, *Alima Katering* 🍱`;
 async function fPost(target, message) {
   const res = await fetch('https://api.fonnte.com/send',{
     method:'POST',
-    headers:{'Authorization':CFG.FONNTE_TOKEN,'Content-Type':'application/x-www-form-urlencoded'},
+    headers:{'Authorization':APP.FONNTE_TOKEN,'Content-Type':'application/x-www-form-urlencoded'},
     body: new URLSearchParams({target,message})
   });
   const j = await res.json();
@@ -865,9 +865,9 @@ function resetForm(){
 }
 async function checkConn(){
   const el=document.getElementById('cst');
-  if(CFG.GAS_URL.includes('GANTI')){ el.textContent='⚠️ Belum setup'; return; }
+  if(APP.GAS_URL.includes('GANTI')){ el.textContent='⚠️ Belum setup'; return; }
   try{
-    const j = await gasFetch(CFG.GAS_URL+'?action=ping&t='+Date.now());
+    const j = await gasFetch(APP.GAS_URL+'?action=ping&t='+Date.now());
     el.textContent=j.success?'🟢':'🔴';
   }catch{ el.textContent='🔴'; }
 }
@@ -928,12 +928,12 @@ let CUSTOMERS = [];   // array dari GAS: [{id, nama, gender, nama_instansi, no_h
 // Load customers dari GAS
 async function loadCustomers() {
   const sel = document.getElementById('f-cid');
-  if (CFG.GAS_URL.includes('GANTI')) {
+  if (APP.GAS_URL.includes('GANTI')) {
     sel.innerHTML = '<option value="">— Customer (GAS belum setup) —</option>';
     return;
   }
   try {
-    const json = await gasFetch(CFG.GAS_URL + '?action=getCustomers&t=' + Date.now());
+    const json = await gasFetch(APP.GAS_URL + '?action=getCustomers&t=' + Date.now());
     if (json.success && json.data) {
       CUSTOMERS = json.data;
       renderCustDropdown();
@@ -1020,8 +1020,8 @@ async function saveNewCustomer() {
   btn.disabled = true; btn.textContent = 'Menyimpan…';
 
   try {
-    if (!CFG.GAS_URL.includes('GANTI')) {
-      await fetch(CFG.GAS_URL, {
+    if (!APP.GAS_URL.includes('GANTI')) {
+      await fetch(APP.GAS_URL, {
         method:'POST', mode:'no-cors',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ action:'addCustomer', data })
