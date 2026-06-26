@@ -103,19 +103,13 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     <div class="stitle">📝 Identitas Order</div>
     <div class="g2">
       <div class="fld">
-        <label>Bulan <span class="req">*</span></label>
-        <select id="f-bulan">
-          <option value="">— Pilih —</option>
-          <option>Januari</option><option>Februari</option><option>Maret</option>
-          <option>April</option><option>Mei</option><option>Juni</option>
-          <option>Juli</option><option>Agustus</option><option>September</option>
-          <option>Oktober</option><option>November</option><option>Desember</option>
-        </select>
+        <label>Bulan</label>
+        <input id="f-bulan" type="text" readonly placeholder="Otomatis dari tanggal kirim" style="background:#f5f0ea;color:var(--inkm);">
       </div>
       <div class="fld"><label>No. Order</label><input id="f-no" type="text" readonly placeholder="Auto"></div>
     </div>
     <div class="g2">
-      <div class="fld"><label>Tanggal Kirim <span class="req">*</span></label><input id="f-tgl" type="date" onchange="loadMenuInfo()"></div>
+      <div class="fld"><label>Tanggal Kirim <span class="req">*</span></label><input id="f-tgl" type="date" onchange="onTglChange()"></div>
       <div class="fld"><label>Jam Sampai</label><input id="f-jam" type="time"></div>
     </div>
     <div class="fld">
@@ -648,40 +642,53 @@ function cGet(k){try{const r=JSON.parse(localStorage.getItem(k));return r&&Date.
 // ══ INIT ══════════════════════════════
 document.addEventListener('DOMContentLoaded',()=>{
   setDefaults(); genNo(); loadSalesLocal();
+  // Semua data dari cache dulu (instant), GAS refresh di background
   loadMasterFromGAS();
   loadCustomers();
   checkConn();
-  // Load orders di background untuk fitur Order Mirip
-  setTimeout(()=>{ if(allOrders.length===0) loadOrders(); }, 3000);
 });
 
+const BULAN_NAMA = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+
+function onTglChange() {
+  const tgl = document.getElementById('f-tgl').value;
+  if (tgl) {
+    const d = new Date(tgl + 'T00:00:00');
+    document.getElementById('f-bulan').value = BULAN_NAMA[d.getMonth()] + ' ' + d.getFullYear();
+  }
+  loadMenuInfo();
+}
+
 function setDefaults(){
-  const d=new Date();d.setDate(d.getDate()+1);
-  document.getElementById('f-tgl').value=d.toISOString().split('T')[0];
-  const bln=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
-  document.getElementById('f-bulan').value=bln[new Date().getMonth()];
-  // Load info menu untuk tanggal default
+  const d=new Date(); d.setDate(d.getDate()+1);
+  document.getElementById('f-tgl').value = d.toISOString().split('T')[0];
+  document.getElementById('f-bulan').value = BULAN_NAMA[d.getMonth()] + ' ' + d.getFullYear();
   setTimeout(loadMenuInfo, 1500);
 }
 async function genNo(){
   const el = document.getElementById('f-no');
-  el.value = '⏳ Memuat…';
-  try {
-    const j = await gasFetch(APP.GAS_URL + '?action=getNextNo&t=' + Date.now());
-    if (j.success) { el.value = j.no; }
-    else throw new Error(j.message);
-  } catch(e) {
-    // Fallback: timestamp
-    const n=new Date();
-    el.value = String(n.getFullYear()).slice(-2)+mm(n)+dd(n)+String(Math.floor(Math.random()*900+100));
-    console.warn('genNo fallback:', e.message);
-  }
+  // Generate lokal dulu (instant) — pakai counter localStorage
+  const localNo = genNoLocal();
+  el.value = localNo;
+  // Sync dengan GAS di background — kalau dapat nomor, update
+  gasFetch(APP.GAS_URL + '?action=getNextNo&t=' + Date.now())
+    .then(j => { if(j.success && j.no) { el.value = j.no; localStorage.setItem('alima_last_no', j.no); } })
+    .catch(()=>{});
+}
+
+function genNoLocal(){
+  // Ambil nomor terakhir dari localStorage, naik 1
+  const last = parseInt(localStorage.getItem('alima_last_no')) || 10399;
+  const next = last + 1;
+  localStorage.setItem('alima_last_no', String(next));
+  return String(next).padStart(6,'0');
 }
 
 // ══ SALES LOCAL STORAGE ═══════════════
 function mm(d){return String(d.getMonth()+1).padStart(2,'0');}
 function dd(d){return String(d.getDate()).padStart(2,'0');}
 function rnd(){return String(Math.floor(Math.random()*900+100));}
+function saveSalesLocal(){
   const n=document.getElementById('f-sales')?.value||'';
   const h=document.getElementById('f-sales-hp')?.value||'';
   const t=document.getElementById('f-tim')?.value||'';
