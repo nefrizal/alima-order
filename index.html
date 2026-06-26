@@ -379,10 +379,21 @@ async function cloneOrder() {
   if (!no) { toast('Isi nomor order dulu.','err'); return; }
 
   stat.textContent = '⏳ Mencari…';
-  try {
-    const j = await gasFetch(APP.GAS_URL + '?action=getOrderByNo&no=' + encodeURIComponent(no) + '&t=' + Date.now());
-    if (!j.success) throw new Error(j.message || 'Tidak ditemukan');
-    const d = j.data;
+
+  // Cari di allOrders dulu (instant) — baru fetch GAS kalau tidak ada
+  let d = allOrders.find(o => String(o.no_order||'').trim() === no);
+
+  if (!d) {
+    try {
+      const j = await gasFetch(APP.GAS_URL + '?action=getOrderByNo&no=' + encodeURIComponent(no) + '&t=' + Date.now());
+      if (!j.success) throw new Error(j.message || 'Tidak ditemukan');
+      d = j.data;
+    } catch(e) {
+      stat.innerHTML = `❌ ${e.message}`;
+      toast(e.message,'err');
+      return;
+    }
+  }
 
     // ── Fill identitas ──
     const bln = ["januari","februari","maret","april","mei","juni","juli","agustus","september","oktober","november","desember"];
@@ -453,12 +464,8 @@ async function cloneOrder() {
       if (sel) sel.value = val;
     });
 
-    stat.innerHTML = `✅ Data dari order <strong>${no}</strong> berhasil disalin. Nomor order baru akan di-generate otomatis saat simpan.`;
-    toast('Order disalin! Edit kolom yang berbeda.','ok');
-  } catch(e) {
-    stat.innerHTML = `❌ ${e.message}`;
-    toast(e.message,'err');
-  }
+    stat.innerHTML = `✅ Data dari order <strong>${no}</strong> berhasil disalin. Edit kolom yang berbeda lalu simpan.`;
+    toast('Order disalin! ✓','ok');
 }
 
 function waitForEl(id, timeout=2000) {
@@ -644,6 +651,8 @@ document.addEventListener('DOMContentLoaded',()=>{
   loadMasterFromGAS();
   loadCustomers();
   checkConn();
+  // Load orders di background untuk fitur Order Mirip
+  setTimeout(()=>{ if(allOrders.length===0) loadOrders(); }, 3000);
 });
 
 function setDefaults(){
