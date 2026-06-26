@@ -464,7 +464,21 @@ function resetMenuSelects() {
   });
 }
 
-// ══ GAS Fetch helper (handle redirect + CORS) ══
+// ══ CACHE HELPER ══════════════════════
+const CACHE_TTL = 60 * 60 * 1000; // 1 jam
+
+function cacheSet(key, data) {
+  try { localStorage.setItem(key, JSON.stringify({data, ts: Date.now()})); } catch(e){}
+}
+function cacheGet(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const {data, ts} = JSON.parse(raw);
+    if (Date.now() - ts > CACHE_TTL) return null;
+    return data;
+  } catch(e){ return null; }
+}
 async function gasFetch(url) {
   // GAS melakukan redirect — kita ikuti redirect dan baca response
   const res = await fetch(url, {
@@ -481,33 +495,41 @@ async function gasFetch(url) {
 // ══ MASTER dari GAS ═══════════════════
 async function loadMasterFromGAS() {
   const stat = document.getElementById('menu-status');
-  stat.textContent = '⏳ Memuat…';
 
+  // Cek cache dulu
+  const cached = cacheGet('alima_master');
+  if (cached) {
+    if (cached.paket) { PAKET_DATA = cached.paket; renderProdukDropdown(); }
+    if (cached.menu)  { MENU_DATA = cached.menu; renderMenuGrid(cached.menu); }
+    stat.textContent = `✓ ${Object.keys(cached.menu||{}).length} komponen (cache)`;
+    // Refresh cache di background
+    fetchMasterFromGAS().then(json => { if(json) cacheSet('alima_master', json); });
+    return;
+  }
+
+  stat.textContent = '⏳ Memuat…';
+  const json = await fetchMasterFromGAS();
+  if (json) cacheSet('alima_master', json);
+}
+
+async function fetchMasterFromGAS() {
+  const stat = document.getElementById('menu-status');
   try {
     const json = await gasFetch(APP.GAS_URL + '?action=getMaster&t=' + Date.now());
     if (json.success) {
-      if (json.paket) {
-        PAKET_DATA = json.paket;
-        console.log('Paket loaded:', Object.keys(PAKET_DATA));
-        renderProdukDropdown();
-      } else {
-        console.warn('Paket data kosong dari GAS:', JSON.stringify(json).slice(0,200));
-      }
-      if (json.sales && json.sales.length) {
-        SALES_DATA = json.sales;
-        renderSalesDropdown();
-      }
+      if (json.paket) { PAKET_DATA = json.paket; console.log('Paket loaded:', Object.keys(PAKET_DATA)); renderProdukDropdown(); }
+      else { console.warn('Paket data kosong dari GAS:', JSON.stringify(json).slice(0,200)); }
+      if (json.sales && json.sales.length) { SALES_DATA = json.sales; renderSalesDropdown(); }
       if (json.menu && Object.keys(json.menu).length > 0) {
-        MENU_DATA = json.menu;
-        renderMenuGrid(json.menu);
-        return;
+        MENU_DATA = json.menu; renderMenuGrid(json.menu);
+        stat.textContent = `✓ ${Object.keys(json.menu).length} komponen`;
+        return json;
       }
     }
     throw new Error(json.message || 'Tidak ada data menu');
   } catch(e) {
     console.warn('loadMasterFromGAS error:', e.message);
     stat.textContent = '⚠️ ' + e.message;
-    // Fallback paket statis
     PAKET_DATA = {
       "nasi kotak":    [{nama:"nasi kotak A",harga_default:25},{nama:"nasi kotak B",harga_default:32},{nama:"nasi kotak C",harga_default:40}],
       "prasmanan":     [{nama:"prasmanan A",harga_default:32},{nama:"prasmanan B",harga_default:40},{nama:"prasmanan C",harga_default:46}],
@@ -515,44 +537,50 @@ async function loadMasterFromGAS() {
       "snack":         [{nama:"kotak 2 kue + aqua 330",harga_default:0}],
     };
     renderProdukDropdown();
-    // Fallback menu statis
     const fallback = {
-      'nasi':        ['Nasi Putih','Nasi Uduk','Nasi Kuning','Nasi Goreng','Nasi Tim'],
-      'lauk utama':  ['Ayam Bakar','Ayam Goreng Crispy','Daging Rendang','Ikan Goreng','Udang Balado','Tahu Tempe'],
-      'tambahan':    ['Telur Balado','Perkedel Kentang','Nugget','Sosis','Bakso'],
-      'sayur':       ['Cap Cay','Tumis Kangkung','Sayur Lodeh','Buncis Wortel'],
-      'sambal':      ['Sambal Merah','Sambal Ijo','Sambal Kecap'],
-      'kerupuk':     ['Kerupuk Udang','Kerupuk Putih','Emping'],
-      'buah':        ['Semangka','Melon','Pepaya','Pisang','Jeruk'],
-      'air mineral': ['Aqua 220','Aqua 330','Aqua 600','Le Minerale 330','Sanford 220','Sanford 330','Sanford 600'],
-      'packaging':   ['Kotak Kertas','Kotak MiCo','Kotak Styro','Mika Plastic','Tray Bento'],
-      'puding':      ['Puding Coklat','Puding Mangga','Puding Susu'],
-      'snack':       ['Risol','Lumpia','Donat','Pastel','Lemper'],
-      'minuman':     ['Teh Manis','Jus Jeruk','Es Teh','Infus Water','Es Kelapa Muda'],
-      'pilihan 1':   ['teh kotak 200ml','aqua 220','aqua 330','sanfor 330','sus fla','soga kue','asin','manis','chicken roll','roti morning'],
-      'pilihan 2':   ['Aqua 220','Aqua 330','Aqua 600','Le Minerale 330','Sanford 220','Sanford 330'],
-      'pilihan 3':   ['Aqua 220','Aqua 330','Aqua 600','Le Minerale 330','Sanford 220','Sanford 330'],
-      'pilihan 4':   ['Aqua 220','Aqua 330','Aqua 600','Le Minerale 330','Sanford 220','Sanford 330'],
-      'pilihan 5':   ['Aqua 220','Aqua 330','Aqua 600','Le Minerale 330','Sanford 220','Sanford 330'],
+      'nasi':['Nasi Putih','Nasi Uduk','Nasi Kuning'],'lauk utama':['Ayam Bakar','Rendang','Ikan Goreng'],
+      'sayur':['Cap Cay','Kangkung'],'sambal':['Sambal Merah','Sambal Ijo'],
+      'packaging':['Kotak Kertas','Kotak MiCo'],'buah':['Semangka','Melon'],
+      'air mineral':['Aqua 330','Le Minerale 330'],'kerupuk':['Kerupuk Udang'],
+      'puding':['Puding Coklat'],'snack':['Risol','Lumpia'],'minuman':['Teh Manis'],
     };
-    MENU_DATA = fallback;
-    renderMenuGrid(fallback);
+    MENU_DATA = fallback; renderMenuGrid(fallback);
+    return null;
   }
+}
+
+async function loadCustomers() {
+  const sel = document.getElementById('f-cid');
+  // Cek cache
+  const cached = cacheGet('alima_customers');
+  if (cached) {
+    CUSTOMERS = cached; renderCustDropdown();
+    gasFetch(APP.GAS_URL+'?action=getCustomers&t='+Date.now())
+      .then(j=>{ if(j?.success&&j.data){ CUSTOMERS=j.data; cacheSet('alima_customers',j.data); renderCustDropdown(); }}).catch(()=>{});
+    return;
+  }
+  if (APP.GAS_URL.includes('GANTI')) { sel.innerHTML='<option value="">— Customer (GAS belum setup) —</option>'; return; }
+  try {
+    const json = await gasFetch(APP.GAS_URL + '?action=getCustomers&t=' + Date.now());
+    if (json.success && json.data) { CUSTOMERS=json.data; cacheSet('alima_customers',json.data); renderCustDropdown(); }
+    else throw new Error(json.message||'Gagal');
+  } catch(e) { sel.innerHTML='<option value="">⚠️ Gagal load customer</option>'; console.warn('loadCustomers error:',e); }
 }
 
 // ══ LOAD SALES ════════════════════════
 async function loadSales() {
+  // Cek cache
+  const cached = cacheGet('alima_sales');
+  if (cached) {
+    SALES_DATA = cached; renderSalesDropdown();
+    gasFetch(APP.GAS_URL+'?action=getSales&t='+Date.now())
+      .then(j=>{ if(j?.success&&j.data){ SALES_DATA=j.data; cacheSet('alima_sales',j.data); renderSalesDropdown(); }}).catch(()=>{});
+    return;
+  }
   try {
     const json = await gasFetch(APP.GAS_URL + '?action=getSales&t=' + Date.now());
-    if (json.success && json.data) {
-      SALES_DATA = json.data;
-      renderSalesDropdown();
-    }
-  } catch(e) {
-    console.warn('loadSales error:', e.message);
-    // Fallback dari getMaster jika sudah ada
-    if (SALES_DATA.length) renderSalesDropdown();
-  }
+    if (json.success && json.data) { SALES_DATA=json.data; cacheSet('alima_sales',json.data); renderSalesDropdown(); }
+  } catch(e) { console.warn('loadSales error:', e.message); if(SALES_DATA.length) renderSalesDropdown(); }
 }
   const sel = document.getElementById('f-sales');
   if (!sel || !SALES_DATA.length) return;
