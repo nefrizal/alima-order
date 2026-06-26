@@ -175,20 +175,19 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     <div id="cust-info" style="display:none;background:var(--orl);border:1px solid #f7d4bc;border-radius:8px;padding:10px 12px;margin-top:-4px;margin-bottom:4px;font-size:12px;color:var(--inkm);line-height:1.7;">
     </div>
     <div class="g2">
+    <div class="g2">
       <div class="fld">
         <label>Nama Sales <span class="req">*</span></label>
-        <select id="f-sales">
-          <option value="">⏳ Memuat…</option>
-        </select>
+        <input id="f-sales" type="text" placeholder="Nama sales" oninput="saveSalesLocal()">
       </div>
       <div class="fld">
+        <label>HP Sales (untuk notif WA)</label>
+        <input id="f-sales-hp" type="tel" placeholder="628xxxxxxxxx" oninput="saveSalesLocal()">
+      </div>
+    </div>
+      <div class="fld">
         <label>Tim Eksekusi</label>
-        <select id="f-tim">
-          <option value="">— Pilih —</option>
-          <option>Tim A</option>
-          <option>Tim B</option>
-          <option>Tim C</option>
-        </select>
+        <input id="f-tim" type="text" placeholder="Nama tim" oninput="saveSalesLocal()">
       </div>
     </div>
   </div>
@@ -378,7 +377,7 @@ let allOrders = [];
 document.addEventListener('DOMContentLoaded', () => {
   setDefaults();
   genNo();
-  // Load semua data paralel — lebih cepat
+  loadSalesLocal(); // instant dari localStorage
   Promise.all([
     loadMasterFromGAS(),
     loadCustomers(),
@@ -580,18 +579,32 @@ async function loadSales() {
   try {
     const json = await gasFetch(APP.GAS_URL + '?action=getSales&t=' + Date.now());
     if (json.success && json.data) { SALES_DATA=json.data; cacheSet('alima_sales',json.data); renderSalesDropdown(); }
-  } catch(e) { console.warn('loadSales error:', e.message); if(SALES_DATA.length) renderSalesDropdown(); }
-}
-  const sel = document.getElementById('f-sales');
-  if (!sel || !SALES_DATA.length) return;
-  sel.innerHTML = '<option value="">— Pilih Sales —</option>' +
-    SALES_DATA.map(s => `<option value="${s.nama}" data-hp="${s.hp}">${s.nama}</option>`).join('');
+  } catch(e) { console.warn('loadSales error:', e.message); }
 }
 
+// ══ SALES LOCAL STORAGE ═══════════════
+function saveSalesLocal() {
+  const nama = document.getElementById('f-sales')?.value || '';
+  const hp   = document.getElementById('f-sales-hp')?.value || '';
+  const tim  = document.getElementById('f-tim')?.value || '';
+  if (nama) localStorage.setItem('alima_sales_nama', nama);
+  if (hp)   localStorage.setItem('alima_sales_hp', hp);
+  if (tim)  localStorage.setItem('alima_sales_tim', tim);
+}
+
+function loadSalesLocal() {
+  const nama = localStorage.getItem('alima_sales_nama') || '';
+  const hp   = localStorage.getItem('alima_sales_hp')   || '';
+  const tim  = localStorage.getItem('alima_sales_tim')  || '';
+  if (nama) { const e=document.getElementById('f-sales');    if(e) e.value=nama; }
+  if (hp)   { const e=document.getElementById('f-sales-hp'); if(e) e.value=hp; }
+  if (tim)  { const e=document.getElementById('f-tim');      if(e) e.value=tim; }
+}
+
+function renderSalesDropdown() {} // tidak dipakai lagi
+
 function getSalesHP() {
-  const sel = document.getElementById('f-sales');
-  const opt = sel?.options[sel.selectedIndex];
-  return opt?.dataset?.hp || '';
+  return document.getElementById('f-sales-hp')?.value?.trim() || '';
 }
 function renderProdukDropdown() {
   const sel = document.getElementById('f-produk');
@@ -1057,8 +1070,7 @@ function onCustChange() {
 // ══ MODAL CUSTOMER ══════════════════════
 function openCustModal() {
   document.getElementById('cust-modal').classList.remove('hide');
-  // Pre-fill sales dari form utama
-  const sales = document.getElementById('f-sales').value;
+  const sales = document.getElementById('f-sales')?.value || '';
   if (sales) document.getElementById('nc-sales').value = sales;
 }
 
