@@ -17,22 +17,17 @@
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'Inter',sans-serif;background:var(--sur);color:var(--ink);font-size:14px;line-height:1.5;}
-
 header{background:var(--or);color:#fff;padding:0 16px;display:flex;align-items:center;justify-content:space-between;height:54px;position:sticky;top:0;z-index:200;box-shadow:0 2px 10px rgba(232,96,10,.35);}
 .brand{font-family:'Playfair Display',serif;font-size:19px;font-weight:700;}
 .brand small{display:block;font-family:'Inter',sans-serif;font-size:10px;font-weight:500;opacity:.85;letter-spacing:1.5px;text-transform:uppercase;margin-top:-2px;}
 #cst{font-size:11px;opacity:.9;}
-
 .tabs{display:flex;background:var(--card);border-bottom:2px solid var(--bdr);position:sticky;top:54px;z-index:199;}
 .tbtn{flex:1;padding:11px 6px;border:none;background:transparent;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;color:var(--inks);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;transition:color .2s,border-color .2s;letter-spacing:.3px;}
 .tbtn.on{color:var(--or);border-bottom-color:var(--or);}
-
 main{max-width:760px;margin:0 auto;padding:16px 14px 80px;}
 .panel{display:none;}.panel.on{display:block;}
-
 .sec{background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:16px;margin-bottom:14px;box-shadow:var(--sh);}
 .stitle{font-family:'Playfair Display',serif;font-size:14px;font-weight:700;color:var(--ord);margin-bottom:13px;padding-bottom:9px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:7px;}
-
 .fld{margin-bottom:11px;}.fld:last-child{margin-bottom:0;}
 label{display:block;font-size:11px;font-weight:700;color:var(--inkm);margin-bottom:4px;text-transform:uppercase;letter-spacing:.6px;}
 .req{color:var(--or);}
@@ -41,96 +36,62 @@ input:focus,select:focus,textarea:focus{border-color:var(--or);background:#fff;}
 textarea{resize:vertical;min-height:60px;}
 select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239C8672' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;}
 input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
-
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
-.g4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;}
-
 .pstrip{background:var(--orl);border:1px solid #f7d4bc;border-radius:8px;padding:12px 14px;margin-top:10px;}
 .prow{display:flex;justify-content:space-between;font-size:12px;color:var(--inkm);padding:3px 0;}
 .prow.tot{font-size:15px;font-weight:700;color:var(--ord);border-top:1px solid #f7d4bc;margin-top:6px;padding-top:8px;}
-
 .mgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
 .mgrid label{font-size:10px;}
-
 .bsub{width:100%;background:var(--or);color:#fff;border:none;border-radius:var(--r);padding:14px;font-family:'Playfair Display',serif;font-size:16px;font-weight:700;cursor:pointer;transition:background .2s,transform .1s;box-shadow:0 4px 16px rgba(232,96,10,.3);margin-top:4px;}
-.bsub:hover{background:var(--ord);}
-.bsub:active{transform:scale(.98);}
-.bsub:disabled{background:var(--inks);cursor:not-allowed;box-shadow:none;}
-
+.bsub:hover{background:var(--ord);}.bsub:active{transform:scale(.98);}.bsub:disabled{background:var(--inks);cursor:not-allowed;box-shadow:none;}
 .lbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
 .lbar input,.lbar select{flex:1;min-width:110px;font-size:12px;padding:8px 10px;}
 .bico{background:var(--or);color:#fff;border:none;border-radius:7px;padding:8px 13px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;}
 .bico:hover{background:var(--ord);}
-
 .ocard{background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:14px;margin-bottom:10px;box-shadow:var(--sh);animation:fu .3s ease;}
 @keyframes fu{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .och{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;}
 .ono{font-family:'Playfair Display',serif;font-size:15px;font-weight:700;color:var(--ord);}
 .odt{font-size:11px;color:var(--inks);margin-top:1px;}
 .badge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;}
-.bb{background:var(--blul);color:var(--blu);}
-.bp{background:#FFF8E1;color:#E65100;}
-.bs{background:var(--grnl);color:var(--grn);}
-.bx{background:var(--redl);color:var(--red);}
-.obody{font-size:12px;color:var(--inkm);margin-bottom:8px;line-height:1.8;}
-.obody strong{color:var(--ink);}
+.bb{background:var(--blul);color:var(--blu);}.bp{background:#FFF8E1;color:#E65100;}
+.bs{background:var(--grnl);color:var(--grn);}.bx{background:var(--redl);color:var(--red);}
+.obody{font-size:12px;color:var(--inkm);margin-bottom:8px;line-height:1.8;}.obody strong{color:var(--ink);}
 .pills{display:flex;flex-wrap:wrap;gap:4px;margin:5px 0;}
 .pill{background:var(--orl);color:var(--ord);font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;}
 .ofoot{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--bdr);padding-top:8px;}
 .otot{font-weight:700;font-size:14px;color:var(--ord);}
 .ssel{font-size:11px;padding:5px 8px;border-radius:6px;max-width:120px;}
-
-.empty{text-align:center;padding:50px 20px;color:var(--inks);}
-.eico{font-size:36px;margin-bottom:10px;}
+.empty{text-align:center;padding:50px 20px;color:var(--inks);}.eico{font-size:36px;margin-bottom:10px;}
 .swrap{text-align:center;padding:40px;}
 .sp{width:30px;height:30px;border:3px solid var(--bdr);border-top-color:var(--or);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 10px;}
 @keyframes spin{to{transform:rotate(360deg)}}
-
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--ink);color:#fff;padding:10px 20px;border-radius:30px;font-size:12px;font-weight:600;z-index:999;transition:transform .3s cubic-bezier(.34,1.56,.64,1);white-space:nowrap;max-width:92vw;text-align:center;}
-.toast.show{transform:translateX(-50%) translateY(0);}
-.toast.ok{background:var(--grn);}
-.toast.err{background:var(--red);}
-
+.toast.show{transform:translateX(-50%) translateY(0);}.toast.ok{background:var(--grn);}.toast.err{background:var(--red);}
 .ovl{position:fixed;inset:0;background:rgba(255,251,247,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:500;gap:12px;font-size:13px;color:var(--inkm);font-weight:500;}
 .ovl.hide{display:none;}
-
 .gps-btn{font-size:11px;padding:5px 10px;border:1.5px solid var(--bdr);border-radius:6px;background:var(--sur);cursor:pointer;color:var(--inkm);margin-top:5px;}
-.gps-btn:hover{border-color:var(--or);}
-
-/* MODAL */
 .modal-bg{position:fixed;inset:0;background:rgba(26,18,8,.5);z-index:300;display:flex;align-items:flex-end;justify-content:center;}
 .modal-bg.hide{display:none;}
 .modal{background:var(--card);border-radius:16px 16px 0 0;width:100%;max-width:720px;max-height:90vh;overflow-y:auto;padding:20px 16px 32px;}
 .modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
 .modal-head h2{font-family:'Playfair Display',serif;font-size:17px;font-weight:700;color:var(--ord);}
 .modal-close{background:var(--bdr);border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:18px;color:var(--inkm);display:flex;align-items:center;justify-content:center;}
-.modal-close:hover{background:#e0d5c8;}
-
-@media(max-width:480px){
-  .g2,.g3,.g4,.mgrid{grid-template-columns:1fr;}
-  header{height:50px;}
-  .tabs{top:50px;}
-}
+.sales-hint{font-size:11px;color:var(--inks);margin-top:4px;}
+@media(max-width:480px){.g2,.g3,.mgrid{grid-template-columns:1fr;}header{height:50px;}.tabs{top:50px;}}
 </style>
 </head>
 <body>
-
 <header>
   <div class="brand">Alima Katering<small>Sales Order App</small></div>
   <div id="cst">⏳</div>
 </header>
-
 <div class="tabs">
   <button class="tbtn on" onclick="goTab('form',this)">➕ Order Baru</button>
   <button class="tbtn" onclick="goTab('list',this)">📋 Daftar Order</button>
 </div>
-
-<div class="ovl hide" id="ovl">
-  <div class="sp"></div>
-  <span id="ovl-msg">Memproses…</span>
-</div>
-
+<div class="ovl hide" id="ovl"><div class="sp"></div><span id="ovl-msg">Memproses…</span></div>
 <main>
 
 <!-- ═══ FORM ═══ -->
@@ -150,45 +111,32 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
           <option>Oktober</option><option>November</option><option>Desember</option>
         </select>
       </div>
-      <div class="fld">
-        <label>No. Order</label>
-        <input id="f-no" type="text" readonly placeholder="Auto">
-      </div>
+      <div class="fld"><label>No. Order</label><input id="f-no" type="text" readonly placeholder="Auto"></div>
     </div>
     <div class="g2">
-      <div class="fld">
-        <label>Customer <span class="req">*</span></label>
+      <div class="fld"><label>Customer <span class="req">*</span></label>
         <div style="display:flex;gap:6px;align-items:center;">
-          <select id="f-cid" onchange="onCustChange()" style="flex:1;">
-            <option value="">⏳ Memuat…</option>
-          </select>
-          <button type="button" onclick="openCustModal()" title="Tambah Customer Baru"
-            style="background:var(--or);color:#fff;border:none;border-radius:7px;padding:9px 11px;cursor:pointer;font-size:14px;white-space:nowrap;flex-shrink:0;">＋</button>
+          <select id="f-cid" onchange="onCustChange()" style="flex:1;"><option value="">⏳ Memuat…</option></select>
+          <button type="button" onclick="openCustModal()" style="background:var(--or);color:#fff;border:none;border-radius:7px;padding:9px 11px;cursor:pointer;font-size:14px;flex-shrink:0;">＋</button>
         </div>
       </div>
-      <div class="fld">
-        <label>Golongan</label>
-        <input id="f-gol" type="text" readonly placeholder="Auto dari customer">
-      </div>
+      <div class="fld"><label>Golongan</label><input id="f-gol" type="text" readonly placeholder="Auto dari customer"></div>
     </div>
-    <!-- Info customer yang dipilih -->
-    <div id="cust-info" style="display:none;background:var(--orl);border:1px solid #f7d4bc;border-radius:8px;padding:10px 12px;margin-top:-4px;margin-bottom:4px;font-size:12px;color:var(--inkm);line-height:1.7;">
-    </div>
-    <div class="g2">
+    <div id="cust-info" style="display:none;background:var(--orl);border:1px solid #f7d4bc;border-radius:8px;padding:10px 12px;margin-top:-4px;margin-bottom:4px;font-size:12px;color:var(--inkm);line-height:1.7;"></div>
     <div class="g2">
       <div class="fld">
         <label>Nama Sales <span class="req">*</span></label>
         <input id="f-sales" type="text" placeholder="Nama sales" oninput="saveSalesLocal()">
+        <div class="sales-hint">💾 Tersimpan otomatis</div>
       </div>
       <div class="fld">
-        <label>HP Sales (untuk notif WA)</label>
+        <label>HP Sales (notif WA)</label>
         <input id="f-sales-hp" type="tel" placeholder="628xxxxxxxxx" oninput="saveSalesLocal()">
       </div>
     </div>
-      <div class="fld">
-        <label>Tim Eksekusi</label>
-        <input id="f-tim" type="text" placeholder="Nama tim" oninput="saveSalesLocal()">
-      </div>
+    <div class="fld">
+      <label>Tim Eksekusi</label>
+      <input id="f-tim" type="text" placeholder="Nama tim" oninput="saveSalesLocal()">
     </div>
   </div>
 
@@ -196,46 +144,22 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   <div class="sec">
     <div class="stitle">🍱 Produk & Paket</div>
     <div class="g2">
-      <div class="fld">
-        <label>Produk <span class="req">*</span></label>
-        <select id="f-produk" onchange="onProduk()">
-          <option value="">⏳ Memuat…</option>
-        </select>
+      <div class="fld"><label>Produk <span class="req">*</span></label>
+        <select id="f-produk" onchange="onProduk()"><option value="">⏳ Memuat…</option></select>
       </div>
-      <div class="fld">
-        <label>Paket <span class="req">*</span></label>
-        <select id="f-paket" onchange="onPaket()">
-          <option value="">— Pilih Produk dulu —</option>
-        </select>
+      <div class="fld"><label>Paket <span class="req">*</span></label>
+        <select id="f-paket" onchange="onPaket()"><option value="">— Pilih Produk dulu —</option></select>
       </div>
     </div>
     <div class="g3">
-      <div class="fld">
-        <label>Qty (pax) <span class="req">*</span></label>
-        <input id="f-qty" type="number" min="1" placeholder="100" oninput="recalc()">
-      </div>
-      <div class="fld">
-        <label>Harga Jual (rb/pax) <span class="req">*</span></label>
-        <input id="f-hjual" type="number" min="0" placeholder="35" oninput="recalc()">
-      </div>
-      <div class="fld">
-        <label>Fee Broker (rb/pax)</label>
-        <input id="f-fee" type="number" min="0" placeholder="0" oninput="recalc()">
-      </div>
+      <div class="fld"><label>Qty (pax) <span class="req">*</span></label><input id="f-qty" type="number" min="1" placeholder="100" oninput="recalc()"></div>
+      <div class="fld"><label>Harga Jual (rb/pax) <span class="req">*</span></label><input id="f-hjual" type="number" min="0" placeholder="35" oninput="recalc()"></div>
+      <div class="fld"><label>Fee Broker (rb/pax)</label><input id="f-fee" type="number" min="0" placeholder="0" oninput="recalc()"></div>
     </div>
     <div class="g3">
-      <div class="fld">
-        <label>Harga untuk KSM (rb)</label>
-        <input id="f-hksm" type="number" readonly placeholder="Auto">
-      </div>
-      <div class="fld">
-        <label>Harga Jual Minimal (rb)</label>
-        <input id="f-hmin" type="number" placeholder="0">
-      </div>
-      <div class="fld">
-        <label>Delivery Charge (Rp)</label>
-        <input id="f-del" type="number" min="0" placeholder="0" oninput="recalc()">
-      </div>
+      <div class="fld"><label>Harga untuk KSM (rb)</label><input id="f-hksm" type="number" readonly placeholder="Auto"></div>
+      <div class="fld"><label>Harga Jual Minimal (rb)</label><input id="f-hmin" type="number" placeholder="0"></div>
+      <div class="fld"><label>Delivery Charge (Rp)</label><input id="f-del" type="number" min="0" placeholder="0" oninput="recalc()"></div>
     </div>
     <div class="pstrip">
       <div class="prow"><span>Jumlah (Qty × Harga KSM × 1000)</span><span id="c-jml">Rp 0</span></div>
@@ -244,21 +168,17 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     </div>
   </div>
 
-  <!-- Komposisi Menu — DINAMIS dari Google Sheets -->
+  <!-- Komposisi Menu -->
   <div class="sec">
     <div class="stitle">🥘 Komposisi Menu
       <span id="menu-status" style="font-family:'Inter',sans-serif;font-size:10px;font-weight:500;color:var(--inks);margin-left:auto;">⏳ Memuat…</span>
     </div>
-    <!-- Dropdown menu dirender JS ke sini -->
     <div class="mgrid" id="menu-dynamic-grid">
       <div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--inks);font-size:12px;">
-        <div class="sp" style="margin:0 auto 8px;"></div>
-        Memuat pilihan menu dari Google Sheets…
+        <div class="sp" style="margin:0 auto 8px;"></div>Memuat pilihan menu…
       </div>
     </div>
-    <div class="g2" style="margin-top:8px;" id="pilihan-lain-grid">
-      <!-- Dirender dinamis oleh JS seperti menu utama -->
-    </div>
+    <div class="mgrid" style="margin-top:8px;" id="pilihan-lain-grid"></div>
     <div class="fld" style="margin-top:10px;">
       <label>Keterangan</label>
       <textarea id="f-ket" placeholder="Catatan khusus, alergi, permintaan dsb…"></textarea>
@@ -269,29 +189,14 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   <div class="sec">
     <div class="stitle">🚚 Pengiriman</div>
     <div class="g2">
-      <div class="fld">
-        <label>Tanggal Kirim <span class="req">*</span></label>
-        <input id="f-tgl" type="date">
-      </div>
-      <div class="fld">
-        <label>Jam Sampai</label>
-        <input id="f-jam" type="time">
-      </div>
+      <div class="fld"><label>Tanggal Kirim <span class="req">*</span></label><input id="f-tgl" type="date"></div>
+      <div class="fld"><label>Jam Sampai</label><input id="f-jam" type="time"></div>
     </div>
     <div class="g2">
-      <div class="fld">
-        <label>Nama Penerima</label>
-        <input id="f-pen" type="text" placeholder="Nama lengkap">
-      </div>
-      <div class="fld">
-        <label>No. HP Penerima</label>
-        <input id="f-hp" type="tel" placeholder="08xxxxxxxxxx">
-      </div>
+      <div class="fld"><label>Nama Penerima</label><input id="f-pen" type="text" placeholder="Nama lengkap"></div>
+      <div class="fld"><label>No. HP Penerima</label><input id="f-hp" type="tel" placeholder="08xxxxxxxxxx"></div>
     </div>
-    <div class="fld">
-      <label>Alamat Pengiriman</label>
-      <textarea id="f-adr" placeholder="Alamat lengkap…" style="min-height:52px;"></textarea>
-    </div>
+    <div class="fld"><label>Alamat Pengiriman</label><textarea id="f-adr" placeholder="Alamat lengkap…" style="min-height:52px;"></textarea></div>
     <div class="fld">
       <label>Koordinat (opsional)</label>
       <input id="f-krd" type="text" placeholder="1.123456,104.567890">
@@ -299,9 +204,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     </div>
   </div>
 
-  <button class="bsub" id="btn-sub" onclick="submitOrder()">
-    💾 Simpan Order &amp; Kirim Notifikasi WA
-  </button>
+  <button class="bsub" id="btn-sub" onclick="submitOrder()">💾 Simpan Order &amp; Kirim Notifikasi WA</button>
 </div>
 
 <!-- ═══ LIST ═══ -->
@@ -314,13 +217,39 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     </select>
     <button class="bico" onclick="loadOrders()">↻ Refresh</button>
   </div>
-  <div id="lw">
-    <div class="empty"><div class="eico">📋</div><p>Klik Refresh untuk memuat order.</p></div>
-  </div>
+  <div id="lw"><div class="empty"><div class="eico">📋</div><p>Klik Refresh untuk memuat order.</p></div></div>
 </div>
 
 </main>
 <div class="toast" id="toast"></div>
+
+<!-- MODAL CUSTOMER -->
+<div class="modal-bg hide" id="cust-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>👤 Tambah Customer Baru</h2>
+      <button class="modal-close" onclick="closeCustModal()">×</button>
+    </div>
+    <div class="g2">
+      <div class="fld"><label>Nama <span class="req">*</span></label><input id="nc-nama" type="text" placeholder="Nama lengkap"></div>
+      <div class="fld"><label>Gender</label>
+        <select id="nc-gender"><option value="">— Pilih —</option><option value="bu">Bu</option><option value="bp.">Bp.</option><option value="kak">Kak</option><option value="mba">Mba</option></select>
+      </div>
+    </div>
+    <div class="g2">
+      <div class="fld"><label>Nama Instansi/Perusahaan</label><input id="nc-instansi" type="text" placeholder="PT / Yayasan / dll"></div>
+      <div class="fld"><label>Tipe Instansi</label>
+        <select id="nc-tipe"><option value="">— Pilih —</option><option>Pemerintah</option><option>Swasta</option><option>BUMN</option><option>Personal</option><option>NGO</option></select>
+      </div>
+    </div>
+    <div class="g2">
+      <div class="fld"><label>No. HP <span class="req">*</span></label><input id="nc-hp" type="tel" placeholder="08xxxxxxxxxx"></div>
+      <div class="fld"><label>Nama Sales</label><input id="nc-sales" type="text" placeholder="Nama sales"></div>
+    </div>
+    <div class="fld"><label>Alamat</label><textarea id="nc-alamat" placeholder="Alamat lengkap…" style="min-height:52px;"></textarea></div>
+    <button class="bsub" id="btn-save-cust" onclick="saveNewCustomer()" style="margin-top:8px;">💾 Simpan Customer</button>
+  </div>
+</div>
 
 <script>
 // ══ KONFIGURASI ══════════════════════
@@ -332,802 +261,368 @@ const APP = {
 };
 
 // ══ MASTER DATA ═══════════════════════
-// Paket fallback (dioverwrite dari GAS)
-let PAKET_DATA = {
-  "Nasi Box":       [{nama:"Paket Ekonomis",harga:22},{nama:"Paket Standar",harga:28},{nama:"Paket Premium",harga:35},{nama:"Paket VIP",harga:45}],
-  "Snack Box":      [{nama:"Paket Mini",harga:12},{nama:"Paket Reguler",harga:18},{nama:"Paket Premium",harga:25}],
-  "Prasmanan":      [{nama:"Paket 5 Menu",harga:45},{nama:"Paket 7 Menu",harga:60},{nama:"Paket 10 Menu",harga:85}],
-  "Standing Party": [{nama:"Paket Basic",harga:55},{nama:"Paket Lengkap",harga:75}],
-  "Coffee Break":   [{nama:"Paket Ringan",harga:15},{nama:"Paket Lengkap",harga:25}],
-  "Tumpeng":        [{nama:"Mini (10 org)",harga:350},{nama:"Sedang (20 org)",harga:650},{nama:"Besar (50 org)",harga:1200}]
-};
-
-// Menu dinamis: { "nasi": [...], "lauk utama": [...], ... }
-// Key = nama kolom dari sheet (lowercase), value = array pilihan
-let MENU_DATA = {};   // kosong sampai GAS load
-
-// Mapping key sheet → field name di Orders
-// Key kiri  = header kolom sheet ListMenu (lowercase)
-// Key kanan = field name yang dikirim ke GAS
+let PAKET_DATA = {};
+let MENU_DATA  = {};
+let CUSTOMERS  = [];
 const MENU_KEY_MAP = {
-  'nasi':        'nasi',
-  'lauk utama':  'lauk_utama',
-  'tambahan':    'tambahan',
-  'sayur':       'sayur',
-  'sambal':      'sambal',
-  'kerupuk':     'kerupuk',
-  'buah':        'buah',
-  'air mineral': 'air_mineral',
-  'packaging':   'kotak',
-  'kotak':       'kotak',
-  'puding':      'puding',
-  'snack':       'snack',
-  'minuman':     'minuman',
-  // Pilihan Lain — kolom L-P di ListMenu
-  'pilihan 1':   'lain1',
-  'pilihan 2':   'lain2',
-  'pilihan 3':   'lain3',
-  'pilihan 4':   'lain4',
-  'pilihan 5':   'lain5',
+  'nasi':'nasi','lauk utama':'lauk_utama','tambahan':'tambahan',
+  'sayur':'sayur','sambal':'sambal','kerupuk':'kerupuk','buah':'buah',
+  'air mineral':'air_mineral','packaging':'kotak','kotak':'kotak',
+  'puding':'puding','snack':'snack','minuman':'minuman',
+  'pilihan 1':'lain1','pilihan 2':'lain2','pilihan 3':'lain3',
+  'pilihan 4':'lain4','pilihan 5':'lain5',
 };
-
 let allOrders = [];
 
+// ══ CACHE ═════════════════════════════
+const TTL = 3600000;
+function cSet(k,v){try{localStorage.setItem(k,JSON.stringify({v,t:Date.now()}))}catch(e){}}
+function cGet(k){try{const r=JSON.parse(localStorage.getItem(k));return r&&Date.now()-r.t<TTL?r.v:null}catch(e){return null}}
+
 // ══ INIT ══════════════════════════════
-document.addEventListener('DOMContentLoaded', () => {
-  setDefaults();
-  genNo();
-  loadSalesLocal(); // instant dari localStorage
-  Promise.all([
-    loadMasterFromGAS(),
-    loadCustomers(),
-    loadSales()
-  ]);
+document.addEventListener('DOMContentLoaded',()=>{
+  setDefaults(); genNo(); loadSalesLocal();
+  loadMasterFromGAS();
+  loadCustomers();
   checkConn();
 });
 
-function setDefaults() {
-  const d = new Date(); d.setDate(d.getDate()+1);
-  document.getElementById('f-tgl').value = d.toISOString().split('T')[0];
-  const bln = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
-  document.getElementById('f-bulan').value = bln[new Date().getMonth()];
+function setDefaults(){
+  const d=new Date();d.setDate(d.getDate()+1);
+  document.getElementById('f-tgl').value=d.toISOString().split('T')[0];
+  const bln=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+  document.getElementById('f-bulan').value=bln[new Date().getMonth()];
 }
-
-function genNo() {
-  const n = new Date();
-  document.getElementById('f-no').value = `${APP.PREFIX}-${yy(n)}${mm(n)}${dd(n)}-${rnd()}`;
-}
+function genNo(){const n=new Date();document.getElementById('f-no').value=`${APP.PREFIX}-${yy(n)}${mm(n)}${dd(n)}-${rnd()}`;}
 function yy(d){return String(d.getFullYear()).slice(-2);}
 function mm(d){return String(d.getMonth()+1).padStart(2,'0');}
 function dd(d){return String(d.getDate()).padStart(2,'0');}
 function rnd(){return String(Math.floor(Math.random()*900+100));}
 
-// ══ RENDER MENU DINAMIS ═══════════════
-function renderMenuGrid(menuData) {
-  const grid = document.getElementById('menu-dynamic-grid');
-  const pGrid = document.getElementById('pilihan-lain-grid');
-  const stat = document.getElementById('menu-status');
-
-  if (!menuData || !Object.keys(menuData).length) {
-    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:16px;color:var(--inks);font-size:12px;">⚠️ Pilihan menu tidak tersedia. Periksa koneksi GAS.</div>';
-    stat.textContent = '⚠️ Gagal';
-    return;
-  }
-
-  const PILIHAN_KEYS = ['lain1','lain2','lain3','lain4','lain5'];
-  const displayed = new Set();
-  let mainHtml = '';
-  let pHtml = '';
-
-  Object.entries(menuData).forEach(([key, opts]) => {
-    const fieldKey = MENU_KEY_MAP[key] || key.replace(/\s+/g,'_');
-    // Skip duplikat field
-    if (displayed.has(fieldKey)) return;
-    displayed.add(fieldKey);
-
-    const label = key.charAt(0).toUpperCase() + key.slice(1);
-    const selId = 'mdyn-' + fieldKey;
-    const options = ['—', ...opts].map(o => `<option value="${o==='—'?'':o}">${o}</option>`).join('');
-    const html = `
-      <div class="fld">
-        <label>${label}</label>
-        <select id="${selId}" data-field="${fieldKey}">
-          ${options}
-        </select>
-      </div>`;
-
-    if (PILIHAN_KEYS.includes(fieldKey)) {
-      pHtml += html;
-    } else {
-      mainHtml += html;
-    }
-  });
-
-  grid.innerHTML  = mainHtml  || '<div style="grid-column:1/-1;color:var(--inks);font-size:12px;padding:8px;">Tidak ada menu utama.</div>';
-  pGrid.innerHTML = pHtml || '';
-  stat.textContent = `✓ ${Object.keys(menuData).length} komponen`;
+// ══ SALES LOCAL STORAGE ═══════════════
+function saveSalesLocal(){
+  const n=document.getElementById('f-sales')?.value||'';
+  const h=document.getElementById('f-sales-hp')?.value||'';
+  const t=document.getElementById('f-tim')?.value||'';
+  if(n) localStorage.setItem('alima_s_nama',n);
+  if(h) localStorage.setItem('alima_s_hp',h);
+  if(t) localStorage.setItem('alima_s_tim',t);
+}
+function loadSalesLocal(){
+  const n=localStorage.getItem('alima_s_nama')||'';
+  const h=localStorage.getItem('alima_s_hp')||'';
+  const t=localStorage.getItem('alima_s_tim')||'';
+  if(n){const e=document.getElementById('f-sales');if(e)e.value=n;}
+  if(h){const e=document.getElementById('f-sales-hp');if(e)e.value=h;}
+  if(t){const e=document.getElementById('f-tim');if(e)e.value=t;}
 }
 
-// ══ KUMPULKAN NILAI MENU DINAMIS ═══════
-function collectMenuValues() {
-  const result = {};
-  document.querySelectorAll('#menu-dynamic-grid select[data-field]').forEach(sel => {
-    result[sel.dataset.field] = sel.value || '';
-  });
-  return result;
-}
-
-function resetMenuSelects() {
-  document.querySelectorAll('#menu-dynamic-grid select[data-field]').forEach(sel => {
-    sel.value = '';
-  });
-}
-
-// ══ CACHE HELPER ══════════════════════
-const CACHE_TTL = 60 * 60 * 1000; // 1 jam
-
-function cacheSet(key, data) {
-  try { localStorage.setItem(key, JSON.stringify({data, ts: Date.now()})); } catch(e){}
-}
-function cacheGet(key) {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return null;
-    const {data, ts} = JSON.parse(raw);
-    if (Date.now() - ts > CACHE_TTL) return null;
-    return data;
-  } catch(e){ return null; }
-}
-async function gasFetch(url) {
-  // GAS melakukan redirect — kita ikuti redirect dan baca response
-  const res = await fetch(url, {
-    method: 'GET',
-    redirect: 'follow',
-    headers: { 'Content-Type': 'text/plain' }
-  });
-  const text = await res.text();
-  // Kadang GAS return HTML login page jika tidak authorized
-  if (text.trim().startsWith('<')) throw new Error('GAS return HTML - periksa deployment access');
+// ══ GAS FETCH ═════════════════════════
+async function gasFetch(url){
+  const res=await fetch(url,{method:'GET',redirect:'follow'});
+  const text=await res.text();
+  if(text.trim().startsWith('<')) throw new Error('GAS return HTML');
   return JSON.parse(text);
 }
 
-// ══ MASTER dari GAS ═══════════════════
-async function loadMasterFromGAS() {
-  const stat = document.getElementById('menu-status');
-
-  // Cek cache dulu
-  const cached = cacheGet('alima_master');
-  if (cached) {
-    if (cached.paket) { PAKET_DATA = cached.paket; renderProdukDropdown(); }
-    if (cached.menu)  { MENU_DATA = cached.menu; renderMenuGrid(cached.menu); }
-    stat.textContent = `✓ ${Object.keys(cached.menu||{}).length} komponen (cache)`;
-    // Refresh cache di background
-    fetchMasterFromGAS().then(json => { if(json) cacheSet('alima_master', json); });
+// ══ MASTER (Paket + Menu) ═════════════
+async function loadMasterFromGAS(){
+  const stat=document.getElementById('menu-status');
+  // Cache dulu — instant
+  const cached=cGet('alima_master');
+  if(cached){
+    if(cached.paket){PAKET_DATA=cached.paket;renderProdukDropdown();}
+    if(cached.menu){MENU_DATA=cached.menu;renderMenuGrid(cached.menu);}
+    stat.textContent=`✓ ${Object.keys(cached.menu||{}).length} komponen`;
+    // Refresh di background
+    gasFetch(APP.GAS_URL+'?action=getMaster&t='+Date.now())
+      .then(j=>{if(j?.success){cSet('alima_master',j);if(j.paket){PAKET_DATA=j.paket;renderProdukDropdown();}if(j.menu){MENU_DATA=j.menu;renderMenuGrid(j.menu);}}})
+      .catch(()=>{});
     return;
   }
-
-  stat.textContent = '⏳ Memuat…';
-  const json = await fetchMasterFromGAS();
-  if (json) cacheSet('alima_master', json);
-}
-
-async function fetchMasterFromGAS() {
-  const stat = document.getElementById('menu-status');
-  try {
-    const json = await gasFetch(APP.GAS_URL + '?action=getMaster&t=' + Date.now());
-    if (json.success) {
-      if (json.paket) { PAKET_DATA = json.paket; console.log('Paket loaded:', Object.keys(PAKET_DATA)); renderProdukDropdown(); }
-      else { console.warn('Paket data kosong dari GAS:', JSON.stringify(json).slice(0,200)); }
-      if (json.sales && json.sales.length) { SALES_DATA = json.sales; renderSalesDropdown(); }
-      if (json.menu && Object.keys(json.menu).length > 0) {
-        MENU_DATA = json.menu; renderMenuGrid(json.menu);
-        stat.textContent = `✓ ${Object.keys(json.menu).length} komponen`;
-        return json;
-      }
+  stat.textContent='⏳ Memuat…';
+  try{
+    const j=await gasFetch(APP.GAS_URL+'?action=getMaster&t='+Date.now());
+    if(j.success){
+      cSet('alima_master',j);
+      if(j.paket){PAKET_DATA=j.paket;renderProdukDropdown();}
+      if(j.menu&&Object.keys(j.menu).length){MENU_DATA=j.menu;renderMenuGrid(j.menu);stat.textContent=`✓ ${Object.keys(j.menu).length} komponen`;}
     }
-    throw new Error(json.message || 'Tidak ada data menu');
-  } catch(e) {
-    console.warn('loadMasterFromGAS error:', e.message);
-    stat.textContent = '⚠️ ' + e.message;
-    PAKET_DATA = {
-      "nasi kotak":    [{nama:"nasi kotak A",harga_default:25},{nama:"nasi kotak B",harga_default:32},{nama:"nasi kotak C",harga_default:40}],
-      "prasmanan":     [{nama:"prasmanan A",harga_default:32},{nama:"prasmanan B",harga_default:40},{nama:"prasmanan C",harga_default:46}],
-      "coffee break":  [{nama:"coffee break",harga_default:20}],
-      "snack":         [{nama:"kotak 2 kue + aqua 330",harga_default:0}],
-    };
+  }catch(e){
+    stat.textContent='⚠️ Gagal';
+    // Fallback statis
+    PAKET_DATA={"nasi kotak":[{nama:"nasi kotak A",harga_default:25},{nama:"nasi kotak B",harga_default:32},{nama:"nasi kotak C",harga_default:40}],"prasmanan":[{nama:"prasmanan A",harga_default:32},{nama:"prasmanan B",harga_default:40}],"coffee break":[{nama:"coffee break",harga_default:20}]};
     renderProdukDropdown();
-    const fallback = {
-      'nasi':['Nasi Putih','Nasi Uduk','Nasi Kuning'],'lauk utama':['Ayam Bakar','Rendang','Ikan Goreng'],
-      'sayur':['Cap Cay','Kangkung'],'sambal':['Sambal Merah','Sambal Ijo'],
-      'packaging':['Kotak Kertas','Kotak MiCo'],'buah':['Semangka','Melon'],
-      'air mineral':['Aqua 330','Le Minerale 330'],'kerupuk':['Kerupuk Udang'],
-      'puding':['Puding Coklat'],'snack':['Risol','Lumpia'],'minuman':['Teh Manis'],
-    };
-    MENU_DATA = fallback; renderMenuGrid(fallback);
-    return null;
+    const fb={'nasi':['Nasi Putih','Nasi Uduk','Nasi Kuning'],'lauk utama':['Ayam Bakar','Rendang','Ikan Goreng'],'sayur':['Cap Cay','Kangkung'],'sambal':['Sambal Merah','Sambal Ijo'],'packaging':['Kotak Kertas','Kotak MiCo'],'buah':['Semangka','Melon'],'air mineral':['Aqua 330','Le Minerale 330'],'kerupuk':['Kerupuk Udang'],'puding':['Puding Coklat'],'snack':['Risol','Lumpia'],'minuman':['Teh Manis']};
+    MENU_DATA=fb;renderMenuGrid(fb);
   }
 }
 
-async function loadCustomers() {
-  const sel = document.getElementById('f-cid');
-  // Cek cache
-  const cached = cacheGet('alima_customers');
-  if (cached) {
-    CUSTOMERS = cached; renderCustDropdown();
-    gasFetch(APP.GAS_URL+'?action=getCustomers&t='+Date.now())
-      .then(j=>{ if(j?.success&&j.data){ CUSTOMERS=j.data; cacheSet('alima_customers',j.data); renderCustDropdown(); }}).catch(()=>{});
+// ══ RENDER MENU GRID ══════════════════
+function renderMenuGrid(menuData){
+  const grid=document.getElementById('menu-dynamic-grid');
+  const pGrid=document.getElementById('pilihan-lain-grid');
+  const stat=document.getElementById('menu-status');
+  if(!menuData||!Object.keys(menuData).length){
+    grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:16px;color:var(--inks);font-size:12px;">⚠️ Menu tidak tersedia</div>';
     return;
   }
-  if (APP.GAS_URL.includes('GANTI')) { sel.innerHTML='<option value="">— Customer (GAS belum setup) —</option>'; return; }
-  try {
-    const json = await gasFetch(APP.GAS_URL + '?action=getCustomers&t=' + Date.now());
-    if (json.success && json.data) { CUSTOMERS=json.data; cacheSet('alima_customers',json.data); renderCustDropdown(); }
-    else throw new Error(json.message||'Gagal');
-  } catch(e) { sel.innerHTML='<option value="">⚠️ Gagal load customer</option>'; console.warn('loadCustomers error:',e); }
+  const PLAIN=['lain1','lain2','lain3','lain4','lain5'];
+  const shown=new Set();let mHtml='',pHtml='';
+  Object.entries(menuData).forEach(([key,opts])=>{
+    const fk=MENU_KEY_MAP[key]||key.replace(/\s+/g,'_');
+    if(shown.has(fk))return;shown.add(fk);
+    const lbl=key.charAt(0).toUpperCase()+key.slice(1);
+    const sid='mdyn-'+fk;
+    const ops=['—',...opts].map(o=>`<option value="${o==='—'?'':o}">${o}</option>`).join('');
+    const html=`<div class="fld"><label>${lbl}</label><select id="${sid}" data-field="${fk}">${ops}</select></div>`;
+    if(PLAIN.includes(fk))pHtml+=html; else mHtml+=html;
+  });
+  grid.innerHTML=mHtml||'';pGrid.innerHTML=pHtml||'';
+  stat.textContent=`✓ ${Object.keys(menuData).length} komponen`;
 }
 
-// ══ LOAD SALES ════════════════════════
-async function loadSales() {
-  // Cek cache
-  const cached = cacheGet('alima_sales');
-  if (cached) {
-    SALES_DATA = cached; renderSalesDropdown();
-    gasFetch(APP.GAS_URL+'?action=getSales&t='+Date.now())
-      .then(j=>{ if(j?.success&&j.data){ SALES_DATA=j.data; cacheSet('alima_sales',j.data); renderSalesDropdown(); }}).catch(()=>{});
-    return;
-  }
-  try {
-    const json = await gasFetch(APP.GAS_URL + '?action=getSales&t=' + Date.now());
-    if (json.success && json.data) { SALES_DATA=json.data; cacheSet('alima_sales',json.data); renderSalesDropdown(); }
-  } catch(e) { console.warn('loadSales error:', e.message); }
+function collectMenuValues(){
+  const r={};
+  document.querySelectorAll('#menu-dynamic-grid select[data-field],#pilihan-lain-grid select[data-field]').forEach(s=>{r[s.dataset.field]=s.value||'';});
+  return r;
+}
+function resetMenuSelects(){
+  document.querySelectorAll('#menu-dynamic-grid select[data-field],#pilihan-lain-grid select[data-field]').forEach(s=>{s.value='';});
 }
 
-// ══ SALES LOCAL STORAGE ═══════════════
-function saveSalesLocal() {
-  const nama = document.getElementById('f-sales')?.value || '';
-  const hp   = document.getElementById('f-sales-hp')?.value || '';
-  const tim  = document.getElementById('f-tim')?.value || '';
-  if (nama) localStorage.setItem('alima_sales_nama', nama);
-  if (hp)   localStorage.setItem('alima_sales_hp', hp);
-  if (tim)  localStorage.setItem('alima_sales_tim', tim);
+// ══ PRODUK → PAKET ════════════════════
+function renderProdukDropdown(){
+  const sel=document.getElementById('f-produk');
+  if(!sel)return;
+  const keys=Object.keys(PAKET_DATA);
+  if(!keys.length)return;
+  sel.innerHTML='<option value="">— Pilih Produk —</option>'+keys.map(k=>`<option value="${k}">${k.charAt(0).toUpperCase()+k.slice(1)}</option>`).join('');
 }
-
-function loadSalesLocal() {
-  const nama = localStorage.getItem('alima_sales_nama') || '';
-  const hp   = localStorage.getItem('alima_sales_hp')   || '';
-  const tim  = localStorage.getItem('alima_sales_tim')  || '';
-  if (nama) { const e=document.getElementById('f-sales');    if(e) e.value=nama; }
-  if (hp)   { const e=document.getElementById('f-sales-hp'); if(e) e.value=hp; }
-  if (tim)  { const e=document.getElementById('f-tim');      if(e) e.value=tim; }
+function onProduk(){
+  const produk=document.getElementById('f-produk').value;
+  const psel=document.getElementById('f-paket');
+  if(!produk){psel.innerHTML='<option value="">— Pilih Produk dulu —</option>';return;}
+  const list=PAKET_DATA[produk]||[];
+  psel.innerHTML='<option value="">— Pilih Paket —</option>'+list.map(p=>`<option value="${p.nama}" data-h="${p.harga_default||0}">${p.nama}${p.harga_default?' — Rp '+p.harga_default+'rb/pax':''}</option>`).join('');
 }
-
-function renderSalesDropdown() {} // tidak dipakai lagi
-
-function getSalesHP() {
-  return document.getElementById('f-sales-hp')?.value?.trim() || '';
-}
-function renderProdukDropdown() {
-  const sel = document.getElementById('f-produk');
-  if (!sel) return;
-  const keys = Object.keys(PAKET_DATA);
-  if (!keys.length) return;
-  sel.innerHTML = '<option value="">— Pilih Produk —</option>' +
-    keys.map(k => {
-      const label = k.charAt(0).toUpperCase() + k.slice(1);
-      return `<option value="${k}">${label}</option>`;
-    }).join('');
-  console.log('Produk dropdown rendered:', keys.length, 'items');
-}
-
-function onProduk() {
-  const produk = document.getElementById('f-produk').value.toLowerCase();
-  const psel   = document.getElementById('f-paket');
-  if (!produk) { psel.innerHTML='<option value="">— Pilih Produk dulu —</option>'; return; }
-  const list = PAKET_DATA[produk] || PAKET_DATA[Object.keys(PAKET_DATA).find(k=>k.toLowerCase()===produk)] || [];
-  if (!list.length) {
-    psel.innerHTML = '<option value="">— Tidak ada paket —</option>';
-    return;
-  }
-  psel.innerHTML = '<option value="">— Pilih Paket —</option>' +
-    list.map(p => `<option value="${p.nama}" data-h="${p.harga_default||0}">${p.nama}${p.harga_default?' — Rp '+p.harga_default+'rb/pax':''}</option>`).join('');
-}
-
-function onPaket() {
-  const sel = document.getElementById('f-paket');
-  const h   = sel.options[sel.selectedIndex]?.dataset?.h;
-  if(h){ document.getElementById('f-hjual').value = h; recalc(); }
+function onPaket(){
+  const sel=document.getElementById('f-paket');
+  const h=sel.options[sel.selectedIndex]?.dataset?.h;
+  if(h){document.getElementById('f-hjual').value=h;recalc();}
 }
 
 // ══ RECALC ════════════════════════════
-function recalc() {
-  const qty  = parseFloat(document.getElementById('f-qty').value)||0;
-  const hjl  = parseFloat(document.getElementById('f-hjual').value)||0;
-  const fee  = parseFloat(document.getElementById('f-fee').value)||0;
-  const del  = parseFloat(document.getElementById('f-del').value)||0;
-  const hksm = Math.max(0,hjl-fee);
-  document.getElementById('f-hksm').value = hksm||'';
-  const jml  = qty*hksm*1000;
-  const tot  = jml+del;
-  document.getElementById('c-jml').textContent = 'Rp '+jml.toLocaleString('id-ID');
-  document.getElementById('c-del').textContent = 'Rp '+del.toLocaleString('id-ID');
-  document.getElementById('c-tot').textContent = 'Rp '+tot.toLocaleString('id-ID');
-  return {jml,tot,hksm};
+function recalc(){
+  const qty=parseFloat(document.getElementById('f-qty').value)||0;
+  const hjl=parseFloat(document.getElementById('f-hjual').value)||0;
+  const fee=parseFloat(document.getElementById('f-fee').value)||0;
+  const del=parseFloat(document.getElementById('f-del').value)||0;
+  const hksm=Math.max(0,hjl-fee);
+  document.getElementById('f-hksm').value=hksm||'';
+  const jml=qty*hksm*1000,tot=jml+del;
+  document.getElementById('c-jml').textContent='Rp '+jml.toLocaleString('id-ID');
+  document.getElementById('c-del').textContent='Rp '+del.toLocaleString('id-ID');
+  document.getElementById('c-tot').textContent='Rp '+tot.toLocaleString('id-ID');
+  return{jml,tot,hksm};
+}
+
+// ══ CUSTOMER ══════════════════════════
+async function loadCustomers(){
+  const sel=document.getElementById('f-cid');
+  const cached=cGet('alima_custs');
+  if(cached){CUSTOMERS=cached;renderCustDD();
+    gasFetch(APP.GAS_URL+'?action=getCustomers&t='+Date.now()).then(j=>{if(j?.success&&j.data){CUSTOMERS=j.data;cSet('alima_custs',j.data);renderCustDD();}}).catch(()=>{});
+    return;
+  }
+  try{
+    const j=await gasFetch(APP.GAS_URL+'?action=getCustomers&t='+Date.now());
+    if(j.success&&j.data){CUSTOMERS=j.data;cSet('alima_custs',j.data);renderCustDD();}
+    else throw new Error();
+  }catch(e){sel.innerHTML='<option value="">⚠️ Gagal load customer</option>';}
+}
+function renderCustDD(){
+  const sel=document.getElementById('f-cid');
+  sel.innerHTML='<option value="">— Pilih Customer —</option>'+
+    CUSTOMERS.map(c=>`<option value="${c.id}" data-nama="${c.nama||''}" data-instansi="${c.nama_instansi||''}" data-hp="${c.no_hp||''}" data-gol="${c.instansi||''}" data-alamat="${(c.alamat||'').replace(/"/g,'&quot;')}">${c.nama||''}${c.nama_instansi?' — '+c.nama_instansi:''}</option>`).join('');
+}
+function onCustChange(){
+  const sel=document.getElementById('f-cid');
+  const opt=sel.options[sel.selectedIndex];
+  const info=document.getElementById('cust-info');
+  if(!sel.value){info.style.display='none';document.getElementById('f-gol').value='';return;}
+  document.getElementById('f-gol').value=opt.dataset.gol||'';
+  const pen=document.getElementById('f-pen'),fhp=document.getElementById('f-hp'),fadr=document.getElementById('f-adr');
+  if(!pen.value)pen.value=opt.dataset.nama||'';
+  if(!fhp.value)fhp.value=opt.dataset.hp||'';
+  if(!fadr.value)fadr.value=opt.dataset.alamat||'';
+  info.style.display='block';
+  info.innerHTML=`<strong>${opt.dataset.nama}</strong>${opt.dataset.instansi?' · '+opt.dataset.instansi:''}<br>📱 ${opt.dataset.hp||'—'} · ${opt.dataset.gol||'—'}<br>📍 ${opt.dataset.alamat||'—'}`;
+}
+function openCustModal(){
+  document.getElementById('cust-modal').classList.remove('hide');
+  const s=document.getElementById('f-sales')?.value||'';
+  if(s)document.getElementById('nc-sales').value=s;
+}
+function closeCustModal(){
+  document.getElementById('cust-modal').classList.add('hide');
+  ['nc-nama','nc-instansi','nc-hp','nc-sales','nc-alamat'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  document.getElementById('nc-gender').value='';document.getElementById('nc-tipe').value='';
+}
+async function saveNewCustomer(){
+  const nama=document.getElementById('nc-nama').value.trim();
+  const hp=document.getElementById('nc-hp').value.trim();
+  if(!nama)return toast('Nama customer wajib.','err');
+  if(!hp)return toast('No. HP wajib.','err');
+  const newId='C-'+Date.now().toString(36).toUpperCase();
+  const data={id:newId,sales:document.getElementById('nc-sales').value.trim(),gender:document.getElementById('nc-gender').value,nama,nama_instansi:document.getElementById('nc-instansi').value.trim(),no_hp:normalizeWA(hp),instansi:document.getElementById('nc-tipe').value,alamat:document.getElementById('nc-alamat').value.trim()};
+  const btn=document.getElementById('btn-save-cust');btn.disabled=true;btn.textContent='Menyimpan…';
+  try{
+    if(!APP.GAS_URL.includes('GANTI'))await fetch(APP.GAS_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'addCustomer',data})});
+    CUSTOMERS.push(data);cSet('alima_custs',CUSTOMERS);renderCustDD();
+    document.getElementById('f-cid').value=newId;onCustChange();
+    toast(`Customer ${nama} ditambahkan ✓`,'ok');closeCustModal();
+  }catch(e){toast('Gagal: '+e.message,'err');}
+  finally{btn.disabled=false;btn.textContent='💾 Simpan Customer';}
 }
 
 // ══ GPS ═══════════════════════════════
-function getGPS() {
-  if(!navigator.geolocation) return toast('GPS tidak tersedia.','err');
-  navigator.geolocation.getCurrentPosition(
-    p=>{ document.getElementById('f-krd').value=`${p.coords.latitude.toFixed(6)},${p.coords.longitude.toFixed(6)}`; toast('Koordinat didapat ✓','ok'); },
-    ()=>toast('Tidak bisa akses GPS.','err')
-  );
+function getGPS(){
+  if(!navigator.geolocation)return toast('GPS tidak tersedia.','err');
+  navigator.geolocation.getCurrentPosition(p=>{document.getElementById('f-krd').value=`${p.coords.latitude.toFixed(6)},${p.coords.longitude.toFixed(6)}`;toast('Koordinat didapat ✓','ok');},()=>toast('Tidak bisa akses GPS.','err'));
 }
 
 // ══ SUBMIT ════════════════════════════
-async function submitOrder() {
-  const {jml,tot,hksm} = recalc();
-  const no = document.getElementById('f-no').value;
-
-  const menu = collectMenuValues(); // dari dropdown dinamis
-
-  const d = {
-    no_order:    no,
-    bulan:       document.getElementById('f-bulan').value,
-    customer_id: document.getElementById('f-cid').value.trim(),
-    golongan:    document.getElementById('f-gol').value,
-    sales:       document.getElementById('f-sales').value,
-    tim:         document.getElementById('f-tim').value,
-    produk:      document.getElementById('f-produk').value,
-    paket:       document.getElementById('f-paket').value,
-    qty:         parseFloat(document.getElementById('f-qty').value)||0,
-    harga_jual:  parseFloat(document.getElementById('f-hjual').value)||0,
-    fee_broker:  parseFloat(document.getElementById('f-fee').value)||0,
-    harga_ksm:   hksm,
-    harga_min:   parseFloat(document.getElementById('f-hmin').value)||0,
-    jumlah:      jml,
-    delivery:    parseFloat(document.getElementById('f-del').value)||0,
-    jumlah_total:tot,
-    keterangan:  document.getElementById('f-ket').value.trim(),
-    // Komponen menu dari grid dinamis (termasuk pilihan lain 1-5)
-    nasi:        menu.nasi        || '',
-    lauk_utama:  menu.lauk_utama  || '',
-    tambahan:    menu.tambahan    || '',
-    sayur:       menu.sayur       || '',
-    sambal:      menu.sambal      || '',
-    kerupuk:     menu.kerupuk     || '',
-    buah:        menu.buah        || '',
-    air_mineral: menu.air_mineral || '',
-    kotak:       menu.kotak       || '',
-    puding:      menu.puding      || '',
-    snack:       menu.snack       || '',
-    minuman:     menu.minuman     || '',
-    lain1:       menu.lain1       || '',
-    lain2:       menu.lain2       || '',
-    lain3:       menu.lain3       || '',
-    lain4:       menu.lain4       || '',
-    lain5:       menu.lain5       || '',
-    tgl_kirim:   document.getElementById('f-tgl').value,
-    jam_sampai:  document.getElementById('f-jam').value,
-    penerima:    document.getElementById('f-pen').value.trim(),
-    hp_penerima: normalizeWA(document.getElementById('f-hp').value.trim()),
-    alamat:      document.getElementById('f-adr').value.trim(),
-    koordinat:   document.getElementById('f-krd').value.trim(),
-    status:      'Baru',
-    timestamp:   new Date().toISOString()
+async function submitOrder(){
+  const{jml,tot,hksm}=recalc();
+  const no=document.getElementById('f-no').value;
+  const menu=collectMenuValues();
+  const d={
+    no_order:no,bulan:document.getElementById('f-bulan').value,
+    customer_id:document.getElementById('f-cid').value,golongan:document.getElementById('f-gol').value,
+    sales:document.getElementById('f-sales').value.trim(),tim:document.getElementById('f-tim').value.trim(),
+    produk:document.getElementById('f-produk').value,paket:document.getElementById('f-paket').value,
+    qty:parseFloat(document.getElementById('f-qty').value)||0,
+    harga_jual:parseFloat(document.getElementById('f-hjual').value)||0,
+    fee_broker:parseFloat(document.getElementById('f-fee').value)||0,
+    harga_ksm:hksm,harga_min:parseFloat(document.getElementById('f-hmin').value)||0,
+    jumlah:jml,delivery:parseFloat(document.getElementById('f-del').value)||0,jumlah_total:tot,
+    keterangan:document.getElementById('f-ket').value.trim(),
+    nasi:menu.nasi||'',lauk_utama:menu.lauk_utama||'',tambahan:menu.tambahan||'',
+    sayur:menu.sayur||'',sambal:menu.sambal||'',kerupuk:menu.kerupuk||'',buah:menu.buah||'',
+    air_mineral:menu.air_mineral||'',kotak:menu.kotak||'',puding:menu.puding||'',
+    snack:menu.snack||'',minuman:menu.minuman||'',
+    lain1:menu.lain1||'',lain2:menu.lain2||'',lain3:menu.lain3||'',lain4:menu.lain4||'',lain5:menu.lain5||'',
+    tgl_kirim:document.getElementById('f-tgl').value,jam_sampai:document.getElementById('f-jam').value,
+    penerima:document.getElementById('f-pen').value.trim(),
+    hp_penerima:normalizeWA(document.getElementById('f-hp').value.trim()),
+    alamat:document.getElementById('f-adr').value.trim(),koordinat:document.getElementById('f-krd').value.trim(),
+    status:'Baru',timestamp:new Date().toISOString()
   };
-
-  // Validasi
-  if(!d.bulan)       return toast('Pilih bulan.','err');
-  if(!d.sales)       return toast('Pilih nama sales.','err');
-  if(!d.produk)      return toast('Pilih produk.','err');
-  if(!d.paket)       return toast('Pilih paket.','err');
-  if(!d.qty)         return toast('Isi jumlah qty.','err');
-  if(!d.harga_jual)  return toast('Isi harga jual.','err');
-  if(!d.tgl_kirim)   return toast('Isi tanggal kirim.','err');
-
-  const btn = document.getElementById('btn-sub');
-  btn.disabled = true;
+  if(!d.bulan)return toast('Pilih bulan.','err');
+  if(!d.sales)return toast('Isi nama sales.','err');
+  if(!d.produk)return toast('Pilih produk.','err');
+  if(!d.paket)return toast('Pilih paket.','err');
+  if(!d.qty)return toast('Isi qty.','err');
+  if(!d.harga_jual)return toast('Isi harga jual.','err');
+  if(!d.tgl_kirim)return toast('Isi tanggal kirim.','err');
+  const btn=document.getElementById('btn-sub');btn.disabled=true;
   showOvl('Menyimpan ke Google Sheets…');
-
-  try {
-    await saveToSheets(d);
+  try{
+    await fetch(APP.GAS_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'addOrder',data:d})});
     updOvl('Mengirim notifikasi WhatsApp…');
     await sendWAInternal(d);
-    const salesHP = getSalesHP();
-    if (salesHP && salesHP !== APP.WA_NOTIF) await sendWASales(d, salesHP);
-    if(d.hp_penerima && d.hp_penerima.length > 8) await sendWAKlien(d);
-    hideOvl();
-    toast(`Order ${no} tersimpan! ✓`,'ok');
-    allOrders.unshift(d);
-    resetForm();
-  } catch(e) {
-    hideOvl();
-    toast('Error: '+e.message,'err');
-    console.error(e);
-  } finally {
-    btn.disabled = false;
-  }
+    const salesHP=document.getElementById('f-sales-hp')?.value?.trim()||'';
+    if(salesHP&&salesHP!==APP.WA_NOTIF)await sendWASales(d,salesHP);
+    if(d.hp_penerima&&d.hp_penerima.length>8)await sendWAKlien(d);
+    hideOvl();toast(`Order ${no} tersimpan! ✓`,'ok');
+    allOrders.unshift(d);resetForm();
+  }catch(e){hideOvl();toast('Error: '+e.message,'err');console.error(e);}
+  finally{btn.disabled=false;}
 }
 
-// ══ SHEETS ════════════════════════════
-async function saveToSheets(data) {
-  if(APP.GAS_URL.includes('GANTI')){ await sleep(700); return; }
-  await fetch(APP.GAS_URL,{
-    method:'POST', mode:'no-cors',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({action:'addOrder',data})
-  });
+// ══ LOAD / RENDER ORDERS ══════════════
+async function loadOrders(){
+  const w=document.getElementById('lw');
+  w.innerHTML='<div class="swrap"><div class="sp"></div>Memuat…</div>';
+  try{
+    const j=await gasFetch(APP.GAS_URL+'?action=getOrders&t='+Date.now());
+    if(j.success){allOrders=j.data||[];renderList();toast(allOrders.length+' order dimuat.','ok');}
+    else throw new Error(j.message);
+  }catch(e){w.innerHTML=`<div class="empty"><div class="eico">⚠️</div><p>Gagal: ${e.message}</p></div>`;}
 }
-
-async function loadOrders() {
-  const w = document.getElementById('lw');
-  w.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat…</div>';
-  if(APP.GAS_URL.includes('GANTI')){
-    await sleep(600);
-    w.innerHTML='<div class="empty"><div class="eico">⚙️</div><p>GAS belum dikonfigurasi.</p></div>';
-    return;
-  }
-  try {
-    const json = await gasFetch(APP.GAS_URL+'?action=getOrders&t='+Date.now());
-    if(json.success){ allOrders=json.data||[]; renderList(); toast(allOrders.length+' order dimuat.','ok'); }
-    else throw new Error(json.message);
-  } catch(e){
-    w.innerHTML=`<div class="empty"><div class="eico">⚠️</div><p>Gagal: ${e.message}</p></div>`;
-  }
-}
-
-async function updateStatus(no, st) {
-  if(APP.GAS_URL.includes('GANTI')){ toast('GAS belum dikonfigurasi.','err'); return; }
-  try {
-    await fetch(APP.GAS_URL,{method:'POST',mode:'no-cors',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({action:'updateStatus',no_order:no,status:st})});
-    const o=allOrders.find(x=>x.no_order===no); if(o) o.status=st;
-    renderList(); toast('Status diperbarui.','ok');
-  } catch(e){ toast('Gagal update.','err'); }
-}
-
-// ══ RENDER LIST ═══════════════════════
-function renderList() {
-  const q  = document.getElementById('s-q').value.toLowerCase();
-  const st = document.getElementById('s-st').value;
-  const f  = allOrders.filter(o=>
-    (!q||(o.no_order||'').toLowerCase().includes(q)||(o.penerima||'').toLowerCase().includes(q)||(o.customer_id||'').toLowerCase().includes(q))&&
-    (!st||o.status===st)
-  );
-  const w = document.getElementById('lw');
-  if(!f.length){ w.innerHTML='<div class="empty"><div class="eico">🔍</div><p>Tidak ada order yang cocok.</p></div>'; return; }
+function renderList(){
+  const q=document.getElementById('s-q').value.toLowerCase();
+  const st=document.getElementById('s-st').value;
+  const f=allOrders.filter(o=>(!q||(o.no_order||'').toLowerCase().includes(q)||(o.penerima||'').toLowerCase().includes(q))&&(!st||o.status===st));
+  const w=document.getElementById('lw');
+  if(!f.length){w.innerHTML='<div class="empty"><div class="eico">🔍</div><p>Tidak ada order.</p></div>';return;}
   const bc={Baru:'bb',Proses:'bp',Selesai:'bs',Batal:'bx'};
-  w.innerHTML = f.map(o=>{
-    const pls = [o.nasi,o.lauk_utama,o.tambahan,o.sayur,o.sambal]
-      .filter(x=>x&&x!=='—').map(x=>`<span class="pill">${x}</span>`).join('');
-    const tot = Number(o.jumlah_total)||0;
-    return `
-    <div class="ocard">
-      <div class="och">
-        <div><div class="ono">${o.no_order||'—'}</div>
-          <div class="odt">📅 ${fd(o.tgl_kirim)} ${o.jam_sampai?'· '+o.jam_sampai:''} · ${o.qty||0} pax</div>
-        </div>
-        <span class="badge ${bc[o.status]||'bb'}">${o.status||'Baru'}</span>
-      </div>
-      <div class="obody">
-        <strong>${o.penerima||o.customer_id||'—'}</strong> ${o.customer_id?'('+o.customer_id+')':''}<br>
-        📍 ${o.alamat||'—'}<br>
-        🍱 ${o.produk||'—'}${o.paket?' · '+o.paket:''} · Sales: ${o.sales||'—'}
-      </div>
+  w.innerHTML=f.map(o=>{
+    const pls=[o.nasi,o.lauk_utama,o.tambahan,o.sayur,o.sambal].filter(x=>x&&x!=='—').map(x=>`<span class="pill">${x}</span>`).join('');
+    const tot=Number(o.jumlah_total)||0;
+    return `<div class="ocard">
+      <div class="och"><div><div class="ono">${o.no_order||'—'}</div><div class="odt">📅 ${fd(o.tgl_kirim)} ${o.jam_sampai?'· '+o.jam_sampai:''} · ${o.qty||0} pax</div></div>
+      <span class="badge ${bc[o.status]||'bb'}">${o.status||'Baru'}</span></div>
+      <div class="obody"><strong>${o.penerima||o.customer_id||'—'}</strong><br>📍 ${o.alamat||'—'}<br>🍱 ${o.produk||'—'}${o.paket?' · '+o.paket:''} · Sales: ${o.sales||'—'}</div>
       ${pls?`<div class="pills">${pls}</div>`:''}
-      <div class="ofoot">
-        <div class="otot">Rp ${tot.toLocaleString('id-ID')}</div>
-        <select class="ssel" onchange="updateStatus('${o.no_order}',this.value)">
-          ${['Baru','Proses','Selesai','Batal'].map(s=>`<option ${o.status===s?'selected':''}>${s}</option>`).join('')}
-        </select>
-      </div>
+      <div class="ofoot"><div class="otot">Rp ${tot.toLocaleString('id-ID')}</div>
+      <select class="ssel" onchange="updStatus('${o.no_order}',this.value)">${['Baru','Proses','Selesai','Batal'].map(s=>`<option ${o.status===s?'selected':''}>${s}</option>`).join('')}</select></div>
     </div>`;
   }).join('');
 }
+async function updStatus(no,st){
+  try{
+    await fetch(APP.GAS_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'updateStatus',no_order:no,status:st})});
+    const o=allOrders.find(x=>x.no_order===no);if(o)o.status=st;renderList();toast('Status diperbarui.','ok');
+  }catch(e){toast('Gagal update.','err');}
+}
 
 // ══ FONNTE ════════════════════════════
-async function sendWAInternal(o) {
-  if(APP.FONNTE_TOKEN.includes('GANTI')) return;
-
-  // Bangun list menu dari semua field menu yang ada nilainya
-  const menuFields = {
-    'Nasi': o.nasi, 'Lauk': o.lauk_utama, 'Tambahan': o.tambahan,
-    'Sayur': o.sayur, 'Sambal': o.sambal, 'Kerupuk': o.kerupuk,
-    'Buah': o.buah, 'Air': o.air_mineral, 'Kotak/Packaging': o.kotak,
-    'Puding': o.puding, 'Snack': o.snack, 'Minuman': o.minuman,
-    'Lain-1': o.lain1, 'Lain-2': o.lain2
-  };
-  const menuList = Object.entries(menuFields)
-    .filter(([,v]) => v && v !== '—')
-    .map(([k,v]) => `  ${k.padEnd(14)}: ${v}`)
-    .join('\n');
-
-  const msg =
-`🍽️ *ORDER BARU — ${o.no_order}*
-
-👤 Sales    : ${o.sales} | Tim: ${o.tim||'—'}
-🏢 Customer : ${o.penerima||'—'} ${o.customer_id?'('+o.customer_id+')':''}
-📦 ${o.produk} · ${o.paket}
-👥 ${o.qty} pax | Kirim: ${fd(o.tgl_kirim)} ${o.jam_sampai||''}
-📍 ${o.alamat||'—'}
-
-🥘 *Menu:*
-${menuList||'—'}
-${o.keterangan?'\n📝 '+o.keterangan:''}
-💰 Harga Jual : Rp ${(o.harga_jual*1000).toLocaleString('id-ID')}/pax
-   Fee Broker : Rp ${(o.fee_broker*1000).toLocaleString('id-ID')}/pax
-   Harga KSM  : Rp ${(o.harga_ksm*1000).toLocaleString('id-ID')}/pax
-📦 Delivery   : Rp ${(o.delivery||0).toLocaleString('id-ID')}
-💵 *TOTAL : Rp ${(o.jumlah_total||0).toLocaleString('id-ID')}*
-
-_${new Date().toLocaleString('id-ID')}_`;
-
-  await fPost(APP.WA_NOTIF, msg);
+async function sendWAInternal(o){
+  if(APP.FONNTE_TOKEN.includes('GANTI'))return;
+  const mf={Nasi:o.nasi,'Lauk':o.lauk_utama,'Tambahan':o.tambahan,'Sayur':o.sayur,'Sambal':o.sambal,'Kerupuk':o.kerupuk,'Buah':o.buah,'Air':o.air_mineral,'Kotak':o.kotak,'Puding':o.puding,'Snack':o.snack,'Minuman':o.minuman,'Lain-1':o.lain1,'Lain-2':o.lain2};
+  const ml=Object.entries(mf).filter(([,v])=>v&&v!=='—').map(([k,v])=>`  ${k.padEnd(10)}: ${v}`).join('\n');
+  const msg=`🍽️ *ORDER BARU — ${o.no_order}*\n\n👤 Sales    : ${o.sales} | Tim: ${o.tim||'—'}\n🏢 Customer : ${o.penerima||'—'} ${o.customer_id?'('+o.customer_id+')':''}\n📦 ${o.produk} · ${o.paket}\n👥 ${o.qty} pax | Kirim: ${fd(o.tgl_kirim)} ${o.jam_sampai||''}\n📍 ${o.alamat||'—'}\n\n🥘 *Menu:*\n${ml||'—'}\n${o.keterangan?'\n📝 '+o.keterangan:''}\n💰 Harga Jual : Rp ${(o.harga_jual*1000).toLocaleString('id-ID')}/pax\n💵 *TOTAL : Rp ${(o.jumlah_total||0).toLocaleString('id-ID')}*\n\n_${new Date().toLocaleString('id-ID')}_`;
+  await fPost(APP.WA_NOTIF,msg);
 }
-
-async function sendWAKlien(o) {
-  if(APP.FONNTE_TOKEN.includes('GANTI')) return;
-  const msg =
-`Halo *${o.penerima||'Bapak/Ibu'}*! 👋
-
-Terima kasih telah memesan di *Alima Katering Batam* 🧡
-
-📋 *Konfirmasi Order ${o.no_order}*
-📦 ${o.produk}${o.paket?' · '+o.paket:''}
-👥 ${o.qty} pax
-📅 ${fd(o.tgl_kirim)}${o.jam_sampai?' · Jam '+o.jam_sampai:''}
-📍 ${o.alamat||'—'}
-💰 Total: *Rp ${(o.jumlah_total||0).toLocaleString('id-ID')}*
-
-Tim kami akan segera konfirmasi lebih lanjut.
-Salam, *Alima Katering* 🍱`;
-
-  await fPost(o.hp_penerima, msg);
+async function sendWASales(o,hp){
+  if(APP.FONNTE_TOKEN.includes('GANTI'))return;
+  const msg=`📋 *Order Baru untuk Anda — ${o.no_order}*\n\n🏢 ${o.penerima||'—'} ${o.customer_id?'('+o.customer_id+')':''}\n📦 ${o.produk||'—'}${o.paket?' · '+o.paket:''}\n👥 ${o.qty} pax\n📅 ${fd(o.tgl_kirim)}${o.jam_sampai?' · '+o.jam_sampai:''}\n📍 ${o.alamat||'—'}\n💰 *Total: Rp ${(o.jumlah_total||0).toLocaleString('id-ID')}*\n${o.keterangan?'\n📝 '+o.keterangan:''}\n_Segera konfirmasi ke customer._`;
+  await fPost(hp,msg);
 }
-
-async function sendWASales(o, salesHP) {
-  if(APP.FONNTE_TOKEN.includes('GANTI')) return;
-  const msg =
-`📋 *Order Baru untuk Anda — ${o.no_order}*
-
-🏢 Customer : ${o.penerima||'—'} ${o.customer_id?'('+o.customer_id+')':''}
-📦 ${o.produk||'—'}${o.paket?' · '+o.paket:''}
-👥 ${o.qty} pax
-📅 ${fd(o.tgl_kirim)}${o.jam_sampai?' · '+o.jam_sampai:''}
-📍 ${o.alamat||'—'}
-💰 Total: *Rp ${(o.jumlah_total||0).toLocaleString('id-ID')}*
-${o.keterangan?'\n📝 '+o.keterangan:''}
-_Silakan segera konfirmasi ke customer._`;
-  await fPost(salesHP, msg);
+async function sendWAKlien(o){
+  if(APP.FONNTE_TOKEN.includes('GANTI'))return;
+  const msg=`Halo *${o.penerima||'Bapak/Ibu'}*! 👋\n\nTerima kasih telah memesan di *Alima Katering Batam* 🧡\n\n📋 *Konfirmasi Order ${o.no_order}*\n📦 ${o.produk}${o.paket?' · '+o.paket:''}\n👥 ${o.qty} pax\n📅 ${fd(o.tgl_kirim)}${o.jam_sampai?' · Jam '+o.jam_sampai:''}\n📍 ${o.alamat||'—'}\n💰 Total: *Rp ${(o.jumlah_total||0).toLocaleString('id-ID')}*\n\nTim kami akan segera konfirmasi.\nSalam, *Alima Katering* 🍱`;
+  await fPost(o.hp_penerima,msg);
 }
-  const res = await fetch('https://api.fonnte.com/send',{
-    method:'POST',
-    headers:{'Authorization':APP.FONNTE_TOKEN,'Content-Type':'application/x-www-form-urlencoded'},
-    body: new URLSearchParams({target,message})
-  });
-  const j = await res.json();
-  if(!j.status) throw new Error('Fonnte: '+(j.reason||'Gagal'));
+async function fPost(target,message){
+  console.log('Fonnte →',target);
+  const res=await fetch('https://api.fonnte.com/send',{method:'POST',headers:{'Authorization':APP.FONNTE_TOKEN,'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({target,message})});
+  const j=await res.json();console.log('Fonnte response:',JSON.stringify(j));
+  if(!j.status)throw new Error('Fonnte: '+(j.reason||'Gagal'));
 }
 
 // ══ HELPERS ═══════════════════════════
-function normalizeWA(wa) {
-  wa=wa.replace(/\D/g,'');
-  if(wa.startsWith('0')) wa='62'+wa.slice(1);
-  if(!wa.startsWith('62')) wa='62'+wa;
-  return wa;
-}
-function fd(d) {
-  if(!d) return '—';
-  return new Date(d+'T00:00:00').toLocaleDateString('id-ID',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
-}
-function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
-function showOvl(m){ document.getElementById('ovl-msg').textContent=m; document.getElementById('ovl').classList.remove('hide'); }
-function updOvl(m){ document.getElementById('ovl-msg').textContent=m; }
-function hideOvl(){ document.getElementById('ovl').classList.add('hide'); }
-function toast(msg,type=''){
-  const el=document.getElementById('toast');
-  el.textContent=msg; el.className='toast'+(type?' '+type:'');
-  el.classList.add('show');
-  clearTimeout(el._t);
-  el._t=setTimeout(()=>el.classList.remove('show'),3200);
-}
-function goTab(id,btn){
-  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
-  document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('on'));
-  document.getElementById('panel-'+id).classList.add('on');
-  btn.classList.add('on');
-  if(id==='list'&&allOrders.length===0) loadOrders();
-}
+function normalizeWA(wa){wa=wa.replace(/\D/g,'');if(wa.startsWith('0'))wa='62'+wa.slice(1);if(!wa.startsWith('62'))wa='62'+wa;return wa;}
+function fd(d){if(!d)return'—';return new Date(d+'T00:00:00').toLocaleDateString('id-ID',{weekday:'short',day:'numeric',month:'short',year:'numeric'});}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+function showOvl(m){document.getElementById('ovl-msg').textContent=m;document.getElementById('ovl').classList.remove('hide');}
+function updOvl(m){document.getElementById('ovl-msg').textContent=m;}
+function hideOvl(){document.getElementById('ovl').classList.add('hide');}
+function toast(msg,type=''){const el=document.getElementById('toast');el.textContent=msg;el.className='toast'+(type?' '+type:'');el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),3200);}
+function goTab(id,btn){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('on'));document.getElementById('panel-'+id).classList.add('on');btn.classList.add('on');if(id==='list'&&allOrders.length===0)loadOrders();}
 function resetForm(){
-  ['f-cid','f-gol','f-produk','f-qty','f-hjual','f-fee','f-hksm','f-hmin',
-   'f-del','f-ket','f-pen','f-hp','f-adr','f-krd'].forEach(id=>{
-    const e=document.getElementById(id); if(e) e.value='';
-  });
-  resetMenuSelects(); // reset semua dropdown menu dinamis + pilihan lain
-  document.getElementById('f-produk').value = '';
+  ['f-cid','f-gol','f-produk','f-qty','f-hjual','f-fee','f-hksm','f-hmin','f-del','f-ket','f-pen','f-hp','f-adr','f-krd'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   document.getElementById('f-paket').innerHTML='<option value="">— Pilih Produk dulu —</option>';
-  recalc(); genNo(); setDefaults();
+  document.getElementById('cust-info').style.display='none';
+  resetMenuSelects();recalc();genNo();setDefaults();loadSalesLocal();
 }
 async function checkConn(){
   const el=document.getElementById('cst');
-  if(APP.GAS_URL.includes('GANTI')){ el.textContent='⚠️ Belum setup'; return; }
-  try{
-    const j = await gasFetch(APP.GAS_URL+'?action=ping&t='+Date.now());
-    el.textContent=j.success?'🟢':'🔴';
-  }catch{ el.textContent='🔴'; }
+  try{const j=await gasFetch(APP.GAS_URL+'?action=ping&t='+Date.now());el.textContent=j.success?'🟢':'🔴';}
+  catch{el.textContent='🔴';}
 }
 </script>
-<!-- ═══ MODAL CUSTOMER BARU ═══ -->
-<div class="modal-bg hide" id="cust-modal">
-  <div class="modal">
-    <div class="modal-head">
-      <h2>👤 Tambah Customer Baru</h2>
-      <button class="modal-close" onclick="closeCustModal()">×</button>
-    </div>
-    <div class="g2">
-      <div class="fld"><label>Nama <span class="req">*</span></label>
-        <input id="nc-nama" type="text" placeholder="Nama lengkap"></div>
-      <div class="fld"><label>Gender</label>
-        <select id="nc-gender">
-          <option value="">— Pilih —</option>
-          <option value="bu">Bu</option>
-          <option value="bp.">Bp.</option>
-          <option value="kak">Kak</option>
-          <option value="mba">Mba</option>
-        </select>
-      </div>
-    </div>
-    <div class="g2">
-      <div class="fld"><label>Nama Instansi/Perusahaan</label>
-        <input id="nc-instansi" type="text" placeholder="PT / Yayasan / dll"></div>
-      <div class="fld"><label>Tipe Instansi</label>
-        <select id="nc-tipe">
-          <option value="">— Pilih —</option>
-          <option>Pemerintah</option>
-          <option>Swasta</option>
-          <option>BUMN</option>
-          <option>Personal</option>
-          <option>NGO</option>
-        </select>
-      </div>
-    </div>
-    <div class="g2">
-      <div class="fld"><label>No. HP <span class="req">*</span></label>
-        <input id="nc-hp" type="tel" placeholder="08xxxxxxxxxx"></div>
-      <div class="fld"><label>Nama Sales</label>
-        <input id="nc-sales" type="text" placeholder="Nama sales"></div>
-    </div>
-    <div class="fld"><label>Alamat</label>
-      <textarea id="nc-alamat" placeholder="Alamat lengkap…" style="min-height:52px;"></textarea>
-    </div>
-    <button class="bsub" id="btn-save-cust" onclick="saveNewCustomer()" style="margin-top:8px;">
-      💾 Simpan Customer
-    </button>
-  </div>
-</div>
-
-<script>
-// ══ CUSTOMER DATA ══════════════════════
-let CUSTOMERS = [];
-let SALES_DATA = [];  // [{nama, hp}]
-
-// Load customers dari GAS
-async function loadCustomers() {
-  const sel = document.getElementById('f-cid');
-  if (APP.GAS_URL.includes('GANTI')) {
-    sel.innerHTML = '<option value="">— Customer (GAS belum setup) —</option>';
-    return;
-  }
-  try {
-    const json = await gasFetch(APP.GAS_URL + '?action=getCustomers&t=' + Date.now());
-    if (json.success && json.data) {
-      CUSTOMERS = json.data;
-      renderCustDropdown();
-    } else throw new Error(json.message || 'Gagal');
-  } catch(e) {
-    sel.innerHTML = '<option value="">⚠️ Gagal load customer</option>';
-    console.warn('loadCustomers error:', e);
-  }
-}
-
-function renderCustDropdown() {
-  const sel = document.getElementById('f-cid');
-  sel.innerHTML = '<option value="">— Pilih Customer —</option>' +
-    CUSTOMERS.map(c =>
-      `<option value="${c.id}" data-nama="${c.nama||''}" data-instansi="${c.nama_instansi||''}" data-hp="${c.no_hp||''}" data-gol="${c.instansi||''}" data-alamat="${(c.alamat||'').replace(/"/g,'&quot;')}">`+
-      `${c.nama||''}${c.nama_instansi?' — '+c.nama_instansi:''}</option>`
-    ).join('');
-}
-
-function onCustChange() {
-  const sel = document.getElementById('f-cid');
-  const opt = sel.options[sel.selectedIndex];
-  const info = document.getElementById('cust-info');
-
-  if (!sel.value) { info.style.display='none'; document.getElementById('f-gol').value=''; return; }
-
-  const nama     = opt.dataset.nama     || '';
-  const instansi = opt.dataset.instansi || '';
-  const hp       = opt.dataset.hp       || '';
-  const gol      = opt.dataset.gol      || '';
-  const alamat   = opt.dataset.alamat   || '';
-
-  document.getElementById('f-gol').value = gol;
-
-  // Auto-fill nama penerima & HP & alamat jika belum diisi
-  const pen = document.getElementById('f-pen');
-  const fhp = document.getElementById('f-hp');
-  const fadr = document.getElementById('f-adr');
-  if (!pen.value)  pen.value  = nama;
-  if (!fhp.value)  fhp.value  = hp;
-  if (!fadr.value) fadr.value = alamat;
-
-  info.style.display = 'block';
-  info.innerHTML = `<strong>${nama}</strong>${instansi?' · '+instansi:''}<br>📱 ${hp||'—'} · ${gol||'—'}<br>📍 ${alamat||'—'}`;
-}
-
-// ══ MODAL CUSTOMER ══════════════════════
-function openCustModal() {
-  document.getElementById('cust-modal').classList.remove('hide');
-  const sales = document.getElementById('f-sales')?.value || '';
-  if (sales) document.getElementById('nc-sales').value = sales;
-}
-
-function closeCustModal() {
-  document.getElementById('cust-modal').classList.add('hide');
-  // Reset form modal
-  ['nc-nama','nc-instansi','nc-hp','nc-sales','nc-alamat'].forEach(id=>{
-    const e=document.getElementById(id); if(e) e.value='';
-  });
-  document.getElementById('nc-gender').value = '';
-  document.getElementById('nc-tipe').value = '';
-}
-
-async function saveNewCustomer() {
-  const nama = document.getElementById('nc-nama').value.trim();
-  const hp   = document.getElementById('nc-hp').value.trim();
-  if (!nama) return toast('Nama customer wajib diisi.','err');
-  if (!hp)   return toast('No. HP wajib diisi.','err');
-
-  const newId = 'C-' + Date.now().toString(36).toUpperCase();
-  const data = {
-    id:           newId,
-    sales:        document.getElementById('nc-sales').value.trim(),
-    gender:       document.getElementById('nc-gender').value,
-    nama,
-    nama_instansi:document.getElementById('nc-instansi').value.trim(),
-    no_hp:        normalizeWA(hp),
-    instansi:     document.getElementById('nc-tipe').value,
-    alamat:       document.getElementById('nc-alamat').value.trim(),
-  };
-
-  const btn = document.getElementById('btn-save-cust');
-  btn.disabled = true; btn.textContent = 'Menyimpan…';
-
-  try {
-    if (!APP.GAS_URL.includes('GANTI')) {
-      await fetch(APP.GAS_URL, {
-        method:'POST', mode:'no-cors',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ action:'addCustomer', data })
-      });
-    }
-    // Tambah ke local list & dropdown
-    CUSTOMERS.push(data);
-    renderCustDropdown();
-    // Pilih customer baru
-    document.getElementById('f-cid').value = newId;
-    onCustChange();
-    toast(`Customer ${nama} ditambahkan ✓`,'ok');
-    closeCustModal();
-  } catch(e) {
-    toast('Gagal simpan customer: '+e.message,'err');
-  } finally {
-    btn.disabled = false; btn.textContent = '💾 Simpan Customer';
-  }
-}
-</script>
-
 </body>
 </html>
