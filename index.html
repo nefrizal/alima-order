@@ -309,7 +309,27 @@ const APP = {
 let PAKET_DATA = {};
 let MENU_DATA  = {};
 let CUSTOMERS  = [];
-const MENU_KEY_MAP = {
+const DEFAULT_MENU = {
+  nasi:       'Nasi putih',
+  lauk_utama: 'Ayam bakar padang',
+  tambahan:   'Orek tempe',
+  sayur:      'Tumis buncis wortel',
+  sambal:     'Sambal terasi',
+  kerupuk:    'Kerupuk udang kecil',
+  buah:       'Jeruk Kotak',
+  air_mineral:'sanford 220',
+  kotak:      'Kotak warna 19x19',
+};
+
+function applyDefaultMenu(){
+  Object.entries(DEFAULT_MENU).forEach(([fk, val])=>{
+    const sel = document.getElementById('mdyn-'+fk);
+    if(!sel) return;
+    // Cari option yang cocok (case-insensitive)
+    const opt = Array.from(sel.options).find(o => o.value.toLowerCase() === val.toLowerCase());
+    if(opt) sel.value = opt.value;
+  });
+}
   'nasi':'nasi','lauk utama':'lauk_utama','tambahan':'tambahan',
   'sayur':'sayur','sambal':'sambal','kerupuk':'kerupuk','buah':'buah',
   'air mineral':'air_mineral','packaging':'kotak','kotak':'kotak',
@@ -782,6 +802,7 @@ function renderMenuGrid(menuData){
 
   grid.innerHTML=mHtml||'';pGrid.innerHTML=pHtml||'';
   stat.textContent=`✓ ${Object.keys(menuData).length} komponen`;
+  applyDefaultMenu();
 }
 
 function collectMenuValues(){
@@ -791,6 +812,7 @@ function collectMenuValues(){
 }
 function resetMenuSelects(){
   document.querySelectorAll('#menu-dynamic-grid select[data-field],#pilihan-lain-grid select[data-field]').forEach(s=>{s.value='';});
+  applyDefaultMenu();
 }
 
 // ══ PRODUK → PAKET ════════════════════
@@ -906,9 +928,9 @@ function selectCust(id){
   document.getElementById('cust-dd').style.display = 'none';
   document.getElementById('f-gol').value = c.instansi||'';
   const pen=document.getElementById('f-pen'),fhp=document.getElementById('f-hp'),fadr=document.getElementById('f-adr');
-  if(!pen.value) pen.value = c.nama||'';
-  if(!fhp.value) fhp.value = c.no_hp||'';
-  if(!fadr.value) fadr.value = c.alamat||'';
+  pen.value  = c.nama||'';
+  fhp.value  = c.no_hp||'';
+  fadr.value = c.alamat||'';
   const info = document.getElementById('cust-info');
   info.style.display = 'block';
   info.innerHTML = `<strong>${c.nama}</strong>${c.nama_instansi?' · '+c.nama_instansi:''}<br>📱 ${c.no_hp||'—'} · ${c.instansi||'—'}<br>📍 ${c.alamat||'—'}`;
