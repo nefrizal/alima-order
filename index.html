@@ -641,8 +641,7 @@ function cGet(k){try{const r=JSON.parse(localStorage.getItem(k));return r&&Date.
 
 // ══ INIT ══════════════════════════════
 document.addEventListener('DOMContentLoaded',()=>{
-  setDefaults(); genNo(); loadSalesLocal();
-  // Semua data dari cache dulu (instant), GAS refresh di background
+  setDefaults(); initNoDisplay(); loadSalesLocal();
   loadMasterFromGAS();
   loadCustomers();
   checkConn();
@@ -665,23 +664,21 @@ function setDefaults(){
   document.getElementById('f-bulan').value = BULAN_NAMA[d.getMonth()] + ' ' + d.getFullYear();
   setTimeout(loadMenuInfo, 1500);
 }
-async function genNo(){
-  const el = document.getElementById('f-no');
-  // Generate lokal dulu (instant) — pakai counter localStorage
-  const localNo = genNoLocal();
-  el.value = localNo;
-  // Sync dengan GAS di background — kalau dapat nomor, update
-  gasFetch(APP.GAS_URL + '?action=getNextNo&t=' + Date.now())
-    .then(j => { if(j.success && j.no) { el.value = j.no; localStorage.setItem('alima_last_no', j.no); } })
-    .catch(()=>{});
-}
-
 function genNoLocal(){
-  // Ambil nomor terakhir dari localStorage, naik 1
   const last = parseInt(localStorage.getItem('alima_last_no')) || 10459;
   const next = last + 1;
   localStorage.setItem('alima_last_no', String(next));
   return String(next).padStart(6,'0');
+}
+
+// Nomor order di-generate saat submit, bukan saat form dibuka
+function initNoDisplay(){
+  const el = document.getElementById('f-no');
+  el.value = '— akan di-generate —';
+  // Sync nomor terakhir dari GAS di background (tanpa increment)
+  gasFetch(APP.GAS_URL + '?action=getLastNo&t=' + Date.now())
+    .then(j => { if(j.success && j.no) localStorage.setItem('alima_last_no', String(j.no)); })
+    .catch(()=>{});
 }
 
 // ══ SALES LOCAL STORAGE ═══════════════
@@ -952,8 +949,21 @@ function getGPS(){
 // ══ SUBMIT ════════════════════════════
 async function submitOrder(){
   const{jml,tot,hksm}=recalc();
-  const no=document.getElementById('f-no').value;
   const menu=collectMenuValues();
+
+  // Generate nomor order saat submit (bukan saat form dibuka)
+  let no = '';
+  try {
+    const j = await gasFetch(APP.GAS_URL + '?action=getNextNo&t=' + Date.now());
+    if (j.success && j.no) {
+      no = j.no;
+      localStorage.setItem('alima_last_no', String(parseInt(j.no)));
+    } else throw new Error('GAS no error');
+  } catch(e) {
+    no = genNoLocal() + '-L'; // suffix -L = Local fallback, perlu dicek manual
+    console.warn('Nomor order dari fallback lokal:', no);
+  }
+  document.getElementById('f-no').value = no;
   const d={
     no_order:no,bulan:document.getElementById('f-bulan').value,
     customer_id:document.getElementById('f-cid').value,golongan:document.getElementById('f-gol').value,
@@ -1140,7 +1150,7 @@ function resetForm(){
   const ss=document.getElementById('sisa-strip');if(ss)ss.style.display='none';
   document.getElementById('f-paket').innerHTML='<option value="">— Pilih Produk dulu —</option>';
   document.getElementById('cust-info').style.display='none';
-  resetMenuSelects();recalc();genNo();setDefaults();loadSalesLocal();}
+  resetMenuSelects();recalc();initNoDisplay();setDefaults();loadSalesLocal();}
 async function checkConn(){
   const el=document.getElementById('cst');
   try{const j=await gasFetch(APP.GAS_URL+'?action=ping&t='+Date.now());el.textContent=j.success?'🟢':'🔴';}
