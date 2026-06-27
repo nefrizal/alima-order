@@ -211,7 +211,7 @@
 </div>
 
 <script>
-const GAS_URL = 'https://script.google.com/macros/s/GANTI_DENGAN_DEPLOYMENT_ID/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzqS_xoX-qvkzkk8nlCq-Urgh4v4dQDmaA5v4zmjNR1yWwSw7iJSs4RfBP-pHiY0UxL/exec';
 
 const p = new URLSearchParams(window.location.search);
 const get = (k, def='') => p.get(k) || def;
@@ -300,6 +300,32 @@ if (bayarSts === 'Lunas') {
 function bukaModalUbah() { document.getElementById('modalUbah').classList.add('active'); }
 function tutupModal()     { document.getElementById('modalUbah').classList.remove('active'); }
 
+// Kirim ke GAS via JSONP (hindari CORS block)
+function gasPost(params) {
+  return new Promise((resolve) => {
+    const cbName = '_gasCb_' + Date.now();
+    const script = document.createElement('script');
+    const timeout = setTimeout(() => {
+      delete window[cbName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+      resolve({ status: 'timeout' });
+    }, 10000);
+
+    window[cbName] = function(data) {
+      clearTimeout(timeout);
+      delete window[cbName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+      resolve(data);
+    };
+
+    // Kirim sebagai GET dengan callback (GAS doGet handle konfirmasi)
+    const qs = new URLSearchParams({ ...params, callback: cbName }).toString();
+    script.src = GAS_URL + '?' + qs;
+    script.onerror = () => { clearTimeout(timeout); resolve({ status: 'error' }); };
+    document.head.appendChild(script);
+  });
+}
+
 async function handleAksi(aksi) {
   tutupModal();
   const pesanUbah = aksi === 'ubah'
@@ -308,13 +334,13 @@ async function handleAksi(aksi) {
 
   document.querySelectorAll('.btn').forEach(b => b.disabled = true);
 
-  const body = new URLSearchParams({
-    action: aksi, order: noOrder, nama, pesan: pesanUbah,
+  await gasPost({
+    action:    aksi,
+    order:     noOrder,
+    nama:      nama,
+    pesan:     pesanUbah,
     timestamp: new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })
   });
-
-  try { await fetch(GAS_URL, { method: 'POST', body }); }
-  catch(e) { console.warn('GAS fetch (no-cors ok):', e.message); }
 
   document.getElementById('actionSection').style.display = 'none';
   const respEl  = document.getElementById('statusResponded');
