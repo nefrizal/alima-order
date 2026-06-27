@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Konfirmasi Order – Alima Katering</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #FFF8F2;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 48px;
+  }
+
+  .header { text-align: center; margin-bottom: 24px; }
+  .logo-wrap {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: #FF6B00; color: #fff;
+    padding: 10px 20px; border-radius: 50px; margin-bottom: 8px;
+  }
+  .logo-wrap .icon { font-size: 22px; }
+  .logo-wrap .brand { font-size: 16px; font-weight: 700; letter-spacing: 0.3px; }
+  .header-sub { color: #888; font-size: 13px; }
+
+  .card {
+    background: #fff; border-radius: 20px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    width: 100%; max-width: 420px; overflow: hidden;
+  }
+
+  .card-top {
+    background: linear-gradient(135deg, #FF6B00 0%, #FF9A3C 100%);
+    padding: 20px 24px 16px; color: #fff;
+  }
+  .order-label { font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; opacity: 0.85; }
+  .order-number { font-size: 28px; font-weight: 800; margin: 2px 0 4px; }
+  .order-meta { font-size: 13px; opacity: 0.9; }
+
+  .card-body { padding: 20px 24px; }
+
+  .info-row {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 10px 0; border-bottom: 1px solid #F0EDE9;
+  }
+  .info-row:last-child { border-bottom: none; }
+  .info-icon { font-size: 16px; min-width: 22px; margin-top: 1px; }
+  .info-content { flex: 1; }
+  .info-label { font-size: 11px; color: #999; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; }
+  .info-value { font-size: 14px; color: #2D2D2D; font-weight: 500; margin-top: 1px; line-height: 1.4; }
+
+  .menu-list { margin-top: 4px; }
+  .menu-item { font-size: 13px; color: #555; line-height: 1.8; }
+  .menu-item::before { content: '• '; color: #FF6B00; font-weight: bold; }
+  .menu-item.extra { color: #888; font-style: italic; }
+  .menu-item.extra::before { color: #FFB370; }
+
+  .harga-box {
+    background: #FFF3EA; border: 1px solid #FFD4B0;
+    border-radius: 12px; padding: 14px 16px; margin: 16px 0 0;
+  }
+  .harga-row { display: flex; justify-content: space-between; font-size: 13px; color: #666; margin-bottom: 6px; }
+  .harga-row.delivery { color: #FF6B00; }
+  .harga-divider { border: none; border-top: 1px dashed #FFB370; margin: 8px 0; }
+  .harga-total { display: flex; justify-content: space-between; font-size: 15px; font-weight: 700; color: #FF6B00; }
+  .harga-sisa { display: flex; justify-content: space-between; font-size: 13px; color: #E04E00; margin-top: 4px; font-weight: 600; }
+  .harga-lunas { display: flex; justify-content: space-between; font-size: 13px; color: #16A34A; margin-top: 4px; font-weight: 600; }
+
+  .status-responded { padding: 32px 24px; text-align: center; }
+  .status-icon { font-size: 56px; margin-bottom: 12px; }
+  .status-title { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+  .status-desc { font-size: 14px; color: #777; line-height: 1.5; }
+
+  .action-section { padding: 0 24px 28px; }
+  .action-title { font-size: 13px; color: #888; text-align: center; margin-bottom: 14px; font-weight: 500; }
+  .btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; padding: 14px; border-radius: 14px; border: none;
+    font-size: 15px; font-weight: 700; cursor: pointer;
+    transition: transform 0.12s, opacity 0.12s;
+    margin-bottom: 10px; text-decoration: none;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-ok { background: linear-gradient(135deg, #22C55E, #16A34A); color: #fff; box-shadow: 0 4px 14px rgba(34,197,94,0.35); }
+  .btn-ubah { background: #fff; color: #FF6B00; border: 2px solid #FF6B00; }
+  .btn-batal { background: #fff; color: #EF4444; border: 2px solid #EF4444; }
+
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.45); z-index: 100;
+    align-items: flex-end; justify-content: center;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: #fff; border-radius: 24px 24px 0 0;
+    padding: 24px 20px 36px; width: 100%; max-width: 480px;
+    animation: slideUp 0.25s ease;
+  }
+  @keyframes slideUp { from { transform: translateY(60px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .modal-title { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+  .modal-desc { font-size: 13px; color: #888; margin-bottom: 16px; }
+  .modal textarea {
+    width: 100%; border: 1.5px solid #E5E5E5; border-radius: 12px;
+    padding: 12px 14px; font-size: 14px; font-family: inherit;
+    resize: none; height: 100px; outline: none; color: #333;
+  }
+  .modal textarea:focus { border-color: #FF6B00; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 12px; }
+  .modal-actions .btn { margin-bottom: 0; flex: 1; }
+
+  .footer { margin-top: 20px; font-size: 12px; color: #BBB; text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo-wrap">
+    <span class="icon">🍱</span>
+    <span class="brand">Alima Katering Batam</span>
+  </div>
+  <div class="header-sub">Konfirmasi Pesanan</div>
+</div>
+
+<div class="card" id="orderCard">
+  <div class="card-top">
+    <div class="order-label">Nomor Order</div>
+    <div class="order-number" id="dispNoOrder">—</div>
+    <div class="order-meta" id="dispMeta">—</div>
+  </div>
+
+  <div class="card-body">
+    <div class="info-row">
+      <span class="info-icon">📦</span>
+      <div class="info-content">
+        <div class="info-label">Jenis</div>
+        <div class="info-value" id="dispJenis">—</div>
+      </div>
+    </div>
+    <div class="info-row">
+      <span class="info-icon">👥</span>
+      <div class="info-content">
+        <div class="info-label">Jumlah Pax</div>
+        <div class="info-value" id="dispPax">—</div>
+      </div>
+    </div>
+    <div class="info-row">
+      <span class="info-icon">📅</span>
+      <div class="info-content">
+        <div class="info-label">Tanggal & Jam</div>
+        <div class="info-value" id="dispTanggal">—</div>
+      </div>
+    </div>
+    <div class="info-row">
+      <span class="info-icon">📍</span>
+      <div class="info-content">
+        <div class="info-label">Lokasi Pengiriman</div>
+        <div class="info-value" id="dispLokasi">—</div>
+      </div>
+    </div>
+    <div class="info-row">
+      <span class="info-icon">🥘</span>
+      <div class="info-content">
+        <div class="info-label">Komposisi Menu</div>
+        <div class="menu-list" id="dispMenu">—</div>
+      </div>
+    </div>
+
+    <div class="harga-box">
+      <div class="harga-row"><span>Harga/pax</span><span id="dispHargaPax">—</span></div>
+      <div class="harga-row"><span>Qty</span><span id="dispQty">—</span></div>
+      <div class="harga-row"><span>Jumlah</span><span id="dispJumlah">—</span></div>
+      <div class="harga-row delivery" id="rowDelivery" style="display:none"><span>🚗 Delivery</span><span id="dispDelivery">—</span></div>
+      <hr class="harga-divider">
+      <div class="harga-total"><span>Total</span><span id="dispTotal">—</span></div>
+      <div class="harga-sisa" id="rowSisa" style="display:none"><span>⏳ Sisa</span><span id="dispSisa">—</span></div>
+      <div class="harga-lunas" id="rowLunas" style="display:none"><span>✅ Pembayaran</span><span>Lunas</span></div>
+    </div>
+  </div>
+
+  <div class="status-responded" id="statusResponded" style="display:none">
+    <div class="status-icon" id="statusIcon">✅</div>
+    <div class="status-title" id="statusTitle">Terima kasih!</div>
+    <div class="status-desc" id="statusDesc">Respon Anda telah kami terima.</div>
+  </div>
+
+  <div class="action-section" id="actionSection">
+    <div class="action-title">Apakah pesanan ini sudah sesuai?</div>
+    <button class="btn btn-ok" onclick="handleAksi('ok')">✅ OK — Pesanan Sesuai</button>
+    <button class="btn btn-ubah" onclick="bukaModalUbah()">✏️ Ubah — Ada yang Diubah</button>
+    <button class="btn btn-batal" onclick="handleAksi('batal')">❌ Batal — Tak Jadi Order</button>
+  </div>
+</div>
+
+<div class="footer">Alima Katering Batam · ksmfood.id</div>
+
+<div class="modal-overlay" id="modalUbah">
+  <div class="modal">
+    <div class="modal-title">✏️ Apa yang ingin diubah?</div>
+    <div class="modal-desc">Sampaikan detail perubahan. Tim kami akan segera menghubungi Anda.</div>
+    <textarea id="pesanUbah" placeholder="Contoh: Ganti lauk ayam menjadi ikan, tambah 10 pax..."></textarea>
+    <div class="modal-actions">
+      <button class="btn btn-batal" style="font-size:14px" onclick="tutupModal()">Kembali</button>
+      <button class="btn btn-ok" style="font-size:14px" onclick="handleAksi('ubah')">Kirim</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const GAS_URL = 'https://script.google.com/macros/s/GANTI_DENGAN_DEPLOYMENT_ID/exec';
+
+const p = new URLSearchParams(window.location.search);
+const get = (k, def='') => p.get(k) || def;
+
+const noOrder  = get('order','—');
+const nama     = get('nama','Pemesan');
+const jenis    = get('jenis','—');
+const pax      = get('pax','—');
+const tanggal  = get('tgl','—');
+const jam      = get('jam','—');
+const lokasi   = get('lok','—');
+const catatan  = get('cat');
+const hargaPax = get('hp','0');
+const jumlah   = get('jml','0');
+const delivery = get('del','0');
+const total    = get('tot','0');
+const dp       = get('dp','0');
+const sisa     = get('sisa','0');
+const bayarSts = get('byr'); // 'DP' | 'Lunas' | ''
+
+// Menu fields — sesuai urutan di sendWAKlien
+const menuFields = [
+  ['nasi',      'Nasi'],
+  ['lauk',      'Lauk Utama'],
+  ['tambahan',  'Tambahan'],
+  ['sayur',     'Sayur'],
+  ['sambal',    'Sambal'],
+  ['kerupuk',   'Kerupuk'],
+  ['buah',      'Buah'],
+  ['air',       'Air Mineral'],
+  ['kotak',     'Kotak/Packaging'],
+  ['puding',    'Puding'],
+  ['snack',     'Snack'],
+  ['minuman',   'Minuman'],
+  ['lain1',     'Pilihan 1'],
+  ['lain2',     'Pilihan 2'],
+  ['lain3',     'Pilihan 3'],
+];
+
+// Extra fields (puding, snack, minuman, lain1-3) = index 9+
+const EXTRA_START = 9;
+
+// Isi header card
+document.getElementById('dispNoOrder').textContent = noOrder;
+document.getElementById('dispMeta').textContent    = `${tanggal} · Jam ${jam} · Halo, ${nama}`;
+document.getElementById('dispJenis').textContent   = jenis;
+document.getElementById('dispPax').textContent     = `${pax} pax`;
+document.getElementById('dispTanggal').textContent = `${tanggal} · Jam ${jam}`;
+document.getElementById('dispLokasi').textContent  = lokasi + (catatan ? ` — ${catatan}` : '');
+
+// Render menu
+const menuEl = document.getElementById('dispMenu');
+const menuItems = menuFields
+  .map(([key, label], idx) => {
+    const val = get(key);
+    if (!val) return null;
+    const isExtra = idx >= EXTRA_START;
+    return `<div class="menu-item${isExtra?' extra':''}">${label}: ${val}</div>`;
+  })
+  .filter(Boolean);
+
+menuEl.innerHTML = menuItems.length ? menuItems.join('') : '<span style="color:#ccc">—</span>';
+
+// Harga
+const rp = n => 'Rp ' + parseInt(n||0).toLocaleString('id-ID');
+document.getElementById('dispHargaPax').textContent = rp(hargaPax);
+document.getElementById('dispQty').textContent      = `${pax} pax`;
+document.getElementById('dispJumlah').textContent   = rp(jumlah);
+document.getElementById('dispTotal').textContent    = rp(total);
+
+// Delivery (opsional)
+if (parseInt(delivery) > 0) {
+  document.getElementById('dispDelivery').textContent = rp(delivery);
+  document.getElementById('rowDelivery').style.display = 'flex';
+}
+
+// Status bayar
+if (bayarSts === 'Lunas') {
+  document.getElementById('rowLunas').style.display = 'flex';
+} else if (parseInt(sisa) > 0) {
+  document.getElementById('dispSisa').textContent = rp(sisa);
+  document.getElementById('rowSisa').style.display = 'flex';
+}
+
+// ── AKSI ──
+function bukaModalUbah() { document.getElementById('modalUbah').classList.add('active'); }
+function tutupModal()     { document.getElementById('modalUbah').classList.remove('active'); }
+
+async function handleAksi(aksi) {
+  tutupModal();
+  const pesanUbah = aksi === 'ubah'
+    ? (document.getElementById('pesanUbah').value.trim() || '(tidak ada keterangan)')
+    : '';
+
+  document.querySelectorAll('.btn').forEach(b => b.disabled = true);
+
+  const body = new URLSearchParams({
+    action: aksi, order: noOrder, nama, pesan: pesanUbah,
+    timestamp: new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })
+  });
+
+  try { await fetch(GAS_URL, { method: 'POST', body }); }
+  catch(e) { console.warn('GAS fetch (no-cors ok):', e.message); }
+
+  document.getElementById('actionSection').style.display = 'none';
+  const respEl  = document.getElementById('statusResponded');
+  const iconEl  = document.getElementById('statusIcon');
+  const titleEl = document.getElementById('statusTitle');
+  const descEl  = document.getElementById('statusDesc');
+
+  if (aksi === 'ok') {
+    iconEl.textContent  = '✅';
+    titleEl.textContent = 'Pesanan Dikonfirmasi!';
+    descEl.textContent  = 'Terima kasih! Tim Alima Katering akan segera memproses pesanan Anda.';
+  } else if (aksi === 'ubah') {
+    iconEl.textContent  = '✏️';
+    titleEl.textContent = 'Permintaan Perubahan Terkirim';
+    descEl.innerHTML    = `Tim kami akan menghubungi Anda segera.<br><br><em style="color:#aaa;font-size:12px">"${pesanUbah}"</em>`;
+  } else {
+    iconEl.textContent  = '❌';
+    titleEl.textContent = 'Order Dibatalkan';
+    descEl.textContent  = 'Pesanan Anda telah kami batalkan. Semoga lain kali bisa kami layani kembali 🙏';
+  }
+  respEl.style.display = 'block';
+}
+</script>
+</body>
+</html>
