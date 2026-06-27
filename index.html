@@ -1190,7 +1190,7 @@ async function sendWAKlien(o){
     : o.inv_status==='Lunas' ? `\n✅ *Pembayaran Lunas*` : '';
 
   // ── Link konfirmasi order ──────────────────────────────────
-  const KONFIRMASI_URL = 'https://username.github.io/alima/konfirmasi-order.html'; // ← ganti domain
+  const KONFIRMASI_URL = 'https://nefrizal.github.io/alima-order/konfirmasi-order.html';
   const kParams = new URLSearchParams({
     order: o.no_order,
     nama:  nama,
@@ -1206,7 +1206,8 @@ async function sendWAKlien(o){
     tot:   total,
     dp:    dp,
     sisa:  sisa,
-    byr:   o.inv_status||'',
+    // byr: 'DP' | 'Lunas' | '' (Invoice = belum bayar = kosong)
+    byr:   (o.inv_status==='DP'||o.inv_status==='Lunas') ? o.inv_status : '',
     // menu fields
     nasi:     o.nasi||'',
     lauk:     o.lauk_utama||'',
