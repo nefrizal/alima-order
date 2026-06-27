@@ -552,7 +552,7 @@ function renderRevisiForm(d) {
   ];
 
   const menuHTML = menuFields.map(([fk, lbl, val]) => {
-    const opts = MENU_DATA[fk] || MENU_DATA[Object.keys(MENU_DATA).find(k => MENU_KEY_MAP[k]===fk)] || [];
+    const opts = EMBEDDED_MENU[Object.keys(MENU_KEY_MAP).find(k=>MENU_KEY_MAP[k]===fk)] || [];
     const optsHTML = ['—',...opts].map(o =>
       `<option value="${o==='—'?'':o}" ${(val||'')===(o==='—'?'':o)?'selected':''}>${o}</option>`
     ).join('');
