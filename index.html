@@ -677,7 +677,8 @@ function cGet(k){try{const r=JSON.parse(localStorage.getItem(k));return r&&Date.
 // ══ INIT ══════════════════════════════
 document.addEventListener('DOMContentLoaded',()=>{
   setDefaults(); initNoDisplay(); loadSalesLocal();
-  loadMasterFromGAS();
+  renderMenuGrid(EMBEDDED_MENU); // instant — tidak tunggu GAS
+  loadMasterFromGAS();           // hanya load Paket di background
   loadCustomers();
   checkConn();
 });
@@ -745,25 +746,19 @@ async function gasFetch(url){
   return JSON.parse(text);
 }
 
-// ══ MASTER (Paket dari GAS, Menu embedded) ═
+// ══ MASTER (hanya Paket dari GAS) ═════
 async function loadMasterFromGAS(){
-  // Render menu LANGSUNG dari data embedded — instant
-  renderMenuGrid(EMBEDDED_MENU);
-
-  // Load paket dari GAS di background
   const cached = cGet('alima_paket');
   if(cached){ PAKET_DATA=cached; renderProdukDropdown(); }
-
   gasFetch(APP.GAS_URL+'?action=getMaster&t='+Date.now())
     .then(j=>{
       if(j?.success && j.paket){
         PAKET_DATA=j.paket;
-        try{ localStorage.setItem('alima_paket', JSON.stringify({v:j.paket,t:Date.now()})); }catch(e){}
+        cSet('alima_paket', j.paket);
         renderProdukDropdown();
       }
     }).catch(()=>{
       if(!cached){
-        // Fallback paket statis
         PAKET_DATA={"nasi kotak":[{nama:"nasi kotak A",harga_default:25},{nama:"nasi kotak B",harga_default:32},{nama:"nasi kotak C",harga_default:40}],"prasmanan":[{nama:"prasmanan A",harga_default:32},{nama:"prasmanan B",harga_default:40}],"coffee break":[{nama:"coffee break",harga_default:20}]};
         renderProdukDropdown();
       }
