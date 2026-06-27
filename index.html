@@ -307,18 +307,28 @@ const APP = {
 
 // ══ MASTER DATA ═══════════════════════
 let PAKET_DATA = {};
-let MENU_DATA  = {};
 let CUSTOMERS  = [];
-const DEFAULT_MENU = {
-  nasi:       'Nasi putih',
-  lauk_utama: 'Ayam bakar padang',
-  tambahan:   'Orek tempe',
-  sayur:      'Tumis buncis wortel',
-  sambal:     'Sambal terasi',
-  kerupuk:    'Kerupuk udang kecil',
-  buah:       'Jeruk Kotak',
-  air_mineral:'Sanford 220',
-  kotak:      'Kotak warna 19x19',
+
+// Menu di-embed langsung — tidak perlu fetch GAS
+// Update manual di sini kalau sheet ListMenu berubah
+const EMBEDDED_MENU = {
+  'nasi':       ['Ketupat','Lontong','Lontong pak eko','Nasi goreng','Nasi goreng seafood','Nasi kuning','Nasi lemak','Nasi putih','Nasi Liwet'],
+  'lauk utama': ['Ayam fillet asam manis','Ayam fillet asam pedas','Ayam fillet goreng tepung','Ayam fillet rica rica','Ayam geprek','Ayam goreng balado','Ayam goreng bawang','Ayam goreng bumbu','Ayam goreng bumbu kecap','Ayam goreng bumbu serundeng','Ayam goreng fillet','Ayam goreng kalasan','Ayam goreng kremes','Ayam goreng laos','Ayam goreng pletok','Ayam goreng ricarica','Ayam katsu saos asam manis','Ayam kecap','Ayam KFC','Ayam lengkuas','Ayam masak ijo','Ayam masak telur asin','Ayam penyet','Ayam Rica Rica','Ayam saos telur asin','Ayam sayap crispy','Ayam suir kemangi','Ayam teriyaki','Chicken katsu','Ayam daun kemangi','Ayam Gulai','Ayam gulai kalio','Ayam gulai kari','Ayam gulai ricarica','Ayam kampung bakar 1 ekor','Ayam kampung goreng bumbu','Ayam opor','Ayam rendang','Ayam semur','Ayam tongseng','Ayam tumis daun kemangi','Ayam Lada Hitam','Opor Ayam','Rendang Ayam','Sop Ayam','Sop ayam kampung','Ayam bakar bumbu bali','Ayam bakar bumbu kecap','Ayam Bakar bumbu rujak','Ayam bakar Jateng','Ayam bakar kampung 1 ekor','Ayam bakar madu','Ayam bakar padang','Ayam bakar rica-rica','Ayam bakar tomat','Sate Ayam (1 porsi = 4 tusuk)','Sate Ayam (1 porsi =3 tusuk)','Sate Ayam (1 porsi 10 tusuk)','Ayam Bakar XL (1 ekor potong 2)','Ayam Penyet XL (1 ekor potong 4)','Ayam Cabe Ijo','Ayam segar goreng lengkuas','Cumi masak cabe','Daging asam pedas','Daging bistik','Daging bumbu bali','Daging Kalio'],
+  'tambahan':   ['Bihun goreng','Bihun goreng special','Perkedel jagung','Teri kacang','Teri kacang balado','Kentang sosis balado','Mush potato','perkedel kentang','Sambal goreng kentang hati','Serut kentang','SG. Kentang hati','Mie gomak','Mie Goreng Jawa','Mie goreng','Mie goreng keriting','Mie goreng seafood','Mie goreng special','Sosis goreng','Sosis kentang+Balado','oseng tahu tempe','Pangsit tahu','Perkedel tahu','Tahu segar goreng','Tahu tempe goreng','Sambal goreng telur puyuh','Bakwan Jagung','Bola bola tempe','kering tempe kacang','Kering tempe teri kacang','Orak Arik tahu tempe','Orak arik tempe','Orek tempe','Orek tempe kacang','Orek tempe kentang teri','Orek tempe teri','Tahu Tempe Sambal Merah','Tempe Bacem','Tempe mendoan','Tempe Orek','Tempe segar goreng','Tempe kentang teri kacang','Peyek','Sempol Ayam','Bakwan sayur','Kering Tempe','Mie Kuning','Mie Kuning & Bihun','Pangsit','Terong balado','Terung teri balado'],
+  'sayur':      ['Baby kailan','Tumis Baby Kailan','Bayam rebus','Bening bAyam','Tumis brokoli','Tumis buncis wortel','Orakarik buncis wortel','Tauco Buncis wortel','Tauco Buncis Wortel kembang tahu','Tumis buncis wortel jagung','Capcay','Capcay pak eko','Capcay seafood','Tumis bunga kol','Tumis bunga kol wortel jamur','Gulai daun ubi','Rebusan kacang panjang','Rebusan Sayuran','Sop Mutiara','Sop sayuran','Tumis kacang panjang','Tumis teri kacang panjang','Kangkung rebus','Tumis kangkung panjang','Labu siam & Wortel rebus','Gulai labu siam','Sayur asem eko','Tumis labu siam','Tumis labu Siam tori','Wortel dan labu siam rebus','Tumis sawi putih wortel','Sop sayuran'],
+  'sambal':     ['Sambal','Sambal bajak','Sambal ijo','Sambal ijo teri','Sambal mangga','Sambal merah','Sambal Pete','Sambal terasi','Sambal + Mayonaise'],
+  'kerupuk':    ['kerupuk emping','Kerupuk udang besar','Kerupuk udang kecil'],
+  'buah':       ['Buah VIP Keranjang','Buah VIP Soga','Buah naga','Pisang ukuran PT','Salad Buah','Salad buah Cup kecil','Buah','Jeruk Kotak','Jeruk PT','Melon','Pear','Apel (1 bagi 2)','Pisang Cavendish','Pisang kotak','Salad Puding','Buah campur','Semangka pt'],
+  'air mineral':['Aqua 220','Aqua 330','Aqua 600','Le Minerale 330','Sanford 220','Sanford 330','Sanford 600'],
+  'packaging':  ['Nampah','Piring Kaca','Kotak putih snack','bungkus ala nas','Kotak bento','Kotak warna 19x19','Kotak putih 18x18','Kotak Putih 20x20','Kotak Snack ksm','Mika bento','Mika Plastic','Rantang','Tray Bento','Prasmanan','Stainles','Styrofoam sekat','Styrofoam tanpa sekat'],
+  'puding':     ['Puding Coklat','puding mangga','puding strawberi','Pudding campur (coklat, mangga, strawberry)'],
+  'minuman':    ['Infus Water','Es kelapa muda','Es Lemon tea','Teh O','Es kopyor','Es serut timun selasih'],
+  'snack':      ['teh kotak 200ml','aqua 220','aqua 330','sanfor 330','sus fla','soga kue','asin','manis','chicken roll','roti morning','roti jai','brownies','bolu gulung','tahu nugget','semar mendem','luti gendang','bolu karamel','klepon','putu ayu','onde onde','epok epok','bolu tape','pie buah','sosis solo','bolu kukus','kue nampah'],
+  'pilihan 1':  ['Aqua 220','Aqua 330','Aqua 600','Le Minerale 330','Sanford 220','Sanford 330','teh kotak 200ml','aqua 220','aqua 330'],
+  'pilihan 2':  ['Aqua 220','Aqua 330','Aqua 600','Le Minerale 330','Sanford 220','Sanford 330'],
+  'pilihan 3':  ['Aqua 220','Aqua 330','Aqua 600','Le Minerale 330','Sanford 220','Sanford 330'],
+  'pilihan 4':  ['Aqua 220','Aqua 330','Aqua 600','Le Minerale 330','Sanford 220','Sanford 330'],
+  'pilihan 5':  ['Aqua 220','Aqua 330','Aqua 600','Le Minerale 330','Sanford 220','Sanford 330'],
 };
 
 function applyDefaultMenu(){
@@ -733,43 +743,36 @@ async function gasFetch(url){
   return JSON.parse(text);
 }
 
-// ══ MASTER (Paket + Menu) ═════════════
+// ══ MASTER (Paket dari GAS, Menu embedded) ═
 async function loadMasterFromGAS(){
-  const stat = document.getElementById('menu-status');
-  const cached = cGet('alima_master');
-  if(cached){
-    if(cached.paket){PAKET_DATA=cached.paket;renderProdukDropdown();}
-    if(cached.menu){MENU_DATA=cached.menu;renderMenuGrid(cached.menu);}
-    gasFetch(APP.GAS_URL+'?action=getMaster&t='+Date.now())
-      .then(j=>{if(j?.success){cSet('alima_master',j);if(j.paket){PAKET_DATA=j.paket;renderProdukDropdown();}if(j.menu){MENU_DATA=j.menu;renderMenuGrid(j.menu);}}})
-      .catch(()=>{});
-    return;
-  }
-  if(stat) stat.textContent='⏳ Memuat…';
-  try{
-    const j=await gasFetch(APP.GAS_URL+'?action=getMaster&t='+Date.now());
-    if(j.success){
-      cSet('alima_master',j);
-      if(j.paket){PAKET_DATA=j.paket;renderProdukDropdown();}
-      if(j.menu&&Object.keys(j.menu).length){MENU_DATA=j.menu;renderMenuGrid(j.menu);}
-    }
-  }catch(e){
-    if(stat) stat.textContent='⚠️ Gagal';
-    PAKET_DATA={"nasi kotak":[{nama:"nasi kotak A",harga_default:25},{nama:"nasi kotak B",harga_default:32}],"prasmanan":[{nama:"prasmanan A",harga_default:32}]};
-    renderProdukDropdown();
-    renderMenuGrid({});
-  }
+  // Render menu LANGSUNG dari data embedded — instant
+  renderMenuGrid(EMBEDDED_MENU);
+
+  // Load paket dari GAS di background
+  const cached = cGet('alima_paket');
+  if(cached){ PAKET_DATA=cached; renderProdukDropdown(); }
+
+  gasFetch(APP.GAS_URL+'?action=getMaster&t='+Date.now())
+    .then(j=>{
+      if(j?.success && j.paket){
+        PAKET_DATA=j.paket;
+        try{ localStorage.setItem('alima_paket', JSON.stringify({v:j.paket,t:Date.now()})); }catch(e){}
+        renderProdukDropdown();
+      }
+    }).catch(()=>{
+      if(!cached){
+        // Fallback paket statis
+        PAKET_DATA={"nasi kotak":[{nama:"nasi kotak A",harga_default:25},{nama:"nasi kotak B",harga_default:32},{nama:"nasi kotak C",harga_default:40}],"prasmanan":[{nama:"prasmanan A",harga_default:32},{nama:"prasmanan B",harga_default:40}],"coffee break":[{nama:"coffee break",harga_default:20}]};
+        renderProdukDropdown();
+      }
+    });
 }
 
-// ══ RENDER MENU GRID ══════════════════
 function renderMenuGrid(menuData){
   const grid=document.getElementById('menu-dynamic-grid');
   const pGrid=document.getElementById('pilihan-lain-grid');
   const stat=document.getElementById('menu-status');
-  if(!menuData||!Object.keys(menuData).length){
-    grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:16px;color:var(--inks);font-size:12px;">⚠️ Menu tidak tersedia</div>';
-    return;
-  }
+  if(!menuData||!Object.keys(menuData).length) return;
   const PLAIN=['lain1','lain2','lain3','lain4','lain5'];
   const shown=new Set();let mHtml='',pHtml='';
   const allKeys=Object.keys(menuData);
