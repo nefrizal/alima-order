@@ -1228,11 +1228,11 @@ async function sendWAKlien(o){
   const konfirmasiLink = `${KONFIRMASI_URL}?${kParams.toString()}`;
   // ──────────────────────────────────────────────────────────
 
-  // Shorten link via TinyURL
+  // Shorten link via GAS (server-side, tidak kena CORS)
   let shortLink = konfirmasiLink;
   try {
-    const shrRes = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(konfirmasiLink)}`);
-    if (shrRes.ok) shortLink = (await shrRes.text()).trim();
+    const shrData = await gasFetch(APP.GAS_URL + '?action=shortenUrl&url=' + encodeURIComponent(konfirmasiLink) + '&t=' + Date.now());
+    if (shrData?.success && shrData.short) shortLink = shrData.short;
   } catch(e) { console.warn('Shorten URL gagal, pakai link panjang'); }
 
   const msg =
