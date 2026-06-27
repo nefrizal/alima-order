@@ -1228,6 +1228,13 @@ async function sendWAKlien(o){
   const konfirmasiLink = `${KONFIRMASI_URL}?${kParams.toString()}`;
   // ──────────────────────────────────────────────────────────
 
+  // Shorten link via TinyURL
+  let shortLink = konfirmasiLink;
+  try {
+    const shrRes = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(konfirmasiLink)}`);
+    if (shrRes.ok) shortLink = (await shrRes.text()).trim();
+  } catch(e) { console.warn('Shorten URL gagal, pakai link panjang'); }
+
   const msg =
 `Halo *${sapaNama}*! 👋
 
@@ -1253,8 +1260,8 @@ Tim kami akan segera konfirmasi lebih lanjut.
 Salam, *Alima Katering* 🍱
 
 ━━━━━━━━━━━━━━━━━━━
-✅ Sudah sesuai? Silakan konfirmasi:
-🔗 ${konfirmasiLink}`;
+Ketuk link berikut untuk konfirmasi pesanan:
+🔗 ${shortLink}`;
 
   await fPost(o.hp_penerima, msg);
 }
