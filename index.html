@@ -306,7 +306,22 @@ const APP = {
 };
 
 // ══ MASTER DATA ═══════════════════════
-let PAKET_DATA = {};
+// Paket di-embed langsung dari sheet Paket — instant, tidak perlu GAS
+// Update manual di sini kalau sheet Paket berubah
+const PAKET_DATA_EMBEDDED = {
+  "nasi kotak":    [{nama:"nasi kotak A",harga_default:25},{nama:"nasi kotak B",harga_default:32},{nama:"nasi kotak C",harga_default:40},{nama:"nasi kotak A+",harga_default:30},{nama:"nasi kotak B+",harga_default:37},{nama:"nasi kotak C+",harga_default:45},{nama:"soga buah",harga_default:100},{nama:"nasi kotak custom",harga_default:0}],
+  "prasmanan":     [{nama:"prasmanan A",harga_default:32},{nama:"prasmanan B",harga_default:40},{nama:"prasmanan C",harga_default:46},{nama:"prasmanan A+",harga_default:43},{nama:"prasmanan B+",harga_default:49},{nama:"prasmanan C+",harga_default:57},{nama:"prasmanan VIP A",harga_default:0},{nama:"prasmanan VIP B",harga_default:0},{nama:"prasmanan VIP C",harga_default:0},{nama:"prasmanan VIP C+",harga_default:0},{nama:"prasmanan custom",harga_default:0}],
+  "pondokan":      [{nama:"pondokan",harga_default:10}],
+  "coffee break":  [{nama:"coffee break",harga_default:20}],
+  "tumpeng":       [{nama:"tumpeng A",harga_default:0},{nama:"tumpeng B",harga_default:0},{nama:"tumpeng D",harga_default:0},{nama:"tumpeng custom",harga_default:0}],
+  "custom":        [{nama:"custom",harga_default:0}],
+  "bento":         [{nama:"bento A",harga_default:0},{nama:"bento B",harga_default:0},{nama:"bento custom",harga_default:0}],
+  "aqiqah":        [{nama:"aqiqah betina 20kg kotak",harga_default:0},{nama:"aqiqah betina 30kg prasmanan",harga_default:0},{nama:"aqiqah jantan 20kg kotak",harga_default:0},{nama:"aqiqah custom",harga_default:0}],
+  "snack":         [{nama:"kotak 2 kue + sanford 330",harga_default:13},{nama:"kotak 2 kue + teh kotak 200",harga_default:0},{nama:"kotak 3 kue + aqua 330",harga_default:0},{nama:"kotak 3 kue + sanford 330",harga_default:0},{nama:"kotak 4 kue + aqua 330",harga_default:0},{nama:"kotak 4 kue + sanford 330",harga_default:0},{nama:"mika 1 kue",harga_default:0},{nama:"mika 2 kue",harga_default:0},{nama:"mika 3 kue",harga_default:0},{nama:"soga isi 15 snack",harga_default:0},{nama:"custom",harga_default:0}],
+  "rantangan":     [{nama:"rantangan",harga_default:0}],
+};
+
+let PAKET_DATA = {...PAKET_DATA_EMBEDDED};
 let CUSTOMERS  = [];
 
 // Menu di-embed langsung — tidak perlu fetch GAS
@@ -677,8 +692,9 @@ function cGet(k){try{const r=JSON.parse(localStorage.getItem(k));return r&&Date.
 // ══ INIT ══════════════════════════════
 document.addEventListener('DOMContentLoaded',()=>{
   setDefaults(); initNoDisplay(); loadSalesLocal();
-  renderMenuGrid(EMBEDDED_MENU); // instant — tidak tunggu GAS
-  loadMasterFromGAS();           // hanya load Paket di background
+  renderMenuGrid(EMBEDDED_MENU);   // instant
+  renderProdukDropdown();          // instant
+  loadMasterFromGAS();             // update paket di background
   loadCustomers();
   checkConn();
 });
