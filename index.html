@@ -346,18 +346,7 @@ const EMBEDDED_MENU = {
   'pilihan 5':  ['Aqua 220','Aqua 330','Aqua 600','Le Minerale 330','Sanford 220','Sanford 330'],
 };
 
-function applyDefaultMenu(){
-  Object.entries(DEFAULT_MENU).forEach(([fk, val])=>{
-    const el = document.getElementById('mdyn-'+fk);
-    if(!el) return;
-    if(el.tagName==='SELECT'){
-      const opt=Array.from(el.options).find(o=>o.value.toLowerCase()===val.toLowerCase());
-      if(opt) el.value=opt.value;
-    } else {
-      if(!el.value) el.value=val;
-    }
-  });
-}
+function applyDefaultMenu(){ /* tidak dipakai */ }
 
 const MENU_KEY_MAP = {
   'nasi':'nasi','lauk utama':'lauk_utama','tambahan':'tambahan',
@@ -686,16 +675,22 @@ async function submitRevisi() {
     toast('Gagal: '+e.message,'err');
   }
 }
-function cSet(k,v){try{localStorage.setItem(k,JSON.stringify({v,t:Date.now()}))}catch(e){}}
-function cGet(k){try{const r=JSON.parse(localStorage.getItem(k));return r&&Date.now()-r.t<TTL?r.v:null}catch(e){return null}}
+// ══ CACHE (in-memory) ═════════════════
+const MEM = {};
+function cSet(k,v){ MEM[k]=v; }
+function cGet(k){ return MEM[k]||null; }
 
 // ══ INIT ══════════════════════════════
 document.addEventListener('DOMContentLoaded',()=>{
-  setDefaults(); initNoDisplay(); loadSalesLocal();
-  renderMenuGrid(EMBEDDED_MENU);   // instant
-  renderProdukDropdown();          // instant
-  loadMasterFromGAS();             // update paket di background
+  setDefaults();
+  initNoDisplay();
+  loadSalesLocal();
+  // Render data embedded langsung — tidak tunggu GAS
+  renderMenuGrid(EMBEDDED_MENU);
+  renderProdukDropdown();
+  // Load customer & paket update di background
   loadCustomers();
+  loadMasterFromGAS();
   checkConn();
 });
 
