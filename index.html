@@ -1028,13 +1028,23 @@ async function saveNewCustomer(){
   if(!nama)return toast('Nama customer wajib.','err');
   if(!hp)return toast('No. HP wajib.','err');
   const waHp = normalizeWA(hp);
+  const btn=document.getElementById('btn-save-cust');btn.disabled=true;btn.textContent='Menyimpan…';
+
+  // Refresh dulu list customer supaya pengecekan duplikat tidak pakai data basi/kosong
+  try{
+    const jc = await gasFetch(APP.GAS_URL+'?action=getCustomers&t='+Date.now());
+    if(jc?.success&&jc.data){CUSTOMERS=jc.data;cSet('alima_custs',CUSTOMERS);renderCustDD();}
+  }catch(e){ /* kalau refresh gagal, lanjut pakai data lama sebagai fallback */ }
+
   const dup = CUSTOMERS.find(c => c.no_hp === waHp);
-  if (dup) return toast(`No. HP sudah terdaftar atas nama ${dup.nama}${dup.nama_instansi?' — '+dup.nama_instansi:''}.`,'err');
+  if (dup) { btn.disabled=false;btn.textContent='💾 Simpan Customer'; return toast(`No. HP sudah terdaftar atas nama ${dup.nama}${dup.nama_instansi?' — '+dup.nama_instansi:''}.`,'err'); }
+
   const newId = waHp; // ID = nomor HP (aman krn no. HP dijamin unik per customer)
   const data={id:newId,sales:document.getElementById('nc-sales').value.trim(),gender:document.getElementById('nc-gender').value,nama,nama_instansi:document.getElementById('nc-instansi').value.trim(),no_hp:waHp,instansi:document.getElementById('nc-tipe').value,alamat:document.getElementById('nc-alamat').value.trim()};
-  const btn=document.getElementById('btn-save-cust');btn.disabled=true;btn.textContent='Menyimpan…';
   try{
-    if(!APP.GAS_URL.includes('GANTI'))await fetch(APP.GAS_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'addCustomer',data})});
+    const qs = new URLSearchParams({action:'addCustomer', ...data}).toString();
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message || 'Gagal menyimpan customer.');
     CUSTOMERS.push(data);cSet('alima_custs',CUSTOMERS);renderCustDD();
     selectCust(newId);
     toast(`Customer ${nama} ditambahkan ✓`,'ok');closeCustModal();
