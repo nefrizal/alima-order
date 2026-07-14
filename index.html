@@ -105,6 +105,10 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       <div class="fld"><label>No. Order</label><input id="f-no" type="text" readonly placeholder="Auto"></div>
       <div class="fld"><label>Tanggal Kirim <span class="req">*</span></label><input id="f-tgl" type="date" onchange="onTglChange()"></div>
     </div>
+    <div class="g2">
+      <div class="fld"><label>Jam Sampai</label><input id="f-jam" type="time"></div>
+      <div class="fld"></div>
+    </div>
     <div class="fld">
       <label>Order Mirip (opsional)</label>
       <div style="display:flex;gap:8px;">
@@ -255,9 +259,6 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 </div>
 
 </main>
-<div style="position:fixed;bottom:70px;right:16px;z-index:999;">
-  <button onclick="alert('EMBEDDED:'+typeof EMBEDDED_MENU+'\nCUST:'+CUSTOMERS.length+'\nmdyn-nasi:'+document.getElementById('mdyn-nasi')?.tagName)" style="background:#333;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-size:12px;cursor:pointer;">🐛 Debug</button>
-</div>
 
 <!-- MODAL CUSTOMER -->
 <div class="modal-bg hide" id="cust-modal">
@@ -392,7 +393,7 @@ function updateMenuHints() {
   const colMap = {
     'nasi':'nasi','lauk_utama':'lauk utama','tambahan':'tambahan',
     'sayur':'sayur','sambal':'sambal','kerupuk':'kerupuk','buah':'buah',
-    'air_mineral':'air mineral','kotak':'kemasan',
+    'air_mineral':'air mineral','kemasan':'kemasan',
     'lain1':'pilihan lain 1','lain2':'pilihan lain 2','lain3':'pilihan lain 3',
     'lain4':'pilihan lain 4','lain5':'pilihan lain 5',
     'puding':'puding','snack':'snack','minuman':'minuman'
@@ -486,12 +487,13 @@ async function cloneOrder() {
     document.getElementById('f-adr').value = d.alamat_pengiriman||d.alamat||'';
     document.getElementById('f-krd').value = d.koordinat||'';
     document.getElementById('f-ket').value = d.keterangan||'';
+    document.getElementById('f-jam').value = d.jam_sampai||'';
 
     // ── Menu — set setelah render grid ──
     const menuMap = {
       'nasi':d.nasi,'lauk_utama':d.lauk_utama,'tambahan':d.tambahan,
       'sayur':d.sayur,'sambal':d.sambal,'kerupuk':d.kerupuk,'buah':d.buah,
-      'air_mineral':d.air_mineral,'kotak':d.kotak,
+      'air_mineral':d.air_mineral,'kemasan':d.kemasan,
       'lain1':d.pilihan_lain_1||d.lain1,'lain2':d.pilihan_lain_2||d.lain2,
       'lain3':d.pilihan_lain_3||d.lain3,'lain4':d.pilihan_lain_4||d.lain4,
       'lain5':d.pilihan_lain_5||d.lain5,
@@ -551,7 +553,7 @@ function renderRevisiForm(d) {
     ['tambahan','Tambahan',d.tambahan],['sayur','Sayur',d.sayur],
     ['sambal','Sambal',d.sambal],['kerupuk','Kerupuk',d.kerupuk],
     ['buah','Buah',d.buah],['air_mineral','Air Mineral',d.air_mineral],
-    ['kotak','Packaging',d.kotak],['lain1','Pilihan 1',d.pilihan_lain_1],
+    ['kemasan','Kemasan',d.kemasan],['lain1','Pilihan 1',d.pilihan_lain_1],
     ['lain2','Pilihan 2',d.pilihan_lain_2],['lain3','Pilihan 3',d.pilihan_lain_3],
     ['lain4','Pilihan 4',d.pilihan_lain_4],['lain5','Pilihan 5',d.pilihan_lain_5],
     ['puding','Puding',d.puding],['minuman','Minuman',d.minuman],['snack','Snack',d.snack]
@@ -640,7 +642,7 @@ async function submitRevisi() {
   const tot   = jml+del;
 
   const menuKeys = ['nasi','lauk_utama','tambahan','sayur','sambal','kerupuk','buah',
-    'air_mineral','kotak','lain1','lain2','lain3','lain4','lain5','puding','minuman','snack'];
+    'air_mineral','kemasan','lain1','lain2','lain3','lain4','lain5','puding','minuman','snack'];
   const menuVals = {};
   menuKeys.forEach(k => { menuVals[k] = document.getElementById('rv-'+k)?.value||''; });
 
@@ -705,7 +707,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 const BULAN_NAMA = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
 
 function applyDefaultProduk(){
-  // Set default produk
+  // Set default produk = nasi kotak
   const prodSel = document.getElementById('f-produk');
   if(!prodSel) return;
   const prodOpt = Array.from(prodSel.options).find(o=>o.value==='nasi kotak');
@@ -824,39 +826,6 @@ async function loadMasterFromGAS(){
     });
 }
 
-function renderMenuGrid(menuData){
-  const grid=document.getElementById('menu-dynamic-grid');
-  const pGrid=document.getElementById('pilihan-lain-grid');
-  const stat=document.getElementById('menu-status');
-  if(!menuData||!Object.keys(menuData).length) return;
-  const PLAIN=['lain1','lain2','lain3','lain4','lain5'];
-  const shown=new Set();let mHtml='',pHtml='';
-  const allKeys=Object.keys(menuData);
-  const ordered=[...MENU_ORDER.filter(k=>menuData[k]),...allKeys.filter(k=>!MENU_ORDER.includes(k))];
-  ordered.forEach(key=>{
-    const opts=menuData[key];if(!opts)return;
-    const fk=MENU_KEY_MAP[key]||key.replace(/\s+/g,'_');
-    if(shown.has(fk))return;shown.add(fk);
-    const lbl=key.charAt(0).toUpperCase()+key.slice(1);
-    const sid='mdyn-'+fk;
-    const ops=['—',...opts].map(o=>`<option value="${o==='—'?'':o}">${o}</option>`).join('');
-    const html=`<div class="fld"><label>${lbl}</label><select id="${sid}" data-field="${fk}">${ops}</select><div id="hint-${fk}" style="display:none;font-size:10px;color:var(--inks);margin-top:3px;"></div></div>`;
-    if(PLAIN.includes(fk))pHtml+=html;else mHtml+=html;
-  });
-  grid.innerHTML=mHtml||'';pGrid.innerHTML=pHtml||'';
-  if(stat) stat.textContent=`✓ ${Object.keys(menuData).length} komponen`;
-}
-
-function collectMenuValues(){
-  const r={};
-  document.querySelectorAll('#menu-dynamic-grid [data-field],#pilihan-lain-grid [data-field]').forEach(el=>{r[el.dataset.field]=el.value?.trim()||'';});
-  return r;
-}
-function resetMenuSelects(){
-  document.querySelectorAll('#menu-dynamic-grid [data-field],#pilihan-lain-grid [data-field]').forEach(el=>{el.value='';});
-}
-
-// ══ RENDER MENU GRID ══════════════════
 function renderMenuGrid(menuData){
   const grid=document.getElementById('menu-dynamic-grid');
   const pGrid=document.getElementById('pilihan-lain-grid');
@@ -991,7 +960,8 @@ function filterCust(){
     : CUSTOMERS.filter(c =>
         (c.nama||'').toLowerCase().includes(q) ||
         (c.nama_instansi||'').toLowerCase().includes(q) ||
-        (c.id||'').toLowerCase().includes(q)
+        (c.id||'').toLowerCase().includes(q) ||
+        (c.sales||'').toLowerCase().includes(q)
       ).slice(0, 20);
 
   if(!filtered.length){
@@ -1004,7 +974,7 @@ function filterCust(){
       onmouseover="this.style.background='var(--orl)'" onmouseout="this.style.background=''">
       <strong>${c.nama||'—'}</strong>
       ${c.nama_instansi?`<span style="color:var(--inks);font-size:11px;"> — ${c.nama_instansi}</span>`:''}
-      <br><span style="color:var(--inks);font-size:11px;">📱 ${c.no_hp||'—'} · ${c.instansi||'—'}</span>
+      <br><span style="color:var(--inks);font-size:11px;">📱 ${c.no_hp||'—'} · ${c.instansi||'—'}${c.sales?' · Sales: '+c.sales:''}</span>
     </div>`).join('');
   dd.style.display = 'block';
 }
@@ -1109,7 +1079,6 @@ async function submitOrder(){
     alamat:document.getElementById('f-adr').value.trim(),koordinat:document.getElementById('f-krd').value.trim(),
     status:'Baru'
   };
-  if(!d.bulan)return toast('Pilih bulan.','err');
   if(!d.sales)return toast('Isi nama sales.','err');
   if(!d.produk)return toast('Pilih produk.','err');
   if(!d.paket)return toast('Pilih paket.','err');
@@ -1171,7 +1140,7 @@ async function updStatus(no,st){
 // ══ FONNTE ════════════════════════════
 async function sendWAInternal(o){
   if(APP.FONNTE_TOKEN.includes('GANTI'))return;
-  const mf={Nasi:o.nasi,'Lauk':o.lauk_utama,'Tambahan':o.tambahan,'Sayur':o.sayur,'Sambal':o.sambal,'Kerupuk':o.kerupuk,'Buah':o.buah,'Air':o.air_mineral,'Kotak':o.kotak,'Puding':o.puding,'Snack':o.snack,'Minuman':o.minuman,'Lain-1':o.lain1,'Lain-2':o.lain2};
+  const mf={Nasi:o.nasi,'Lauk':o.lauk_utama,'Tambahan':o.tambahan,'Sayur':o.sayur,'Sambal':o.sambal,'Kerupuk':o.kerupuk,'Buah':o.buah,'Air':o.air_mineral,'Kemasan':o.kemasan,'Puding':o.puding,'Snack':o.snack,'Minuman':o.minuman,'Lain-1':o.lain1,'Lain-2':o.lain2};
   const ml=Object.entries(mf).filter(([,v])=>v&&v!=='—').map(([k,v])=>`  ${k.padEnd(10)}: ${v}`).join('\n');
   const payInfo = o.inv_status ? `\n💳 *${o.inv_status}*${o.inv_bayar?' : Rp '+o.inv_bayar.toLocaleString('id-ID'):''}${o.inv_sisa?' | Sisa: Rp '+o.inv_sisa.toLocaleString('id-ID'):''}` : '';
   const msg=`🍽️ *ORDER BARU — ${o.no_order}*\n\n👤 Sales    : ${o.sales} | Tim: ${o.tim||'—'}\n🏢 Customer : ${o.penerima||'—'} ${o.customer_id?'('+o.customer_id+')':''}\n📦 ${o.produk} · ${o.paket}\n👥 ${o.qty} pax | Kirim: ${fd(o.tgl_kirim)} ${o.jam_sampai||''}\n📍 ${o.alamat||'—'}\n\n🥘 *Menu:*\n${ml||'—'}\n${o.keterangan?'\n📝 '+o.keterangan:''}\n💰 Harga Jual : Rp ${(o.harga_jual*1000).toLocaleString('id-ID')}/pax\n💵 *TOTAL : Rp ${(o.jumlah_total||0).toLocaleString('id-ID')}*${payInfo}\n\n_${new Date().toLocaleString('id-ID')}_`;
@@ -1195,7 +1164,7 @@ async function sendWAKlien(o){
   const mf = {
     'Nasi':o.nasi,'Lauk Utama':o.lauk_utama,'Tambahan':o.tambahan,
     'Sayur':o.sayur,'Sambal':o.sambal,'Kerupuk':o.kerupuk,
-    'Buah':o.buah,'Air Mineral':o.air_mineral,'Kotak/Packaging':o.kotak,
+    'Buah':o.buah,'Air Mineral':o.air_mineral,'Kemasan':o.kemasan,
     'Puding':o.puding,'Snack':o.snack,'Minuman':o.minuman,
     'Lain-1':o.lain1,'Lain-2':o.lain2,'Lain-3':o.lain3
   };
@@ -1263,7 +1232,7 @@ function goTab(id,btn){
   if(id==='list'&&allOrders.length===0)loadOrders();
 }
 function resetForm(){
-  ['f-cid','f-gol','f-produk','f-qty','f-hjual','f-fee','f-hksm','f-hmin','f-del','f-ket','f-pen','f-hp','f-adr','f-krd','f-inv-bayar','f-mirip'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  ['f-cid','f-gol','f-produk','f-qty','f-hjual','f-fee','f-hksm','f-hmin','f-del','f-ket','f-pen','f-hp','f-adr','f-krd','f-inv-bayar','f-mirip','f-jam'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   const cs=document.getElementById('f-cid-search');if(cs)cs.value='';
   const ms=document.getElementById('mirip-status');if(ms)ms.textContent='';
   const invs=document.getElementById('f-inv-status');if(invs)invs.value='';
