@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Alima Katering — Order</title>
+<title>KSM Katering — Order</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -84,7 +84,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 </head>
 <body>
 <header>
-  <div class="brand">Alima Katering<small>Sales Order App</small></div>
+  <div class="brand">KSM Katering<small>Sales Order App</small></div>
   <div id="cst">⏳</div>
 </header>
 <div class="tabs">
@@ -300,7 +300,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 <script>
 // ══ KONFIGURASI ══════════════════════
 const APP = {
-  GAS_URL:      "https://script.google.com/macros/s/AKfycbyPgnhHNpbAWQbt4sNQiLFaDTRN-emDLn_rV68GVpvkdFAbFd41fyZxdMJUMqHdI1Zp/exec",
+  GAS_URL:      "https://script.google.com/macros/s/AKfycbzqS_xoX-qvkzkk8nlCq-Urgh4v4dQDmaA5v4zmjNR1yWwSw7iJSs4RfBP-pHiY0UxL/exec",
   FONNTE_TOKEN: "o3iKrUUBhRaF2qHHqsD7",
   WA_NOTIF:     "6285272739729"
 };
@@ -749,33 +749,12 @@ function loadSalesLocal(){
   if(t){const e=document.getElementById('f-tim');if(e)e.value=t;}
 }
 
-// ══ GAS FETCH (JSONP untuk hindari CORS redirect issue) ═══════
-function gasFetch(url){
-  return new Promise((resolve, reject) => {
-    const cbName = '_gasCb_' + Date.now() + '_' + Math.floor(Math.random()*9999);
-    const script  = document.createElement('script');
-    const timeout = setTimeout(() => {
-      cleanup();
-      reject(new Error('GAS timeout'));
-    }, 15000);
-
-    function cleanup(){
-      clearTimeout(timeout);
-      delete window[cbName];
-      if(script.parentNode) script.parentNode.removeChild(script);
-    }
-
-    window[cbName] = function(data){
-      cleanup();
-      resolve(data);
-    };
-
-    // Tambah callback param untuk JSONP
-    const sep = url.includes('?') ? '&' : '?';
-    script.src = url + sep + 'callback=' + cbName;
-    script.onerror = () => { cleanup(); reject(new Error('GAS script load failed')); };
-    document.head.appendChild(script);
-  });
+// ══ GAS FETCH ═════════════════════════
+async function gasFetch(url){
+  const res=await fetch(url,{method:'GET',redirect:'follow'});
+  const text=await res.text();
+  if(text.trim().startsWith('<')) throw new Error('GAS return HTML');
+  return JSON.parse(text);
 }
 
 // ══ MASTER (hanya Paket dari GAS) ═════
@@ -1182,63 +1161,15 @@ async function sendWAKlien(o){
   const jumlah = o.jumlah||0;
   const deliv  = o.delivery||0;
   const total  = o.jumlah_total||0;
-  const dp     = o.inv_bayar||0;
-  const sisa   = o.inv_sisa||0;
 
-  const payLine = o.inv_status==='DP' && sisa
-    ? `\n💳 DP diterima: Rp ${dp.toLocaleString('id-ID')}\n⏳ Sisa      : *Rp ${sisa.toLocaleString('id-ID')}*`
+  const payLine = o.inv_status==='DP' && o.inv_sisa
+    ? `\n💳 DP diterima: Rp ${(o.inv_bayar||0).toLocaleString('id-ID')}\n⏳ Sisa      : *Rp ${o.inv_sisa.toLocaleString('id-ID')}*`
     : o.inv_status==='Lunas' ? `\n✅ *Pembayaran Lunas*` : '';
-
-  // ── Link konfirmasi order ──────────────────────────────────
-  const KONFIRMASI_URL = 'https://nefrizal.github.io/alima-order/konfirmasi-order.html';
-  const kParams = new URLSearchParams({
-    order: o.no_order,
-    nama:  nama,
-    jenis: `${o.produk||''}${o.paket?' · '+o.paket:''}`,
-    pax:   o.qty,
-    tgl:   fd(o.tgl_kirim),
-    jam:   o.jam_sampai||'',
-    lok:   o.alamat||'',
-    cat:   o.keterangan||'',
-    hp:    hJual,
-    jml:   jumlah,
-    del:   deliv,
-    tot:   total,
-    dp:    dp,
-    sisa:  sisa,
-    // byr: 'DP' | 'Lunas' | '' (Invoice = belum bayar = kosong)
-    byr:   (o.inv_status==='DP'||o.inv_status==='Lunas') ? o.inv_status : '',
-    // menu fields
-    nasi:     o.nasi||'',
-    lauk:     o.lauk_utama||'',
-    tambahan: o.tambahan||'',
-    sayur:    o.sayur||'',
-    sambal:   o.sambal||'',
-    kerupuk:  o.kerupuk||'',
-    buah:     o.buah||'',
-    air:      o.air_mineral||'',
-    kotak:    o.kotak||'',
-    puding:   o.puding||'',
-    snack:    o.snack||'',
-    minuman:  o.minuman||'',
-    lain1:    o.lain1||'',
-    lain2:    o.lain2||'',
-    lain3:    o.lain3||'',
-  });
-  const konfirmasiLink = `${KONFIRMASI_URL}?${kParams.toString()}`;
-  // ──────────────────────────────────────────────────────────
-
-  // Shorten link via GAS (server-side, tidak kena CORS)
-  let shortLink = konfirmasiLink;
-  try {
-    const shrData = await gasFetch(APP.GAS_URL + '?action=shortenUrl&url=' + encodeURIComponent(konfirmasiLink) + '&t=' + Date.now());
-    if (shrData?.success && shrData.short) shortLink = shrData.short;
-  } catch(e) { console.warn('Shorten URL gagal, pakai link panjang'); }
 
   const msg =
 `Halo *${sapaNama}*! 👋
 
-Terima kasih telah memesan di *Alima Katering Batam* 🧡
+Terima kasih telah memesan di *KSM Katering Batam* 🧡
 
 📋 *Konfirmasi Order ${o.no_order}*
 📦 ${o.produk}${o.paket?' · '+o.paket:''}
@@ -1257,11 +1188,7 @@ ${menuList||'  —'}
   • *Total    : Rp ${total.toLocaleString('id-ID')}*${payLine}
 
 Tim kami akan segera konfirmasi lebih lanjut.
-Salam, *Alima Katering* 🍱
-
-━━━━━━━━━━━━━━━━━━━
-Ketuk link berikut untuk konfirmasi pesanan:
-🔗 ${shortLink}`;
+Salam, *KSM Katering* 🍱`;
 
   await fPost(o.hp_penerima, msg);
 }
