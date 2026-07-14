@@ -93,6 +93,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   <button class="tbtn" onclick="goTab('list',this)">📋 Daftar</button>
 </div>
 <div class="ovl hide" id="ovl"><div class="sp"></div><span id="ovl-msg">Memproses…</span></div>
+<div class="toast" id="toast"></div>
 <main>
 
 <!-- ═══ FORM ═══ -->
@@ -174,16 +175,16 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     <div class="g2" style="margin-top:10px;">
       <div class="fld">
         <label>Status Pembayaran</label>
-        <select id="f-inv-status">
+        <select id="f-inv-status" onchange="recalc()">
           <option value="">— Pilih —</option>
           <option value="Invoice">Invoice</option>
-          <option value="DP">DP</option>
+          <option value="DP" selected>DP</option>
           <option value="Lunas">Lunas</option>
         </select>
       </div>
       <div class="fld">
         <label>Jumlah Bayar (Rp)</label>
-        <input id="f-inv-bayar" type="number" min="0" placeholder="0" oninput="recalc()">
+        <input id="f-inv-bayar" type="number" min="0" placeholder="0" oninput="recalc('bayar')">
       </div>
     </div>
     <div id="sisa-strip" style="display:none;background:var(--grnl);border:1px solid #b7dfc9;border-radius:8px;padding:10px 14px;margin-top:6px;">
@@ -443,7 +444,7 @@ async function cloneOrder() {
 
     // Customer — cari di CUSTOMERS lalu set search
     const custId = d.customer_id||'';
-    const cust   = CUSTOMERS.find(c => c.id === custId);
+    const cust   = CUSTOMERS.find(c => c.no_hp === custId);
     if (cust) {
       document.getElementById('f-cid').value = custId;
       document.getElementById('f-cid-search').value = cust.nama+(cust.nama_instansi?' — '+cust.nama_instansi:'');
@@ -901,7 +902,7 @@ function onPaket(){
 }
 
 // ══ RECALC ════════════════════════════
-function recalc(){
+function recalc(source){
   const qty=parseFloat(document.getElementById('f-qty').value)||0;
   const hjl=parseFloat(document.getElementById('f-hjual').value)||0;
   const fee=parseFloat(document.getElementById('f-fee').value)||0;
@@ -913,8 +914,16 @@ function recalc(){
   document.getElementById('c-del').textContent='Rp '+del.toLocaleString('id-ID');
   document.getElementById('c-tot').textContent='Rp '+tot.toLocaleString('id-ID');
 
+  // Auto-isi Jumlah Bayar berdasarkan Status Pembayaran (kecuali user sedang mengetik manual di kolom Bayar)
+  const bayarEl=document.getElementById('f-inv-bayar');
+  const statusVal=document.getElementById('f-inv-status')?.value||'';
+  if(bayarEl&&source!=='bayar'){
+    if(statusVal==='DP')     bayarEl.value=Math.round(tot*0.5)||'';
+    else if(statusVal==='Lunas') bayarEl.value=tot||'';
+  }
+
   // Hitung sisa
-  const bayar=parseFloat(document.getElementById('f-inv-bayar')?.value)||0;
+  const bayar=parseFloat(bayarEl?.value)||0;
   const sisa=tot-bayar;
   const strip=document.getElementById('sisa-strip');
   if(bayar>0&&strip){
@@ -961,6 +970,7 @@ function filterCust(){
         (c.nama||'').toLowerCase().includes(q) ||
         (c.nama_instansi||'').toLowerCase().includes(q) ||
         (c.id||'').toLowerCase().includes(q) ||
+        (c.no_hp||'').toLowerCase().includes(q) ||
         (c.sales||'').toLowerCase().includes(q)
       ).slice(0, 20);
 
@@ -1018,7 +1028,9 @@ async function saveNewCustomer(){
   if(!nama)return toast('Nama customer wajib.','err');
   if(!hp)return toast('No. HP wajib.','err');
   const waHp = normalizeWA(hp);
-  const newId = waHp; // ID = nomor HP
+  const dup = CUSTOMERS.find(c => c.no_hp === waHp);
+  if (dup) return toast(`No. HP sudah terdaftar atas nama ${dup.nama}${dup.nama_instansi?' — '+dup.nama_instansi:''}.`,'err');
+  const newId = waHp; // ID = nomor HP (aman krn no. HP dijamin unik per customer)
   const data={id:newId,sales:document.getElementById('nc-sales').value.trim(),gender:document.getElementById('nc-gender').value,nama,nama_instansi:document.getElementById('nc-instansi').value.trim(),no_hp:waHp,instansi:document.getElementById('nc-tipe').value,alamat:document.getElementById('nc-alamat').value.trim()};
   const btn=document.getElementById('btn-save-cust');btn.disabled=true;btn.textContent='Menyimpan…';
   try{
@@ -1153,7 +1165,7 @@ async function sendWASales(o,hp){
 }
 async function sendWAKlien(o){
   if(APP.FONNTE_TOKEN.includes('GANTI'))return;
-  const cust = CUSTOMERS.find(c => c.id === o.customer_id);
+  const cust = CUSTOMERS.find(c => c.no_hp === o.customer_id);
   const gender = cust?.gender || '';
   const sapaMap = {'bu':'Bu','bp.':'Bp.','bp':'Bp.','kak':'Kak','mba':'Mba'};
   const sapa = sapaMap[gender.toLowerCase()] || '';
@@ -1235,7 +1247,7 @@ function resetForm(){
   ['f-cid','f-gol','f-produk','f-qty','f-hjual','f-fee','f-hksm','f-hmin','f-del','f-ket','f-pen','f-hp','f-adr','f-krd','f-inv-bayar','f-mirip','f-jam'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   const cs=document.getElementById('f-cid-search');if(cs)cs.value='';
   const ms=document.getElementById('mirip-status');if(ms)ms.textContent='';
-  const invs=document.getElementById('f-inv-status');if(invs)invs.value='';
+  const invs=document.getElementById('f-inv-status');if(invs)invs.value='DP';
   const ss=document.getElementById('sisa-strip');if(ss)ss.style.display='none';
   document.getElementById('f-paket').innerHTML='<option value="">— Pilih Produk dulu —</option>';
   document.getElementById('cust-info').style.display='none';
