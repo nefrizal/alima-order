@@ -1316,7 +1316,7 @@ function renderJadwal(){
 }
 
 function openOrderDetail(no){
-  const o = allOrders.find(x => x.no_order === no);
+  const o = allOrders.find(x => String(x.no_order) === String(no));
   if(!o){ toast('Data order tidak ditemukan (coba refresh).','err'); return; }
 
   const menuFields = [
@@ -1379,7 +1379,7 @@ function closeOrderDetail(){
 async function updStatus(no,st){
   try{
     await fetch(APP.GAS_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'updateStatus',no_order:no,status:st})});
-    const o=allOrders.find(x=>x.no_order===no);if(o)o.status=st;renderJadwal();toast('Status diperbarui.','ok');
+    const o=allOrders.find(x=>String(x.no_order)===String(no));if(o)o.status=st;renderJadwal();toast('Status diperbarui.','ok');
   }catch(e){toast('Gagal update.','err');}
 }
 
