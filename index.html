@@ -1276,12 +1276,12 @@ function renderJadwal(){
   try{
     const now = new Date();
     const todayStr = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
-    const upcoming = allOrders.filter(o => o.status !== 'Batal' && o.tgl_kirim && String(o.tgl_kirim).slice(0,10) >= todayStr);
+    const upcoming = allOrders.filter(o => o.status !== 'Batal' && (o.tanggal_kirim||o.tgl_kirim) && String(o.tanggal_kirim||o.tgl_kirim).slice(0,10) >= todayStr);
     if(!upcoming.length){ w.innerHTML=`<div class="empty"><div class="eico">📅</div><p>Tidak ada order ke depan.</p><p style="font-size:11px;margin-top:6px;">(${allOrders.length} order dimuat, tanggal hari ini: ${todayStr})</p></div>`; return; }
 
     const groups = {};
     upcoming.forEach(o => {
-      const key = String(o.tgl_kirim).slice(0,10);
+      const key = String(o.tanggal_kirim||o.tgl_kirim).slice(0,10);
       if(!groups[key]) groups[key] = [];
       groups[key].push(o);
     });
@@ -1295,7 +1295,7 @@ function renderJadwal(){
           <div class="jw-jam">${o.jam_sampai||'—'}</div>
           <div class="jw-paket" onclick="openOrderDetail('${o.no_order}')">${o.paket||'—'}</div>
           <div class="jw-qty">${o.qty||0}</div>
-          <div class="jw-nama">${o.penerima||o.customer_id||'—'}</div>
+          <div class="jw-nama">${o.nama_penerima||o.customer_id||'—'}</div>
         </div>`).join('');
       return `
         <div class="jw-daygroup">
@@ -1322,8 +1322,8 @@ function openOrderDetail(no){
   const menuFields = [
     ['Nasi',o.nasi],['Lauk Utama',o.lauk_utama],['Tambahan',o.tambahan],['Sayur',o.sayur],
     ['Sambal',o.sambal],['Kerupuk',o.kerupuk],['Buah',o.buah],['Air Mineral',o.air_mineral],
-    ['Kemasan',o.kemasan],['Pilihan 1',o.lain1],['Pilihan 2',o.lain2],['Pilihan 3',o.lain3],
-    ['Pilihan 4',o.lain4],['Pilihan 5',o.lain5],['Puding',o.puding],['Snack',o.snack],['Minuman',o.minuman]
+    ['Kemasan',o.kemasan],['Pilihan 1',o.pilihan_lain_1],['Pilihan 2',o.pilihan_lain_2],['Pilihan 3',o.pilihan_lain_3],
+    ['Pilihan 4',o.pilihan_lain_4],['Pilihan 5',o.pilihan_lain_5],['Puding',o.puding],['Snack',o.snack],['Minuman',o.minuman]
   ].filter(([,v]) => v && v!=='—');
 
   const tot = Number(o.jumlah_total)||0;
@@ -1335,16 +1335,16 @@ function openOrderDetail(no){
       <span class="badge ${bc[o.status]||'bb'}">${o.status||'Baru'}</span>
     </div>
     <div class="pstrip" style="margin-top:0;">
-      <div class="prow"><span>📅 Tanggal Kirim</span><span>${fd(o.tgl_kirim)}</span></div>
+      <div class="prow"><span>📅 Tanggal Kirim</span><span>${fd(o.tanggal_kirim)}</span></div>
       <div class="prow"><span>🕐 Jam Sampai</span><span>${o.jam_sampai||'—'}</span></div>
       <div class="prow"><span>🍱 Paket</span><span>${o.paket||'—'}</span></div>
       <div class="prow"><span>👥 Qty</span><span>${o.qty||0} pax</span></div>
-      <div class="prow"><span>👤 Sales</span><span>${o.sales||'—'}</span></div>
+      <div class="prow"><span>👤 Sales</span><span>${o.nama_sales||'—'}</span></div>
     </div>
     <div style="margin-top:12px;font-size:12px;color:var(--inkm);line-height:1.8;">
-      <strong>${o.penerima||o.customer_id||'—'}</strong><br>
-      📱 ${o.hp_penerima||'—'}<br>
-      📍 ${o.alamat||'—'}
+      <strong>${o.nama_penerima||o.customer_id||'—'}</strong><br>
+      📱 ${o.no_hp_penerima||'—'}<br>
+      📍 ${o.alamat_pengiriman||'—'}
       ${o.koordinat?`<br>🗺️ ${o.koordinat}`:''}
     </div>
     ${menuFields.length?`
@@ -1353,15 +1353,15 @@ function openOrderDetail(no){
     `:''}
     ${o.keterangan?`<div style="margin-top:10px;font-size:12px;color:var(--inkm);"><strong>Keterangan:</strong> ${o.keterangan}</div>`:''}
     <div class="pstrip">
-      <div class="prow"><span>Harga Jual</span><span>Rp ${((o.harga_jual_dlm_ribuan||o.harga_jual||0)*1000).toLocaleString('id-ID')}/pax</span></div>
-      <div class="prow"><span>Delivery Charge</span><span>Rp ${(o.delivery_charge||o.delivery||0).toLocaleString('id-ID')}</span></div>
+      <div class="prow"><span>Harga Jual</span><span>Rp ${((o.harga_jual_dlm_ribuan||0)*1000).toLocaleString('id-ID')}/pax</span></div>
+      <div class="prow"><span>Delivery Charge</span><span>Rp ${(o.delivery_charge||0).toLocaleString('id-ID')}</span></div>
       <div class="prow tot"><span>Jumlah Total</span><span>Rp ${tot.toLocaleString('id-ID')}</span></div>
     </div>
-    ${o.status_pembayaran||o.inv_status?`
+    ${o.status_pembayaran?`
     <div class="pstrip" style="background:var(--grnl);border-color:#b7dfc9;">
-      <div class="prow"><span>💳 Status Pembayaran</span><span>${o.status_pembayaran||o.inv_status||'—'}</span></div>
-      <div class="prow"><span>Jumlah Bayar</span><span>Rp ${Number(o.jumlah_bayar||o.inv_bayar||0).toLocaleString('id-ID')}</span></div>
-      <div class="prow tot" style="color:var(--grn);border-top-color:#b7dfc9;"><span>Sisa</span><span>Rp ${Number(o.sisa_bayar||o.inv_sisa||0).toLocaleString('id-ID')}</span></div>
+      <div class="prow"><span>💳 Status Pembayaran</span><span>${o.status_pembayaran||'—'}</span></div>
+      <div class="prow"><span>Jumlah Bayar</span><span>Rp ${Number(o.jumlah_bayar||0).toLocaleString('id-ID')}</span></div>
+      <div class="prow tot" style="color:var(--grn);border-top-color:#b7dfc9;"><span>Sisa</span><span>Rp ${Number(o.sisa_bayar||0).toLocaleString('id-ID')}</span></div>
     </div>`:''}
     <div class="fld" style="margin-top:14px;">
       <label>Ubah Status</label>
