@@ -1273,40 +1273,46 @@ async function loadOrders(){
 }
 function renderJadwal(){
   const w = document.getElementById('jw');
-  const todayStr = new Date().toISOString().split('T')[0];
-  const upcoming = allOrders.filter(o => o.status !== 'Batal' && o.tgl_kirim && o.tgl_kirim >= todayStr);
-  if(!upcoming.length){ w.innerHTML='<div class="empty"><div class="eico">📅</div><p>Tidak ada order ke depan.</p></div>'; return; }
+  try{
+    const now = new Date();
+    const todayStr = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+    const upcoming = allOrders.filter(o => o.status !== 'Batal' && o.tgl_kirim && String(o.tgl_kirim).slice(0,10) >= todayStr);
+    if(!upcoming.length){ w.innerHTML=`<div class="empty"><div class="eico">📅</div><p>Tidak ada order ke depan.</p><p style="font-size:11px;margin-top:6px;">(${allOrders.length} order dimuat, tanggal hari ini: ${todayStr})</p></div>`; return; }
 
-  const groups = {};
-  upcoming.forEach(o => {
-    const key = o.tgl_kirim;
-    if(!groups[key]) groups[key] = [];
-    groups[key].push(o);
-  });
+    const groups = {};
+    upcoming.forEach(o => {
+      const key = String(o.tgl_kirim).slice(0,10);
+      if(!groups[key]) groups[key] = [];
+      groups[key].push(o);
+    });
 
-  const dates = Object.keys(groups).sort(); // format yyyy-MM-dd -> urut string = urut tanggal
-  w.innerHTML = dates.map(dt => {
-    const rows = groups[dt].slice().sort((a,b) => (a.jam_sampai||'99:99').localeCompare(b.jam_sampai||'99:99'));
-    const totalQty = rows.reduce((s,o) => s + (Number(o.qty)||0), 0);
-    const rowsHtml = rows.map(o => `
-      <div class="jw-row">
-        <div class="jw-jam">${o.jam_sampai||'—'}</div>
-        <div class="jw-paket" onclick="openOrderDetail('${o.no_order}')">${o.paket||'—'}</div>
-        <div class="jw-qty">${o.qty||0}</div>
-        <div class="jw-nama">${o.penerima||o.customer_id||'—'}</div>
-      </div>`).join('');
-    return `
-      <div class="jw-daygroup">
-        <div class="jw-dayhead">
-          <span class="jw-daydate">📅 ${fd(dt)}</span>
-          <span class="jw-daybadge">${totalQty} pax</span>
-        </div>
-        <div class="jw-table">
-          <div class="jw-row head"><div>Jam</div><div>Paket</div><div>Qty</div><div>Penerima</div></div>
-          ${rowsHtml}
-        </div>
-      </div>`;
-  }).join('');
+    const dates = Object.keys(groups).sort(); // format yyyy-MM-dd -> urut string = urut tanggal
+    w.innerHTML = dates.map(dt => {
+      const rows = groups[dt].slice().sort((a,b) => (a.jam_sampai||'99:99').localeCompare(b.jam_sampai||'99:99'));
+      const totalQty = rows.reduce((s,o) => s + (Number(o.qty)||0), 0);
+      const rowsHtml = rows.map(o => `
+        <div class="jw-row">
+          <div class="jw-jam">${o.jam_sampai||'—'}</div>
+          <div class="jw-paket" onclick="openOrderDetail('${o.no_order}')">${o.paket||'—'}</div>
+          <div class="jw-qty">${o.qty||0}</div>
+          <div class="jw-nama">${o.penerima||o.customer_id||'—'}</div>
+        </div>`).join('');
+      return `
+        <div class="jw-daygroup">
+          <div class="jw-dayhead">
+            <span class="jw-daydate">📅 ${fd(dt)}</span>
+            <span class="jw-daybadge">${totalQty} pax</span>
+          </div>
+          <div class="jw-table">
+            <div class="jw-row head"><div>Jam</div><div>Paket</div><div>Qty</div><div>Penerima</div></div>
+            ${rowsHtml}
+          </div>
+        </div>`;
+    }).join('');
+  }catch(e){
+    console.error('renderJadwal error:', e);
+    w.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>Gagal menampilkan jadwal: ${e.message}</p></div>`;
+  }
 }
 
 function openOrderDetail(no){
