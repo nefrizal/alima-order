@@ -68,7 +68,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 .jw-row:last-child{border-bottom:none;}
 .jw-row.head{background:var(--orl);font-weight:700;color:var(--ord);font-size:10px;text-transform:uppercase;letter-spacing:.4px;}
 .jw-jam{font-weight:700;color:var(--inkm);}
-.jw-paket{color:var(--ink);}
+.jw-paket{color:var(--or);font-weight:600;text-decoration:underline;text-decoration-color:#f0c9ab;cursor:pointer;}
 .jw-qty{text-align:center;font-weight:700;color:var(--ord);}
 .jw-nama{color:var(--inks);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .pill{background:var(--orl);color:var(--ord);font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;}
@@ -102,7 +102,6 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 <div class="tabs">
   <button class="tbtn on" onclick="goTab('form',this)">➕ Order Baru</button>
   <button class="tbtn" onclick="goTab('revisi',this)">✏️ Revisi</button>
-  <button class="tbtn" onclick="goTab('list',this)">📋 Daftar</button>
   <button class="tbtn" onclick="goTab('jadwal',this)">📅 Jadwal</button>
 </div>
 <div class="ovl hide" id="ovl"><div class="sp"></div><span id="ovl-msg">Memproses…</span></div>
@@ -260,19 +259,6 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   </div>
 </div>
 
-<!-- ═══ LIST ═══ -->
-<div class="panel" id="panel-list">
-  <div class="lbar">
-    <input type="text" id="s-q" placeholder="Cari no. order / nama…" oninput="renderList()">
-    <select id="s-st" onchange="renderList()">
-      <option value="">Semua Status</option>
-      <option>Baru</option><option>Proses</option><option>Selesai</option><option>Batal</option>
-    </select>
-    <button class="bico" onclick="loadOrders()">↻ Refresh</button>
-  </div>
-  <div id="lw"><div class="empty"><div class="eico">📋</div><p>Klik Refresh untuk memuat order.</p></div></div>
-</div>
-
 <!-- ═══ JADWAL ═══ -->
 <div class="panel" id="panel-jadwal">
   <div class="lbar">
@@ -308,6 +294,17 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     </div>
     <div class="fld"><label>Alamat</label><textarea id="nc-alamat" placeholder="Alamat lengkap…" style="min-height:52px;"></textarea></div>
     <button class="bsub" id="btn-save-cust" onclick="saveNewCustomer()" style="margin-top:8px;">💾 Simpan Customer</button>
+  </div>
+</div>
+
+<!-- MODAL DETAIL ORDER -->
+<div class="modal-bg hide" id="order-detail-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>📦 Detail Order</h2>
+      <button class="modal-close" onclick="closeOrderDetail()">×</button>
+    </div>
+    <div id="od-body"><!-- diisi JS --></div>
   </div>
 </div>
 
@@ -1266,13 +1263,13 @@ async function submitOrder(){
 
 // ══ LOAD / RENDER ORDERS ══════════════
 async function loadOrders(){
-  const w=document.getElementById('lw');
-  w.innerHTML='<div class="swrap"><div class="sp"></div>Memuat…</div>';
+  const w=document.getElementById('jw');
+  if(w) w.innerHTML='<div class="swrap"><div class="sp"></div>Memuat…</div>';
   try{
     const j=await gasFetch(APP.GAS_URL+'?action=getOrders&t='+Date.now());
-    if(j.success){allOrders=j.data||[];renderList();toast(allOrders.length+' order dimuat.','ok');}
+    if(j.success){allOrders=j.data||[];renderJadwal();toast(allOrders.length+' order dimuat.','ok');}
     else throw new Error(j.message);
-  }catch(e){w.innerHTML=`<div class="empty"><div class="eico">⚠️</div><p>Gagal: ${e.message}</p></div>`;}
+  }catch(e){if(w) w.innerHTML=`<div class="empty"><div class="eico">⚠️</div><p>Gagal: ${e.message}</p></div>`;}
 }
 function renderJadwal(){
   const w = document.getElementById('jw');
@@ -1294,7 +1291,7 @@ function renderJadwal(){
     const rowsHtml = rows.map(o => `
       <div class="jw-row">
         <div class="jw-jam">${o.jam_sampai||'—'}</div>
-        <div class="jw-paket">${o.paket||'—'}</div>
+        <div class="jw-paket" onclick="openOrderDetail('${o.no_order}')">${o.paket||'—'}</div>
         <div class="jw-qty">${o.qty||0}</div>
         <div class="jw-nama">${o.penerima||o.customer_id||'—'}</div>
       </div>`).join('');
@@ -1311,30 +1308,72 @@ function renderJadwal(){
       </div>`;
   }).join('');
 }
-function renderList(){
-  const q=document.getElementById('s-q').value.toLowerCase();
-  const st=document.getElementById('s-st').value;
-  const f=allOrders.filter(o=>(!q||(o.no_order||'').toLowerCase().includes(q)||(o.penerima||'').toLowerCase().includes(q))&&(!st||o.status===st));
-  const w=document.getElementById('lw');
-  if(!f.length){w.innerHTML='<div class="empty"><div class="eico">🔍</div><p>Tidak ada order.</p></div>';return;}
+
+function openOrderDetail(no){
+  const o = allOrders.find(x => x.no_order === no);
+  if(!o){ toast('Data order tidak ditemukan (coba refresh).','err'); return; }
+
+  const menuFields = [
+    ['Nasi',o.nasi],['Lauk Utama',o.lauk_utama],['Tambahan',o.tambahan],['Sayur',o.sayur],
+    ['Sambal',o.sambal],['Kerupuk',o.kerupuk],['Buah',o.buah],['Air Mineral',o.air_mineral],
+    ['Kemasan',o.kemasan],['Pilihan 1',o.lain1],['Pilihan 2',o.lain2],['Pilihan 3',o.lain3],
+    ['Pilihan 4',o.lain4],['Pilihan 5',o.lain5],['Puding',o.puding],['Snack',o.snack],['Minuman',o.minuman]
+  ].filter(([,v]) => v && v!=='—');
+
+  const tot = Number(o.jumlah_total)||0;
   const bc={Baru:'bb',Proses:'bp',Selesai:'bs',Batal:'bx'};
-  w.innerHTML=f.map(o=>{
-    const pls=[o.nasi,o.lauk_utama,o.tambahan,o.sayur,o.sambal].filter(x=>x&&x!=='—').map(x=>`<span class="pill">${x}</span>`).join('');
-    const tot=Number(o.jumlah_total)||0;
-    return `<div class="ocard">
-      <div class="och"><div><div class="ono">${o.no_order||'—'}</div><div class="odt">📅 ${fd(o.tgl_kirim)} ${o.jam_sampai?'· '+o.jam_sampai:''} · ${o.qty||0} pax</div></div>
-      <span class="badge ${bc[o.status]||'bb'}">${o.status||'Baru'}</span></div>
-      <div class="obody"><strong>${o.penerima||o.customer_id||'—'}</strong><br>📍 ${o.alamat||'—'}<br>🍱 ${o.paket||'—'} · Sales: ${o.sales||'—'}</div>
-      ${pls?`<div class="pills">${pls}</div>`:''}
-      <div class="ofoot"><div class="otot">Rp ${tot.toLocaleString('id-ID')}</div>
-      <select class="ssel" onchange="updStatus('${o.no_order}',this.value)">${['Baru','Proses','Selesai','Batal'].map(s=>`<option ${o.status===s?'selected':''}>${s}</option>`).join('')}</select></div>
-    </div>`;
-  }).join('');
+
+  document.getElementById('od-body').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div class="ono" style="font-size:17px;">${o.no_order}</div>
+      <span class="badge ${bc[o.status]||'bb'}">${o.status||'Baru'}</span>
+    </div>
+    <div class="pstrip" style="margin-top:0;">
+      <div class="prow"><span>📅 Tanggal Kirim</span><span>${fd(o.tgl_kirim)}</span></div>
+      <div class="prow"><span>🕐 Jam Sampai</span><span>${o.jam_sampai||'—'}</span></div>
+      <div class="prow"><span>🍱 Paket</span><span>${o.paket||'—'}</span></div>
+      <div class="prow"><span>👥 Qty</span><span>${o.qty||0} pax</span></div>
+      <div class="prow"><span>👤 Sales</span><span>${o.sales||'—'}</span></div>
+    </div>
+    <div style="margin-top:12px;font-size:12px;color:var(--inkm);line-height:1.8;">
+      <strong>${o.penerima||o.customer_id||'—'}</strong><br>
+      📱 ${o.hp_penerima||'—'}<br>
+      📍 ${o.alamat||'—'}
+      ${o.koordinat?`<br>🗺️ ${o.koordinat}`:''}
+    </div>
+    ${menuFields.length?`
+    <div class="stitle" style="margin-top:16px;font-size:13px;">🥘 Komposisi Menu</div>
+    <div class="pills">${menuFields.map(([k,v])=>`<span class="pill">${k}: ${v}</span>`).join('')}</div>
+    `:''}
+    ${o.keterangan?`<div style="margin-top:10px;font-size:12px;color:var(--inkm);"><strong>Keterangan:</strong> ${o.keterangan}</div>`:''}
+    <div class="pstrip">
+      <div class="prow"><span>Harga Jual</span><span>Rp ${((o.harga_jual_dlm_ribuan||o.harga_jual||0)*1000).toLocaleString('id-ID')}/pax</span></div>
+      <div class="prow"><span>Delivery Charge</span><span>Rp ${(o.delivery_charge||o.delivery||0).toLocaleString('id-ID')}</span></div>
+      <div class="prow tot"><span>Jumlah Total</span><span>Rp ${tot.toLocaleString('id-ID')}</span></div>
+    </div>
+    ${o.status_pembayaran||o.inv_status?`
+    <div class="pstrip" style="background:var(--grnl);border-color:#b7dfc9;">
+      <div class="prow"><span>💳 Status Pembayaran</span><span>${o.status_pembayaran||o.inv_status||'—'}</span></div>
+      <div class="prow"><span>Jumlah Bayar</span><span>Rp ${Number(o.jumlah_bayar||o.inv_bayar||0).toLocaleString('id-ID')}</span></div>
+      <div class="prow tot" style="color:var(--grn);border-top-color:#b7dfc9;"><span>Sisa</span><span>Rp ${Number(o.sisa_bayar||o.inv_sisa||0).toLocaleString('id-ID')}</span></div>
+    </div>`:''}
+    <div class="fld" style="margin-top:14px;">
+      <label>Ubah Status</label>
+      <select id="od-status" onchange="updStatus('${o.no_order}',this.value); closeOrderDetail();">
+        ${['Baru','Proses','Selesai','Batal'].map(s=>`<option ${o.status===s?'selected':''}>${s}</option>`).join('')}
+      </select>
+    </div>
+  `;
+  document.getElementById('order-detail-modal').classList.remove('hide');
 }
+function closeOrderDetail(){
+  document.getElementById('order-detail-modal').classList.add('hide');
+}
+
 async function updStatus(no,st){
   try{
     await fetch(APP.GAS_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'updateStatus',no_order:no,status:st})});
-    const o=allOrders.find(x=>x.no_order===no);if(o)o.status=st;renderList();toast('Status diperbarui.','ok');
+    const o=allOrders.find(x=>x.no_order===no);if(o)o.status=st;renderJadwal();toast('Status diperbarui.','ok');
   }catch(e){toast('Gagal update.','err');}
 }
 
@@ -1430,7 +1469,6 @@ function goTab(id,btn){
   document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('on'));
   document.getElementById('panel-'+id).classList.add('on');
   btn.classList.add('on');
-  if(id==='list'&&allOrders.length===0)loadOrders();
   if(id==='jadwal'){ if(allOrders.length===0) loadOrders().then(renderJadwal); else renderJadwal(); }
 }
 function resetForm(){
