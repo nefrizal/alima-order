@@ -293,8 +293,8 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 // ══ KONFIGURASI ══════════════════════
 const APP = {
   GAS_URL:      "https://script.google.com/macros/s/AKfycbyPgnhHNpbAWQbt4sNQiLFaDTRN-emDLn_rV68GVpvkdFAbFd41fyZxdMJUMqHdI1Zp/exec",
-  FONNTE_TOKEN: "o3iKrUUBhRaF2qHHqsD7",
-  WA_NOTIF:     "6285272739729"
+  FONNTE_TOKEN: "CeRWm6bXYHAZRumRroUE",
+  WA_NOTIF:     "6282288175957"
 };
 
 // ══ MASTER DATA ═══════════════════════
@@ -668,20 +668,30 @@ async function submitRevisi() {
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({action:'updateOrder', data:d})
     });
-    // Kirim WA notif revisi ke internal
+    // Revisi sudah tersimpan di titik ini. Kegagalan kirim WA di bawah TIDAK membatalkan revisi.
+    let waError = null;
     if (!APP.FONNTE_TOKEN.includes('GANTI')) {
-      const msg = `✏️ *REVISI ORDER — ${d.no_order}*\n\n📦 ${d.produk||''} · ${d.paket||''}\n👥 ${d.qty} pax\n📅 ${fd(d.tgl_kirim)} ${d.jam_sampai||''}\n📍 ${d.alamat||'—'}\n💵 Total: Rp ${tot.toLocaleString('id-ID')}\n${d.keterangan?'\n📝 '+d.keterangan:''}\n\n_${new Date().toLocaleString('id-ID')}_`;
-      await fPost(APP.WA_NOTIF, msg);
+      try {
+        const msg = `✏️ *REVISI ORDER — ${d.no_order}*\n\n📦 ${d.produk||''} · ${d.paket||''}\n👥 ${d.qty} pax\n📅 ${fd(d.tgl_kirim)} ${d.jam_sampai||''}\n📍 ${d.alamat||'—'}\n💵 Total: Rp ${tot.toLocaleString('id-ID')}\n${d.keterangan?'\n📝 '+d.keterangan:''}\n\n_${new Date().toLocaleString('id-ID')}_`;
+        await fPost(APP.WA_NOTIF, msg);
+      } catch(waErr) {
+        waError = waErr;
+        console.error('Gagal kirim notifikasi WA revisi (revisi tetap tersimpan):', waErr);
+      }
     }
     hideOvl();
-    toast(`Revisi ${d.no_order} tersimpan! ✓`,'ok');
+    if (waError) {
+      toast(`Revisi ${d.no_order} TERSIMPAN ✓, tapi WA gagal terkirim (${waError.message}).`,'err');
+    } else {
+      toast(`Revisi ${d.no_order} tersimpan! ✓`,'ok');
+    }
     document.getElementById('rev-form').style.display='none';
     document.getElementById('rev-status').innerHTML='';
     document.getElementById('rev-no').value='';
     revisiData=null;
   } catch(e) {
     hideOvl();
-    toast('Gagal: '+e.message,'err');
+    toast('Gagal menyimpan revisi: '+e.message,'err');
   }
 }
 // ══ CACHE (in-memory) ═════════════════
@@ -1128,14 +1138,26 @@ async function submitOrder(){
   showOvl('Menyimpan ke Google Sheets…');
   try{
     await fetch(APP.GAS_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'addOrder',data:d})});
+    // Order sudah tersimpan di titik ini. Kegagalan kirim WA di bawah TIDAK membatalkan order.
     updOvl('Mengirim notifikasi WhatsApp…');
-    await sendWAInternal(d);
-    const salesHP=getSalesHP();
-    if(salesHP&&salesHP!==APP.WA_NOTIF)await sendWASales(d,salesHP);
-    if(d.hp_penerima&&d.hp_penerima.length>8)await sendWAKlien(d);
-    hideOvl();toast(`Order ${no} tersimpan! ✓`,'ok');
+    let waError = null;
+    try {
+      await sendWAInternal(d);
+      const salesHP=getSalesHP();
+      if(salesHP&&salesHP!==APP.WA_NOTIF)await sendWASales(d,salesHP);
+      if(d.hp_penerima&&d.hp_penerima.length>8)await sendWAKlien(d);
+    } catch(waErr) {
+      waError = waErr;
+      console.error('Gagal kirim notifikasi WA (order tetap tersimpan):', waErr);
+    }
+    hideOvl();
+    if (waError) {
+      toast(`Order ${no} TERSIMPAN ✓, tapi WA gagal terkirim (${waError.message}). Cek koneksi device Fonnte.`,'err');
+    } else {
+      toast(`Order ${no} tersimpan! ✓`,'ok');
+    }
     allOrders.unshift(d);resetForm();
-  }catch(e){hideOvl();toast('Error: '+e.message,'err');console.error(e);}
+  }catch(e){hideOvl();toast('Gagal menyimpan order: '+e.message,'err');console.error(e);}
   finally{btn.disabled=false;}
 }
 
