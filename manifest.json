@@ -1,7 +1,7 @@
 {
   "name": "Alima Boga Batam",
   "short_name": "Alima Boga",
-  "description": "KSM Katering - Sales Order & Jadwal App",
+  "description": "Menu Absensi & Order/Jadwal Alima Boga Batam",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
