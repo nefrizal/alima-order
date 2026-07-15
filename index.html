@@ -311,7 +311,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       <div style="font-size:12px;color:var(--inks);">Mendeteksi lokasi GPS…</div>
     </div>
     <div id="abs-jam" style="display:none;background:var(--orl);border:1px solid #f7d4bc;border-radius:8px;padding:10px 14px;margin-top:10px;font-size:12px;color:var(--inkm);"></div>
-    <button class="bsub" id="abs-btn-masuk" onclick="doAbsen('masuk')" style="display:none;margin-top:14px;">✅ Absen Masuk</button>
+    <button class="bsub" id="abs-btn-masuk" onclick="doAbsen('masuk')" style="display:none;margin-top:14px;">✅ Absen Datang</button>
     <button class="bsub" id="abs-btn-pulang" onclick="doAbsen('pulang')" style="display:none;margin-top:14px;background:var(--blu);">🚪 Absen Pulang</button>
     <button class="bico" onclick="initAbsensiTab()" style="width:100%;margin-top:10px;">↻ Deteksi Ulang Lokasi</button>
   </div>
@@ -1482,6 +1482,20 @@ async function initAbsensiTab(){
   const btnPulang = document.getElementById('abs-btn-pulang');
   const jamEl     = document.getElementById('abs-jam');
   btnMasuk.style.display='none'; btnPulang.style.display='none'; jamEl.style.display='none';
+  statusEl.innerHTML = '<div class="sp" style="margin:0 auto 10px;"></div><div style="font-size:12px;color:var(--inks);">Memeriksa data lokasi kantor…</div>';
+
+  // Cek dulu apakah lokasi kantor sudah diatur admin (ini juga men-trigger sheet "Lokasi" dibuat otomatis)
+  try{
+    const lok = await gasFetch(APP.GAS_URL + '?action=getLokasi&t=' + Date.now());
+    if(!lok.success){
+      statusEl.innerHTML = `<div style="color:var(--red);font-size:12px;line-height:1.6;">⚠️ ${lok.message}<br><br>Sheet "Lokasi" sudah otomatis dibuat — admin tinggal isi baris ke-2: Nama Lokasi, Latitude, Longitude, Radius (meter).</div>`;
+      return;
+    }
+  }catch(e){
+    statusEl.innerHTML = `<div style="color:var(--red);font-size:12px;">Gagal cek data lokasi: ${e.message}</div>`;
+    return;
+  }
+
   statusEl.innerHTML = '<div class="sp" style="margin:0 auto 10px;"></div><div style="font-size:12px;color:var(--inks);">Mendeteksi lokasi GPS…</div>';
 
   if(!navigator.geolocation){
@@ -1513,7 +1527,7 @@ function renderAbsensiStatus(j){
   if(jamHtml){ jamEl.innerHTML = jamHtml; jamEl.style.display = 'block'; }
 
   if(!j.sudahMasuk){
-    statusEl.innerHTML = '<div style="font-size:13px;color:var(--inkm);">📍 Lokasi terdeteksi. Siap absen masuk.</div>';
+    statusEl.innerHTML = '<div style="font-size:13px;color:var(--inkm);">📍 Lokasi terdeteksi. Siap absen datang.</div>';
     btnMasuk.style.display = 'block'; btnMasuk.disabled = false;
   } else if(!j.sudahPulang){
     statusEl.innerHTML = '<div style="font-size:13px;color:var(--inkm);">Sedang bekerja. Jangan lupa absen pulang nanti.</div>';
@@ -1528,7 +1542,7 @@ async function doAbsen(tipe){
   const btn = document.getElementById(tipe==='masuk' ? 'abs-btn-masuk' : 'abs-btn-pulang');
   if(btn.disabled) return;
   btn.disabled = true;
-  showOvl(tipe==='masuk' ? 'Mencatat absen masuk…' : 'Mencatat absen pulang…');
+  showOvl(tipe==='masuk' ? 'Mencatat absen datang…' : 'Mencatat absen pulang…');
   try{
     const action = tipe==='masuk' ? 'absenMasuk' : 'absenPulang';
     const qs = new URLSearchParams({ action, email:CURRENT_USER.email, nama:CURRENT_USER.nama, lat:ABS_LAST_COORDS.lat, lng:ABS_LAST_COORDS.lng }).toString();
