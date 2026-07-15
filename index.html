@@ -964,20 +964,37 @@ function filterCust(){
   document.getElementById('cust-info').style.display = 'none';
   document.getElementById('f-gol').value = '';
 
-  const filtered = q.length < 1
-    ? CUSTOMERS.slice(0, 20)  // tampilkan 20 pertama saat kosong
-    : CUSTOMERS.filter(c =>
-        (c.nama||'').toLowerCase().includes(q) ||
+  let filtered, totalMatch;
+  if (q.length < 1) {
+    filtered = CUSTOMERS.slice(0, 20);  // tampilkan 20 pertama saat kosong
+    totalMatch = filtered.length;
+  } else {
+    const namaStarts = [], namaContains = [], lainnya = [];
+    CUSTOMERS.forEach(c => {
+      const nama = (c.nama||'').toLowerCase();
+      if (nama.startsWith(q)) { namaStarts.push(c); return; }
+      if (nama.includes(q)) { namaContains.push(c); return; }
+      const cocokLain =
         (c.nama_instansi||'').toLowerCase().includes(q) ||
         (c.id||'').toLowerCase().includes(q) ||
         (c.no_hp||'').toLowerCase().includes(q) ||
-        (c.sales||'').toLowerCase().includes(q)
-      ).slice(0, 20);
+        (c.sales||'').toLowerCase().includes(q);
+      if (cocokLain) lainnya.push(c);
+    });
+    namaStarts.sort((a,b) => (a.nama||'').localeCompare(b.nama||''));
+    namaContains.sort((a,b) => (a.nama||'').localeCompare(b.nama||''));
+    const all = [...namaStarts, ...namaContains, ...lainnya];
+    totalMatch = all.length;
+    filtered = all.slice(0, 30);
+  }
 
   if(!filtered.length){
     dd.style.display = 'none';
     return;
   }
+  const hintRow = totalMatch > filtered.length
+    ? `<div style="padding:8px 12px;font-size:11px;color:var(--inks);text-align:center;background:var(--sur);">+${totalMatch-filtered.length} hasil lain — ketik lebih spesifik</div>`
+    : '';
   dd.innerHTML = filtered.map(c => `
     <div onclick="selectCust('${c.id}')"
       style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--bdr);font-size:13px;"
@@ -985,7 +1002,7 @@ function filterCust(){
       <strong>${c.nama||'—'}</strong>
       ${c.nama_instansi?`<span style="color:var(--inks);font-size:11px;"> — ${c.nama_instansi}</span>`:''}
       <br><span style="color:var(--inks);font-size:11px;">📱 ${c.no_hp||'—'} · ${c.instansi||'—'}${c.sales?' · Sales: '+c.sales:''}</span>
-    </div>`).join('');
+    </div>`).join('') + hintRow;
   dd.style.display = 'block';
 }
 
