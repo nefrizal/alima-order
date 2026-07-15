@@ -315,6 +315,7 @@ const PAKET_DATA_EMBEDDED = {
 
 let PAKET_DATA = {...PAKET_DATA_EMBEDDED};
 let CUSTOMERS  = [];
+let SALES_DATA = [];
 
 // Menu di-embed langsung — tidak perlu fetch GAS
 // Update manual di sini kalau sheet ListMenu berubah
@@ -613,7 +614,7 @@ function renderRevisiForm(d) {
         <textarea id="rv-ket" style="min-height:52px;">${d.keterangan||''}</textarea></div>
     </div>
     <div style="display:flex;gap:10px;margin-top:4px;">
-      <button class="bsub" onclick="submitRevisi()" style="flex:1;">💾 Simpan Revisi</button>
+      <button class="bsub" id="btn-sub-rev" onclick="submitRevisi()" style="flex:1;">💾 Simpan Revisi</button>
       <button onclick="document.getElementById('rev-form').style.display='none';revisiData=null;"
         style="background:var(--redl);color:var(--red);border:1.5px solid var(--red);border-radius:var(--r);padding:14px 16px;font-weight:600;cursor:pointer;">Batal</button>
     </div>`;
@@ -634,6 +635,10 @@ function recalcRev() {
 
 async function submitRevisi() {
   if (!revisiData) return;
+  const btn = document.getElementById('btn-sub-rev');
+  if (btn && btn.disabled) return; // cegah submit dobel (double-tap)
+  if (btn) btn.disabled = true;
+  try {
   const qty   = parseFloat(document.getElementById('rv-qty')?.value)||0;
   const hjl   = parseFloat(document.getElementById('rv-hjual')?.value)||0;
   const fee   = parseFloat(document.getElementById('rv-fee')?.value)||0;
@@ -693,6 +698,9 @@ async function submitRevisi() {
     hideOvl();
     toast('Gagal menyimpan revisi: '+e.message,'err');
   }
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 // ══ CACHE (in-memory) ═════════════════
 const MEM = {};
@@ -711,6 +719,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   applyDefaultProduk();
   // Load customer & paket update di background
   loadCustomers();
+  loadSalesData();
   loadMasterFromGAS();
   checkConn();
 });
@@ -821,18 +830,18 @@ async function gasFetch(url){
 // ══ MASTER (hanya Paket dari GAS) ═════
 async function loadMasterFromGAS(){
   const cached = cGet('alima_paket');
-  if(cached){ PAKET_DATA=cached; renderProdukDropdown(); }
+  if(cached){ PAKET_DATA=cached; renderProdukDropdownKeepSelection(); }
   gasFetch(APP.GAS_URL+'?action=getMaster&t='+Date.now())
     .then(j=>{
       if(j?.success && j.paket){
         PAKET_DATA=j.paket;
         cSet('alima_paket', j.paket);
-        renderProdukDropdown();
+        renderProdukDropdownKeepSelection();
       }
     }).catch(()=>{
       if(!cached){
         PAKET_DATA={"nasi kotak":[{nama:"nasi kotak A",harga_default:25},{nama:"nasi kotak B",harga_default:32},{nama:"nasi kotak C",harga_default:40}],"prasmanan":[{nama:"prasmanan A",harga_default:32},{nama:"prasmanan B",harga_default:40}],"coffee break":[{nama:"coffee break",harga_default:20}]};
-        renderProdukDropdown();
+        renderProdukDropdownKeepSelection();
       }
     });
 }
@@ -898,6 +907,27 @@ function renderProdukDropdown(){
   if(!keys.length)return;
   sel.innerHTML='<option value="">— Pilih Produk —</option>'+keys.map(k=>`<option value="${k}">${k.charAt(0).toUpperCase()+k.slice(1)}</option>`).join('');
 }
+// Render ulang dropdown produk (mis. setelah data master ter-update dari server) TANPA menghilangkan
+// pilihan produk/paket yang sudah dipilih user (atau default awal) — mencegah field tiba-tiba kosong.
+function renderProdukDropdownKeepSelection(){
+  const prodSel=document.getElementById('f-produk');
+  const paketSelBefore=document.getElementById('f-paket');
+  const prevProduk = prodSel?.value || '';
+  const prevPaket  = paketSelBefore?.value || '';
+  renderProdukDropdown();
+  if(!prodSel) return;
+  if(prevProduk && Array.from(prodSel.options).some(o=>o.value===prevProduk)){
+    prodSel.value=prevProduk;
+    onProduk();
+    if(prevPaket){
+      const paketSel=document.getElementById('f-paket');
+      const opt=Array.from(paketSel.options).find(o=>o.value===prevPaket);
+      if(opt){ paketSel.value=prevPaket; onPaket(); }
+    }
+  } else if(!prevProduk){
+    applyDefaultProduk(); // belum ada pilihan sama sekali -> pakai default (nasi kotak)
+  }
+}
 function onProduk(){
   const produk=document.getElementById('f-produk').value;
   const psel=document.getElementById('f-paket');
@@ -959,6 +989,14 @@ async function loadCustomers(){
     if(j.success&&j.data){CUSTOMERS=j.data;cSet('alima_custs',j.data);renderCustDD();}
     else throw new Error();
   }catch(e){sel.innerHTML='<option value="">⚠️ Gagal load customer</option>';}
+}
+async function loadSalesData(){
+  const cached=cGet('alima_sales');
+  if(cached){SALES_DATA=cached;}
+  try{
+    const j=await gasFetch(APP.GAS_URL+'?action=getSales&t='+Date.now());
+    if(j.success&&j.data){SALES_DATA=j.data;cSet('alima_sales',j.data);}
+  }catch(e){ console.warn('Gagal load data sales:', e.message); }
 }
 function renderCustDD(){
   // Tidak perlu render dropdown — pakai autocomplete
@@ -1087,78 +1125,85 @@ function getGPS(){
 
 // ══ SUBMIT ════════════════════════════
 async function submitOrder(){
-  const{jml,tot,hksm}=recalc();
-  const menu=collectMenuValues();
-
-  // Generate nomor order saat submit (bukan saat form dibuka)
-  let no = '';
-  try {
-    const j = await gasFetch(APP.GAS_URL + '?action=getNextNo&t=' + Date.now());
-    if (j.success && j.no) {
-      no = j.no;
-      localStorage.setItem('alima_last_no_v2', String(parseInt(j.no)));
-    } else throw new Error('GAS no error');
-  } catch(e) {
-    no = genNoLocal() + '-L'; // suffix -L = Local fallback, perlu dicek manual
-    console.warn('Nomor order dari fallback lokal:', no);
-  }
-  document.getElementById('f-no').value = no;
-  const d={
-    no_order:no,
-    customer_id:document.getElementById('f-cid').value,golongan:document.getElementById('f-gol').value,
-    sales:document.getElementById('f-sales').value.trim(),
-    produk:document.getElementById('f-produk').value,paket:document.getElementById('f-paket').value,
-    qty:parseFloat(document.getElementById('f-qty').value)||0,
-    harga_jual:parseFloat(document.getElementById('f-hjual').value)||0,
-    fee_broker:parseFloat(document.getElementById('f-fee').value)||0,
-    harga_ksm:hksm,harga_min:parseFloat(document.getElementById('f-hmin').value)||0,
-    jumlah:jml,delivery:parseFloat(document.getElementById('f-del').value)||0,jumlah_total:tot,
-    inv_status:document.getElementById('f-inv-status')?.value||'',
-    inv_bayar:parseFloat(document.getElementById('f-inv-bayar')?.value)||0,
-    inv_sisa:Math.max(0,tot-(parseFloat(document.getElementById('f-inv-bayar')?.value)||0)),
-    keterangan:document.getElementById('f-ket').value.trim(),
-    nasi:menu.nasi||'',lauk_utama:menu.lauk_utama||'',tambahan:menu.tambahan||'',
-    sayur:menu.sayur||'',sambal:menu.sambal||'',kerupuk:menu.kerupuk||'',buah:menu.buah||'',
-    air_mineral:menu.air_mineral||'',kemasan:menu.kemasan||'',puding:menu.puding||'',
-    snack:menu.snack||'',minuman:menu.minuman||'',
-    lain1:menu.lain1||'',lain2:menu.lain2||'',lain3:menu.lain3||'',lain4:menu.lain4||'',lain5:menu.lain5||'',
-    tgl_kirim:document.getElementById('f-tgl').value,jam_sampai:document.getElementById('f-jam').value,
-    penerima:document.getElementById('f-pen').value.trim(),
-    hp_penerima:normalizeWA(document.getElementById('f-hp').value.trim()),
-    alamat:document.getElementById('f-adr').value.trim(),koordinat:document.getElementById('f-krd').value.trim(),
-    status:'Baru'
-  };
-  if(!d.sales)return toast('Isi nama sales.','err');
-  if(!d.produk)return toast('Pilih produk.','err');
-  if(!d.paket)return toast('Pilih paket.','err');
-  if(!d.qty)return toast('Isi qty.','err');
-  if(!d.harga_jual)return toast('Isi harga jual.','err');
-  if(!d.tgl_kirim)return toast('Isi tanggal kirim.','err');
-  const btn=document.getElementById('btn-sub');btn.disabled=true;
-  showOvl('Menyimpan ke Google Sheets…');
+  const btn=document.getElementById('btn-sub');
+  if(btn.disabled) return; // cegah submit dobel (double-tap / klik cepat berulang)
+  btn.disabled=true;
   try{
-    await fetch(APP.GAS_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'addOrder',data:d})});
-    // Order sudah tersimpan di titik ini. Kegagalan kirim WA di bawah TIDAK membatalkan order.
-    updOvl('Mengirim notifikasi WhatsApp…');
-    let waError = null;
+    const{jml,tot,hksm}=recalc();
+    const menu=collectMenuValues();
+
+    // Generate nomor order saat submit (bukan saat form dibuka)
+    let no = '';
     try {
-      await sendWAInternal(d);
-      const salesHP=getSalesHP();
-      if(salesHP&&salesHP!==APP.WA_NOTIF)await sendWASales(d,salesHP);
-      if(d.hp_penerima&&d.hp_penerima.length>8)await sendWAKlien(d);
-    } catch(waErr) {
-      waError = waErr;
-      console.error('Gagal kirim notifikasi WA (order tetap tersimpan):', waErr);
+      const j = await gasFetch(APP.GAS_URL + '?action=getNextNo&t=' + Date.now());
+      if (j.success && j.no) {
+        no = j.no;
+        localStorage.setItem('alima_last_no_v2', String(parseInt(j.no)));
+      } else throw new Error('GAS no error');
+    } catch(e) {
+      no = genNoLocal() + '-L'; // suffix -L = Local fallback, perlu dicek manual
+      console.warn('Nomor order dari fallback lokal:', no);
     }
-    hideOvl();
-    if (waError) {
-      toast(`Order ${no} TERSIMPAN ✓, tapi WA gagal terkirim (${waError.message}). Cek koneksi device Fonnte.`,'err');
-    } else {
-      toast(`Order ${no} tersimpan! ✓`,'ok');
-    }
-    allOrders.unshift(d);resetForm();
-  }catch(e){hideOvl();toast('Gagal menyimpan order: '+e.message,'err');console.error(e);}
-  finally{btn.disabled=false;}
+    document.getElementById('f-no').value = no;
+    const d={
+      no_order:no,
+      customer_id:document.getElementById('f-cid').value,golongan:document.getElementById('f-gol').value,
+      sales:document.getElementById('f-sales').value.trim(),
+      produk:document.getElementById('f-produk').value,paket:document.getElementById('f-paket').value,
+      qty:parseFloat(document.getElementById('f-qty').value)||0,
+      harga_jual:parseFloat(document.getElementById('f-hjual').value)||0,
+      fee_broker:parseFloat(document.getElementById('f-fee').value)||0,
+      harga_ksm:hksm,harga_min:parseFloat(document.getElementById('f-hmin').value)||0,
+      jumlah:jml,delivery:parseFloat(document.getElementById('f-del').value)||0,jumlah_total:tot,
+      inv_status:document.getElementById('f-inv-status')?.value||'',
+      inv_bayar:parseFloat(document.getElementById('f-inv-bayar')?.value)||0,
+      inv_sisa:Math.max(0,tot-(parseFloat(document.getElementById('f-inv-bayar')?.value)||0)),
+      keterangan:document.getElementById('f-ket').value.trim(),
+      nasi:menu.nasi||'',lauk_utama:menu.lauk_utama||'',tambahan:menu.tambahan||'',
+      sayur:menu.sayur||'',sambal:menu.sambal||'',kerupuk:menu.kerupuk||'',buah:menu.buah||'',
+      air_mineral:menu.air_mineral||'',kemasan:menu.kemasan||'',puding:menu.puding||'',
+      snack:menu.snack||'',minuman:menu.minuman||'',
+      lain1:menu.lain1||'',lain2:menu.lain2||'',lain3:menu.lain3||'',lain4:menu.lain4||'',lain5:menu.lain5||'',
+      tgl_kirim:document.getElementById('f-tgl').value,jam_sampai:document.getElementById('f-jam').value,
+      penerima:document.getElementById('f-pen').value.trim(),
+      hp_penerima:normalizeWA(document.getElementById('f-hp').value.trim()),
+      alamat:document.getElementById('f-adr').value.trim(),koordinat:document.getElementById('f-krd').value.trim(),
+      status:'Baru'
+    };
+    if(!d.sales)return toast('Isi nama sales.','err');
+    if(!d.produk)return toast('Pilih produk.','err');
+    if(!d.paket)return toast('Pilih paket.','err');
+    if(!d.qty)return toast('Isi qty.','err');
+    if(!d.harga_jual)return toast('Isi harga jual.','err');
+    if(!d.tgl_kirim)return toast('Isi tanggal kirim.','err');
+    showOvl('Menyimpan ke Google Sheets…');
+    try{
+      const qs = new URLSearchParams({action:'addOrder', ...d}).toString();
+      const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+      if (!j.success) { hideOvl(); toast(j.message || 'Order ditolak server.', 'err'); return; }
+      // Order sudah tersimpan di titik ini. Kegagalan kirim WA di bawah TIDAK membatalkan order.
+      updOvl('Mengirim notifikasi WhatsApp…');
+      let waError = null;
+      try {
+        await sendWAInternal(d);
+        const salesHP=getSalesHP();
+        if(salesHP&&salesHP!==APP.WA_NOTIF)await sendWASales(d,salesHP);
+        if(d.hp_penerima&&d.hp_penerima.length>8)await sendWAKlien(d);
+      } catch(waErr) {
+        waError = waErr;
+        console.error('Gagal kirim notifikasi WA (order tetap tersimpan):', waErr);
+      }
+      hideOvl();
+      if (waError) {
+        toast(`Order ${no} TERSIMPAN ✓, tapi WA gagal terkirim (${waError.message}). Cek koneksi device Fonnte.`,'err');
+      } else {
+        toast(`Order ${no} tersimpan! ✓`,'ok');
+      }
+      allOrders.unshift(d);resetForm();
+    }catch(e){hideOvl();toast('Gagal menyimpan order: '+e.message,'err');console.error(e);}
+  } finally {
+    btn.disabled=false;
+  }
 }
 
 // ══ LOAD / RENDER ORDERS ══════════════
