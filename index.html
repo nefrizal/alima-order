@@ -3,7 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>KSM Katering — Order</title>
+<title>Alima Boga Batam</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#E8600A">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Alima Boga">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -88,6 +96,11 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 .toast.show{transform:translateX(-50%) translateY(0);}.toast.ok{background:var(--grn);}.toast.err{background:var(--red);}
 .ovl{position:fixed;inset:0;background:rgba(255,251,247,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:500;gap:12px;font-size:13px;color:var(--inkm);font-weight:500;}
 .ovl.hide{display:none;}
+.hide{display:none!important;}
+.login-gate{position:fixed;inset:0;z-index:999;background:linear-gradient(160deg,#FFFBF7,#FFF3EB);display:flex;align-items:center;justify-content:center;padding:24px;}
+.login-box{background:#fff;border:1px solid var(--bdr);border-radius:18px;padding:32px 24px;text-align:center;box-shadow:0 10px 40px rgba(26,18,8,.12);max-width:340px;width:100%;}
+.login-title{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:var(--ord);margin-top:14px;}
+.login-sub{font-size:12px;color:var(--inks);margin-top:6px;}
 .gps-btn{font-size:11px;padding:5px 10px;border:1.5px solid var(--bdr);border-radius:6px;background:var(--sur);cursor:pointer;color:var(--inkm);margin-top:5px;}
 .modal-bg{position:fixed;inset:0;background:rgba(26,18,8,.5);z-index:300;display:flex;align-items:flex-end;justify-content:center;}
 .modal-bg.hide{display:none;}
@@ -100,14 +113,30 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 </style>
 </head>
 <body>
+<div id="login-gate" class="login-gate">
+  <div class="login-box">
+    <img src="icons/icon-192.png" alt="Alima Boga Batam" style="width:72px;height:72px;border-radius:18px;box-shadow:0 6px 20px rgba(232,96,10,.35);">
+    <div class="login-title">Alima Boga Batam</div>
+    <div class="login-sub" id="login-status">Memeriksa akun Google…</div>
+    <div id="g_id_signin_container" style="margin-top:16px;min-height:44px;"></div>
+    <div id="login-denied" style="display:none;">
+      <p id="login-denied-msg" style="color:var(--red);font-size:13px;margin-top:10px;line-height:1.6;"></p>
+      <button class="bico" style="margin-top:10px;" onclick="retryLogin()">🔄 Coba Akun Lain</button>
+    </div>
+  </div>
+</div>
+<div id="app-content" class="hide">
 <header>
-  <div class="brand">KSM Katering<small>Sales Order App</small></div>
-  <div id="cst">⏳</div>
+  <div class="brand">Alima Boga Batam<small>Sales Order App</small></div>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <span id="who-badge" style="font-size:10px;background:rgba(255,255,255,.2);padding:3px 8px;border-radius:20px;"></span>
+    <div id="cst">⏳</div>
+  </div>
 </header>
 <div class="tabs">
-  <button class="tbtn on" onclick="goTab('form',this)">➕ Order Baru</button>
-  <button class="tbtn" onclick="goTab('revisi',this)">✏️ Revisi</button>
-  <button class="tbtn" onclick="goTab('jadwal',this)">📅 Jadwal</button>
+  <button class="tbtn on" id="tab-form" onclick="goTab('form',this)">➕ Order Baru</button>
+  <button class="tbtn" id="tab-revisi" onclick="goTab('revisi',this)">✏️ Revisi</button>
+  <button class="tbtn" id="tab-jadwal" onclick="goTab('jadwal',this)">📅 Jadwal</button>
 </div>
 <div class="ovl hide" id="ovl"><div class="sp"></div><span id="ovl-msg">Memproses…</span></div>
 <div class="toast" id="toast"></div>
@@ -312,14 +341,18 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     <div id="od-body"><!-- diisi JS --></div>
   </div>
 </div>
+</div><!-- /app-content -->
 
 <script>
 // ══ KONFIGURASI ══════════════════════
 const APP = {
   GAS_URL:      "https://script.google.com/macros/s/AKfycbyPgnhHNpbAWQbt4sNQiLFaDTRN-emDLn_rV68GVpvkdFAbFd41fyZxdMJUMqHdI1Zp/exec",
   FONNTE_TOKEN: "CeRWm6bXYHAZRumRroUE",
-  WA_NOTIF:     "6282288175957"
+  WA_NOTIF:     "6282288175957",
+  GOOGLE_CLIENT_ID: "GANTI_DENGAN_CLIENT_ID_DARI_GOOGLE_CLOUD_CONSOLE.apps.googleusercontent.com"
 };
+let CURRENT_USER = null; // {email, nama, role} setelah login berhasil
+let ID_TOKEN = null;     // token Google, dikirim otomatis di setiap request backend (lihat gasFetch)
 
 // ══ MASTER DATA ═══════════════════════
 // Paket di-embed langsung dari sheet Paket — instant, tidak perlu GAS
@@ -733,6 +766,10 @@ function cGet(k){ return MEM[k]||null; }
 
 // ══ INIT ══════════════════════════════
 document.addEventListener('DOMContentLoaded',()=>{
+  initGoogleAuth();
+});
+
+function initAppContent(){
   setDefaults();
   initNoDisplay();
   loadSalesLocal();
@@ -746,7 +783,89 @@ document.addEventListener('DOMContentLoaded',()=>{
   loadSalesData();
   loadMasterFromGAS();
   checkConn();
-});
+}
+
+// ══ LOGIN GMAIL (Google Identity Services) ═══════════
+function initGoogleAuth(){
+  if (APP.GOOGLE_CLIENT_ID.includes('GANTI')) {
+    document.getElementById('login-status').textContent = '';
+    showLoginDenied('⚠️ Login Google belum dikonfigurasi (OAuth Client ID belum diisi). Hubungi admin/developer.');
+    return;
+  }
+  if (!window.google || !google.accounts || !google.accounts.id) {
+    setTimeout(initGoogleAuth, 300); // tunggu script GIS selesai load
+    return;
+  }
+  google.accounts.id.initialize({
+    client_id: APP.GOOGLE_CLIENT_ID,
+    callback: handleGoogleCredential,
+    auto_select: true,
+    cancel_on_tap_outside: false
+  });
+  google.accounts.id.renderButton(
+    document.getElementById('g_id_signin_container'),
+    { theme:'filled_blue', size:'large', shape:'pill', text:'signin_with', width:260 }
+  );
+  google.accounts.id.prompt((notif) => {
+    if (notif.isNotDisplayed && (notif.isNotDisplayed() || notif.isSkippedMoment())) {
+      document.getElementById('login-status').textContent = 'Silakan login dengan akun Google terdaftar';
+    }
+  });
+}
+
+async function handleGoogleCredential(resp){
+  document.getElementById('login-status').textContent = 'Memverifikasi akun…';
+  const btnBox = document.getElementById('g_id_signin_container');
+  if (btnBox) btnBox.style.display = 'none';
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=checkAuth&id_token=' + encodeURIComponent(resp.credential) + '&t=' + Date.now());
+    if (!j.success) { showLoginDenied(j.message || 'Akun tidak terdaftar.'); return; }
+
+    ID_TOKEN = resp.credential; // simpan token supaya request selanjutnya ikut terautentikasi
+    CURRENT_USER = { email:j.email, nama:j.nama, role:(j.role||'karyawan').toLowerCase() };
+    document.getElementById('login-gate').classList.add('hide');
+    document.getElementById('app-content').classList.remove('hide');
+    document.getElementById('who-badge').textContent = `${CURRENT_USER.nama} · ${CURRENT_USER.role}`;
+
+    if (CURRENT_USER.role === 'karyawan') {
+      applyKaryawanAccess();
+    } else {
+      initAppContent(); // sales / admin: akses penuh
+    }
+  }catch(e){
+    showLoginDenied('Gagal menghubungi server: ' + e.message);
+  }
+}
+
+function showLoginDenied(msg){
+  document.getElementById('login-status').textContent = '';
+  const btnBox = document.getElementById('g_id_signin_container');
+  if (btnBox) btnBox.style.display = 'none';
+  document.getElementById('login-denied').style.display = 'block';
+  document.getElementById('login-denied-msg').textContent = msg;
+}
+
+function retryLogin(){
+  document.getElementById('login-denied').style.display = 'none';
+  const btnBox = document.getElementById('g_id_signin_container');
+  if (btnBox) btnBox.style.display = 'block';
+  document.getElementById('login-status').textContent = 'Memeriksa akun Google…';
+  if (window.google && google.accounts && google.accounts.id) {
+    google.accounts.id.disableAutoSelect(); // supaya bisa pilih akun Google lain
+    google.accounts.id.prompt();
+  }
+}
+
+// Karyawan hanya boleh lihat tab Jadwal — tab lain disembunyikan total.
+function applyKaryawanAccess(){
+  document.getElementById('tab-form').classList.add('hide');
+  document.getElementById('tab-revisi').classList.add('hide');
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('on'));
+  document.getElementById('panel-jadwal').classList.add('on');
+  document.getElementById('tab-jadwal').classList.add('on');
+  loadOrders().then(renderJadwal);
+}
 
 const BULAN_NAMA = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
 
@@ -845,6 +964,9 @@ async function pickSalesContact(){
 
 // ══ GAS FETCH ═════════════════════════
 async function gasFetch(url){
+  if (ID_TOKEN && !url.includes('id_token=')) {
+    url += (url.includes('?') ? '&' : '?') + 'id_token=' + encodeURIComponent(ID_TOKEN);
+  }
   const res=await fetch(url,{method:'GET',redirect:'follow'});
   const text=await res.text();
   if(text.trim().startsWith('<')) throw new Error('GAS return HTML');
