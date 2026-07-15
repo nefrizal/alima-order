@@ -107,7 +107,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       <div class="fld"><label>Tanggal Kirim <span class="req">*</span></label><input id="f-tgl" type="date" onchange="onTglChange()"></div>
     </div>
     <div class="g2">
-      <div class="fld"><label>Jam Sampai</label><input id="f-jam" type="time"></div>
+      <div class="fld"><label>Jam Sampai <span class="req">*</span></label><input id="f-jam" type="time"></div>
       <div class="fld"></div>
     </div>
     <div class="fld">
@@ -144,6 +144,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
         </div>
         <div class="sales-hint">💾 Tersimpan otomatis · 📱 ambil dari kontak</div>
       </div>
+    </div>
   </div>
 
   <!-- Produk & Paket -->
@@ -316,6 +317,7 @@ const PAKET_DATA_EMBEDDED = {
 let PAKET_DATA = {...PAKET_DATA_EMBEDDED};
 let CUSTOMERS  = [];
 let SALES_DATA = [];
+let MENU_DATA  = null; // diisi setelah renderMenuGrid dipanggil (lihat bawah), null dulu supaya EMBEDDED_MENU dipakai sebagai fallback awal
 
 // Menu di-embed langsung — tidak perlu fetch GAS
 // Update manual di sini kalau sheet ListMenu berubah
@@ -460,12 +462,13 @@ async function cloneOrder() {
     if (d.tim_eksekusi||d.tim) { /* tim dihapus */ }
 
     // ── Produk & Paket ──
-    const produk = (d.produk||'').toLowerCase();
-    // Pastikan produk ada di dropdown
+    // Produk tidak lagi disimpan di sheet (hanya alat bantu UI) — cari kategori produk
+    // berdasarkan nama paket yang tersimpan, bukan dari field d.produk (sudah tidak ada).
+    const produk = findProdukByPaket(d.paket||'');
+    // Pastikan dropdown produk sudah terisi
     await waitForEl('f-produk');
     const prodSel = document.getElementById('f-produk');
-    // Cari option yang cocok
-    const prodOpt = Array.from(prodSel.options).find(o => o.value.toLowerCase() === produk);
+    const prodOpt = Array.from(prodSel.options).find(o => o.value.toLowerCase() === produk.toLowerCase());
     if (prodOpt) {
       prodSel.value = prodOpt.value;
       onProduk(); // render paket dropdown
@@ -562,7 +565,7 @@ function renderRevisiForm(d) {
   ];
 
   const menuHTML = menuFields.map(([fk, lbl, val]) => {
-    const opts = EMBEDDED_MENU[Object.keys(MENU_KEY_MAP).find(k=>MENU_KEY_MAP[k]===fk)] || [];
+    const opts = (MENU_DATA||EMBEDDED_MENU)[Object.keys(MENU_KEY_MAP).find(k=>MENU_KEY_MAP[k]===fk)] || [];
     const optsHTML = ['—',...opts].map(o =>
       `<option value="${o==='—'?'':o}" ${(val||'')===(o==='—'?'':o)?'selected':''}>${o}</option>`
     ).join('');
@@ -677,7 +680,7 @@ async function submitRevisi() {
     let waError = null;
     if (!APP.FONNTE_TOKEN.includes('GANTI')) {
       try {
-        const msg = `✏️ *REVISI ORDER — ${d.no_order}*\n\n📦 ${d.produk||''} · ${d.paket||''}\n👥 ${d.qty} pax\n📅 ${fd(d.tgl_kirim)} ${d.jam_sampai||''}\n📍 ${d.alamat||'—'}\n💵 Total: Rp ${tot.toLocaleString('id-ID')}\n${d.keterangan?'\n📝 '+d.keterangan:''}\n\n_${new Date().toLocaleString('id-ID')}_`;
+        const msg = `✏️ *REVISI ORDER — ${d.no_order}*\n\n📦 ${d.paket||''}\n👥 ${d.qty} pax\n📅 ${fd(d.tgl_kirim)} ${d.jam_sampai||''}\n📍 ${d.alamat||'—'}\n💵 Total: Rp ${tot.toLocaleString('id-ID')}\n${d.keterangan?'\n📝 '+d.keterangan:''}\n\n_${new Date().toLocaleString('id-ID')}_`;
         await fPost(APP.WA_NOTIF, msg);
       } catch(waErr) {
         waError = waErr;
@@ -829,8 +832,10 @@ async function gasFetch(url){
 
 // ══ MASTER (hanya Paket dari GAS) ═════
 async function loadMasterFromGAS(){
-  const cached = cGet('alima_paket');
-  if(cached){ PAKET_DATA=cached; renderProdukDropdownKeepSelection(); }
+  const cachedPaket = cGet('alima_paket');
+  if(cachedPaket){ PAKET_DATA=cachedPaket; renderProdukDropdownKeepSelection(); }
+  const cachedMenu = cGet('alima_menu');
+  if(cachedMenu){ MENU_DATA=cachedMenu; renderMenuGridKeepSelection(MENU_DATA); }
   gasFetch(APP.GAS_URL+'?action=getMaster&t='+Date.now())
     .then(j=>{
       if(j?.success && j.paket){
@@ -838,11 +843,17 @@ async function loadMasterFromGAS(){
         cSet('alima_paket', j.paket);
         renderProdukDropdownKeepSelection();
       }
+      if(j?.success && j.menu && Object.keys(j.menu).length){
+        MENU_DATA=j.menu;
+        cSet('alima_menu', j.menu);
+        renderMenuGridKeepSelection(MENU_DATA);
+      }
     }).catch(()=>{
-      if(!cached){
+      if(!cachedPaket){
         PAKET_DATA={"nasi kotak":[{nama:"nasi kotak A",harga_default:25},{nama:"nasi kotak B",harga_default:32},{nama:"nasi kotak C",harga_default:40}],"prasmanan":[{nama:"prasmanan A",harga_default:32},{nama:"prasmanan B",harga_default:40}],"coffee break":[{nama:"coffee break",harga_default:20}]};
         renderProdukDropdownKeepSelection();
       }
+      // Kalau fetch menu gagal & belum ada cache, EMBEDDED_MENU (sudah dirender saat init) tetap dipakai sebagai fallback.
     });
 }
 
@@ -887,6 +898,22 @@ function renderMenuGrid(menuData){
   applyDefaultMenu();
 }
 
+// Render ulang grid menu dengan data terbaru (mis. dari sheet ListMenu) TANPA menghapus
+// pilihan yang sudah dipilih user — pilihan yang sudah tidak ada di sheet otomatis hilang
+// dari dropdown (sesuai perilaku yang diharapkan), pilihan lain tetap dipertahankan.
+function renderMenuGridKeepSelection(menuData){
+  const prev = collectMenuValues(); // {field: value, ...} dari selects sebelum dirender ulang
+  renderMenuGrid(menuData);
+  Object.entries(prev).forEach(([fk, val]) => {
+    if(!val) return;
+    const sel = document.getElementById('mdyn-'+fk);
+    if(!sel) return;
+    const stillExists = Array.from(sel.options).some(o => o.value === val);
+    if(stillExists) sel.value = val; // pertahankan pilihan lama kalau masih ada di data baru
+    // kalau sudah tidak ada (mis. dihapus dari sheet), biarkan kosong — user perlu pilih ulang
+  });
+}
+
 function collectMenuValues(){
   const r={};
   document.querySelectorAll('#menu-dynamic-grid [data-field],#pilihan-lain-grid [data-field]').forEach(el=>{
@@ -927,6 +954,16 @@ function renderProdukDropdownKeepSelection(){
   } else if(!prevProduk){
     applyDefaultProduk(); // belum ada pilihan sama sekali -> pakai default (nasi kotak)
   }
+}
+// Cari kategori Produk dari nama Paket (Produk tidak disimpan di sheet, jadi ini satu-satunya cara
+// menentukan Produk saat memuat order lama, mis. untuk fitur Order Mirip/Clone).
+function findProdukByPaket(paketNama){
+  if(!paketNama) return '';
+  const target = paketNama.trim().toLowerCase();
+  for(const [produk, list] of Object.entries(PAKET_DATA)){
+    if((list||[]).some(p => (p.nama||'').trim().toLowerCase() === target)) return produk;
+  }
+  return '';
 }
 function onProduk(){
   const produk=document.getElementById('f-produk').value;
@@ -1147,7 +1184,7 @@ async function submitOrder(){
     document.getElementById('f-no').value = no;
     const d={
       no_order:no,
-      customer_id:document.getElementById('f-cid').value,golongan:document.getElementById('f-gol').value,
+      customer_id:document.getElementById('f-cid').value,
       sales:document.getElementById('f-sales').value.trim(),
       produk:document.getElementById('f-produk').value,paket:document.getElementById('f-paket').value,
       qty:parseFloat(document.getElementById('f-qty').value)||0,
@@ -1170,12 +1207,14 @@ async function submitOrder(){
       alamat:document.getElementById('f-adr').value.trim(),koordinat:document.getElementById('f-krd').value.trim(),
       status:'Baru'
     };
+    if(!d.customer_id)return toast('Pilih customer terlebih dahulu.','err');
     if(!d.sales)return toast('Isi nama sales.','err');
     if(!d.produk)return toast('Pilih produk.','err');
     if(!d.paket)return toast('Pilih paket.','err');
     if(!d.qty)return toast('Isi qty.','err');
     if(!d.harga_jual)return toast('Isi harga jual.','err');
     if(!d.tgl_kirim)return toast('Isi tanggal kirim.','err');
+    if(!d.jam_sampai)return toast('Isi jam sampai.','err');
     showOvl('Menyimpan ke Google Sheets…');
     try{
       const qs = new URLSearchParams({action:'addOrder', ...d}).toString();
@@ -1229,7 +1268,7 @@ function renderList(){
     return `<div class="ocard">
       <div class="och"><div><div class="ono">${o.no_order||'—'}</div><div class="odt">📅 ${fd(o.tgl_kirim)} ${o.jam_sampai?'· '+o.jam_sampai:''} · ${o.qty||0} pax</div></div>
       <span class="badge ${bc[o.status]||'bb'}">${o.status||'Baru'}</span></div>
-      <div class="obody"><strong>${o.penerima||o.customer_id||'—'}</strong><br>📍 ${o.alamat||'—'}<br>🍱 ${o.produk||'—'}${o.paket?' · '+o.paket:''} · Sales: ${o.sales||'—'}</div>
+      <div class="obody"><strong>${o.penerima||o.customer_id||'—'}</strong><br>📍 ${o.alamat||'—'}<br>🍱 ${o.paket||'—'} · Sales: ${o.sales||'—'}</div>
       ${pls?`<div class="pills">${pls}</div>`:''}
       <div class="ofoot"><div class="otot">Rp ${tot.toLocaleString('id-ID')}</div>
       <select class="ssel" onchange="updStatus('${o.no_order}',this.value)">${['Baru','Proses','Selesai','Batal'].map(s=>`<option ${o.status===s?'selected':''}>${s}</option>`).join('')}</select></div>
