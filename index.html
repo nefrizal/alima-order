@@ -1642,27 +1642,39 @@ function renderJadwalMasak(){
       });
     });
 
-    let html = '';
-    KATEGORI_MASAK.forEach(([key,label])=>{
-      const rows = Object.values(kategoriMap[key]);
-      if(!rows.length) return;
-      rows.sort((a,b)=> (a.tgl+a.jam).localeCompare(b.tgl+b.jam) || a.item.localeCompare(b.item));
-      const rowsHtml = rows.map(r=>{
-        const hari = r.tgl===todayStr ? 'Hari ini' : 'Besok';
-        return `<div class="jw-row masak">
-          <div class="jw-jam"><span class="jw-jam-hari">${hari}</span><br>${r.jam||'—'}</div>
+    // Render 2 seksi besar terpisah: HARI INI dulu (semua kategori), baru BESOK (semua kategori)
+    function renderSeksiHari(tglTarget, labelHari){
+      let bodyHtml = '';
+      let totalItem = 0;
+      KATEGORI_MASAK.forEach(([key,label])=>{
+        const rows = Object.values(kategoriMap[key]).filter(r=>r.tgl===tglTarget);
+        if(!rows.length) return;
+        rows.sort((a,b)=> a.jam.localeCompare(b.jam) || a.item.localeCompare(b.item));
+        totalItem += rows.length;
+        const rowsHtml = rows.map(r=>`<div class="jw-row masak">
+          <div class="jw-jam">${r.jam||'—'}</div>
           <div class="jw-qty">${r.qty}</div>
           <div class="jw-paket" style="cursor:default;text-decoration:none;color:var(--ink);font-weight:600;">${r.item}</div>
+        </div>`).join('');
+        bodyHtml += `<div style="margin-top:10px;">
+          <div style="font-size:12px;font-weight:700;color:var(--ord);padding:4px 4px;">${label}</div>
+          <div class="jw-table">
+            <div class="jw-row masak head"><div>Berangkat</div><div>Qty</div><div>Item</div></div>
+            ${rowsHtml}
+          </div>
         </div>`;
-      }).join('');
-      html += `<div class="jw-daygroup">
-        <div class="jw-dayhead"><span class="jw-daydate">${label}</span><span class="jw-daybadge">${rows.length} item</span></div>
-        <div class="jw-table">
-          <div class="jw-row masak head"><div>Berangkat</div><div>Qty</div><div>Item</div></div>
-          ${rowsHtml}
+      });
+      if(!bodyHtml) return '';
+      return `<div class="jw-daygroup">
+        <div class="jw-dayhead" style="background:var(--or);border-radius:8px;padding:10px 12px;">
+          <span class="jw-daydate" style="color:#fff;">📅 ${labelHari}</span>
+          <span class="jw-daybadge" style="background:rgba(255,255,255,.25);">${totalItem} item</span>
         </div>
+        ${bodyHtml}
       </div>`;
-    });
+    }
+
+    const html = renderSeksiHari(todayStr, 'HARI INI') + renderSeksiHari(tomorrowStr, 'BESOK');
 
     w.innerHTML = html || `<div class="empty"><div class="eico">🍳</div><p>Tidak ada item menu untuk dijadwalkan.</p></div>`;
   }catch(e){
