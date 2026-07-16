@@ -140,6 +140,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   <button class="tbtn" id="tab-revisi" onclick="goTab('revisi',this)">✏️ Revisi</button>
   <button class="tbtn" id="tab-jadwal" onclick="goTab('jadwal',this)">📅 Jadwal</button>
   <button class="tbtn" id="tab-masak" onclick="goTab('masak',this)">🍳 Masak</button>
+  <button class="tbtn" id="tab-grafik" onclick="goTab('grafik',this)">📊 Grafik</button>
   <button class="tbtn" id="tab-absensi" onclick="goTab('absensi',this)">🕐 Absensi</button>
 </div>
 <div class="ovl hide" id="ovl"><div class="sp"></div><span id="ovl-msg">Memproses…</span></div>
@@ -311,6 +312,15 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     <button class="bico" onclick="loadOrders().then(renderJadwalMasak)" style="flex:1;">↻ Refresh Jadwal Masak</button>
   </div>
   <div id="jm"><div class="empty"><div class="eico">🍳</div><p>Klik Refresh untuk memuat jadwal masak.</p></div></div>
+</div>
+
+<!-- ═══ GRAFIK ═══ -->
+<div class="panel" id="panel-grafik">
+  <div class="lbar">
+    <button class="bico" onclick="loadGrafik()" style="flex:1;">↻ Refresh Grafik</button>
+  </div>
+  <div id="gf-updated" style="font-size:11px;color:var(--inks);text-align:center;margin-bottom:10px;"></div>
+  <div id="gf-chart"><div class="empty"><div class="eico">📊</div><p>Klik Refresh untuk memuat grafik.</p></div></div>
 </div>
 
 <!-- ═══ ABSENSI ═══ -->
@@ -907,6 +917,7 @@ function retryLogin(){
 function applyKaryawanAccess(){
   document.getElementById('tab-form').classList.add('hide');
   document.getElementById('tab-revisi').classList.add('hide');
+  document.getElementById('tab-grafik').classList.add('hide');
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('on'));
   document.getElementById('panel-absensi').classList.add('on');
@@ -1691,6 +1702,80 @@ function renderJadwalMasak(){
   }
 }
 
+// ══ GRAFIK (jumlah total per produk per bulan) ═══════
+const GRAFIK_COLORS = ['#E8600A','#1565C0','#1B7A4A','#C04E06','#9C27B0','#F9A825','#00838F','#AD1457','#5D4037','#3949AB'];
+
+function formatBulanLabel_(bulanStr){
+  const [y,m] = bulanStr.split('-');
+  const namaBulan = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  return namaBulan[parseInt(m,10)-1] + ' ' + y;
+}
+
+async function loadGrafik(){
+  const chartEl = document.getElementById('gf-chart');
+  const updEl = document.getElementById('gf-updated');
+  chartEl.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat grafik…</div>';
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=getGrafikData&t=' + Date.now());
+    if(!j.success){ chartEl.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>${j.message}</p></div>`; return; }
+    if(j.lastUpdated){
+      const d = new Date(j.lastUpdated);
+      updEl.textContent = 'Data per: ' + d.toLocaleString('id-ID', {dateStyle:'medium', timeStyle:'short'}) + ' · update otomatis tiap jam 20:00';
+    }
+    renderGrafikChart(j);
+  }catch(e){
+    chartEl.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>Gagal memuat: ${e.message}</p></div>`;
+  }
+}
+
+function renderGrafikChart(j){
+  const chartEl = document.getElementById('gf-chart');
+  const bulanList = j.bulanList||[], kategoriList = j.kategoriList||[], data = j.data||{};
+  if(!bulanList.length){
+    chartEl.innerHTML = `<div class="empty"><div class="eico">📊</div><p>Belum ada data order sejak Juli 2026.</p></div>`;
+    return;
+  }
+
+  let maxVal = 1;
+  bulanList.forEach(b => kategoriList.forEach(k => { maxVal = Math.max(maxVal, (data[b]&&data[b][k])||0); }));
+
+  const barMaxH = 160;
+  const groupW  = Math.max(70, kategoriList.length*24+24);
+  const totalW  = groupW * bulanList.length + 40;
+  const chartH  = barMaxH + 50;
+
+  let bars = '';
+  bulanList.forEach((b, bi) => {
+    const groupX = 30 + bi*groupW;
+    kategoriList.forEach((k, ki) => {
+      const val = (data[b]&&data[b][k]) || 0;
+      const h = (val/maxVal)*barMaxH;
+      const barW = Math.max(14, (groupW-16)/kategoriList.length - 4);
+      const x = groupX + ki*(barW+4);
+      const y = barMaxH - h + 20;
+      const color = GRAFIK_COLORS[ki % GRAFIK_COLORS.length];
+      bars += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" fill="${color}" rx="2"></rect>`;
+    });
+    bars += `<text x="${groupX + (groupW-16)/2}" y="${barMaxH+38}" font-size="10" fill="#5C4A35" text-anchor="middle">${formatBulanLabel_(b)}</text>`;
+  });
+
+  const legend = kategoriList.map((k,ki) => `
+    <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--inkm);margin:3px 10px 3px 0;">
+      <span style="width:10px;height:10px;border-radius:2px;background:${GRAFIK_COLORS[ki%GRAFIK_COLORS.length]};display:inline-block;flex-shrink:0;"></span>${k}
+    </div>`).join('');
+
+  chartEl.innerHTML = `
+    <div style="font-size:10px;color:var(--inks);margin-bottom:4px;">Skala tertinggi: Rp ${maxVal.toLocaleString('id-ID')}</div>
+    <div style="overflow-x:auto;background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:12px;box-shadow:var(--sh);">
+      <svg width="${totalW}" height="${chartH}" viewBox="0 0 ${totalW} ${chartH}">
+        <line x1="20" y1="${barMaxH+20}" x2="${totalW-10}" y2="${barMaxH+20}" stroke="#EDE3D8" stroke-width="1"/>
+        ${bars}
+      </svg>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;margin-top:10px;padding:0 4px;">${legend}</div>
+  `;
+}
+
 function openOrderDetail(no){
   const o = allOrders.find(x => String(x.no_order) === String(no));
   if(!o){ toast('Data order tidak ditemukan (coba refresh).','err'); return; }
@@ -1858,6 +1943,7 @@ function goTab(id,btn){
   btn.classList.add('on');
   if(id==='jadwal'){ if(allOrders.length===0) loadOrders().then(renderJadwal); else renderJadwal(); }
   if(id==='masak'){ if(allOrders.length===0) loadOrders().then(renderJadwalMasak); else renderJadwalMasak(); }
+  if(id==='grafik'){ loadGrafik(); }
   if(id==='absensi'){ initAbsensiTab(); if(CURRENT_USER && isFullAccessRole(CURRENT_USER.role)) loadStatusTim(); }
 }
 function resetForm(){
