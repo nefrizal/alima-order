@@ -1728,6 +1728,7 @@ function openOrderDetail(no){
     <div class="jw-menulist">${menuFields.map(([k,v])=>`<div class="jw-menurow"><span class="jw-menuk">${k}</span><span class="jw-menuv">${v}</span></div>`).join('')}</div>
     `:''}
     ${o.keterangan?`<div style="margin-top:10px;font-size:12px;color:var(--inkm);"><strong>Keterangan:</strong> ${o.keterangan}</div>`:''}
+    ${isFullAccessRole(CURRENT_USER.role) ? `
     <div class="pstrip">
       <div class="prow"><span>Harga Jual</span><span>Rp ${((o.harga_jual_dlm_ribuan||0)*1000).toLocaleString('id-ID')}/pax</span></div>
       <div class="prow"><span>Delivery Charge</span><span>Rp ${(o.delivery_charge||0).toLocaleString('id-ID')}</span></div>
@@ -1739,6 +1740,7 @@ function openOrderDetail(no){
       <div class="prow"><span>Jumlah Bayar</span><span>Rp ${Number(o.jumlah_bayar||0).toLocaleString('id-ID')}</span></div>
       <div class="prow tot" style="color:var(--grn);border-top-color:#b7dfc9;"><span>Sisa</span><span>Rp ${Number(o.sisa_bayar||0).toLocaleString('id-ID')}</span></div>
     </div>`:''}
+    ` : ''}
     <div class="fld" style="margin-top:14px;">
       <label>Ubah Status</label>
       <select id="od-status" onchange="updStatus('${o.no_order}',this.value); closeOrderDetail();">
