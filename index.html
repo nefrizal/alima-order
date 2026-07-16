@@ -30,7 +30,7 @@ header{background:var(--or);color:#fff;padding:0 16px;display:flex;align-items:c
 .brand small{display:block;font-family:'Inter',sans-serif;font-size:10px;font-weight:500;opacity:.85;letter-spacing:1.5px;text-transform:uppercase;margin-top:-2px;}
 #cst{font-size:11px;opacity:.9;}
 .tabs{display:flex;background:var(--card);border-bottom:2px solid var(--bdr);position:sticky;top:54px;z-index:199;}
-.tbtn{flex:1;padding:11px 6px;border:none;background:transparent;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;color:var(--inks);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;transition:color .2s,border-color .2s;letter-spacing:.3px;}
+.tbtn{flex:1;padding:11px 3px;border:none;background:transparent;font-family:'Inter',sans-serif;font-size:10.5px;font-weight:600;color:var(--inks);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;transition:color .2s,border-color .2s;letter-spacing:.2px;white-space:nowrap;}
 .tbtn.on{color:var(--or);border-bottom-color:var(--or);}
 main{max-width:760px;margin:0 auto;padding:16px 14px 80px;}
 .panel{display:none;}.panel.on{display:block;}
@@ -79,6 +79,8 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 .jw-paket{color:var(--or);font-weight:600;text-decoration:underline;text-decoration-color:#f0c9ab;cursor:pointer;}
 .jw-qty{text-align:center;font-weight:700;color:var(--ord);}
 .jw-nama{color:var(--inks);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.jw-row.masak{grid-template-columns:60px 44px 1fr;}
+.jw-jam-hari{font-size:9px;color:var(--inks);font-weight:600;text-transform:uppercase;}
 .jw-menulist{border:1px solid var(--bdr);border-radius:8px;overflow:hidden;}
 .jw-menurow{display:flex;justify-content:space-between;gap:10px;padding:8px 12px;font-size:12px;border-bottom:1px solid var(--bdr);}
 .jw-menurow:last-child{border-bottom:none;}
@@ -137,6 +139,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   <button class="tbtn on" id="tab-form" onclick="goTab('form',this)">➕ Order Baru</button>
   <button class="tbtn" id="tab-revisi" onclick="goTab('revisi',this)">✏️ Revisi</button>
   <button class="tbtn" id="tab-jadwal" onclick="goTab('jadwal',this)">📅 Jadwal</button>
+  <button class="tbtn" id="tab-masak" onclick="goTab('masak',this)">🍳 Masak</button>
   <button class="tbtn" id="tab-absensi" onclick="goTab('absensi',this)">🕐 Absensi</button>
 </div>
 <div class="ovl hide" id="ovl"><div class="sp"></div><span id="ovl-msg">Memproses…</span></div>
@@ -300,6 +303,14 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     <button class="bico" onclick="loadOrders().then(renderJadwal)" style="flex:1;">↻ Refresh Jadwal</button>
   </div>
   <div id="jw"><div class="empty"><div class="eico">📅</div><p>Klik Refresh untuk memuat jadwal.</p></div></div>
+</div>
+
+<!-- ═══ JADWAL MASAK ═══ -->
+<div class="panel" id="panel-masak">
+  <div class="lbar">
+    <button class="bico" onclick="loadOrders().then(renderJadwalMasak)" style="flex:1;">↻ Refresh Jadwal Masak</button>
+  </div>
+  <div id="jm"><div class="empty"><div class="eico">🍳</div><p>Klik Refresh untuk memuat jadwal masak.</p></div></div>
 </div>
 
 <!-- ═══ ABSENSI ═══ -->
@@ -1577,6 +1588,104 @@ async function loadStatusTim(){
   }catch(e){ list.innerHTML = `<div class="empty" style="padding:20px;"><p style="font-size:12px;color:var(--red);">Gagal: ${e.message}</p></div>`; }
 }
 
+// ══ JADWAL MASAK (produksi dapur) ═════
+const KATEGORI_MASAK = [
+  ['nasi','🍚 Nasi'], ['lauk_utama','🍗 Lauk Utama'], ['tambahan','🥟 Tambahan'],
+  ['sayur','🥬 Sayur'], ['sambal','🌶️ Sambal'], ['kerupuk','🍘 Kerupuk'],
+  ['buah','🍊 Buah'], ['air_mineral','💧 Air Mineral'], ['kemasan','📦 Kemasan'],
+  ['pilihan_lain_1','➕ Pilihan 1'], ['pilihan_lain_2','➕ Pilihan 2'],
+  ['pilihan_lain_3','➕ Pilihan 3'], ['pilihan_lain_4','➕ Pilihan 4'], ['pilihan_lain_5','➕ Pilihan 5'],
+  ['puding','🍮 Puding'], ['snack','🍪 Snack'], ['minuman','🥤 Minuman']
+];
+
+// Jam berangkat = jam sampai dikurangi 1 jam
+function jamBerangkat_(jamSampai){
+  if(!jamSampai || !jamSampai.includes(':')) return '';
+  let [h,m] = jamSampai.split(':').map(Number);
+  let total = h*60+m-60;
+  if(total < 0) total += 24*60;
+  return String(Math.floor(total/60)).padStart(2,'0')+':'+String(total%60).padStart(2,'0');
+}
+
+function renderJadwalMasak(){
+  const w = document.getElementById('jm');
+  try{
+    const now = new Date();
+    const fmtTgl = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    const todayStr = fmtTgl(now);
+    const tmr = new Date(now); tmr.setDate(tmr.getDate()+1);
+    const tomorrowStr = fmtTgl(tmr);
+    const lsa = new Date(now); lsa.setDate(lsa.getDate()+2);
+    const lusaStr = fmtTgl(lsa);
+
+    const relevan = allOrders.filter(o=>{
+      const tgl = String(o.tanggal_kirim||o.tgl_kirim||'').slice(0,10);
+      return o.status!=='Batal' && (tgl===todayStr || tgl===tomorrowStr || tgl===lusaStr) && o.jam_sampai;
+    });
+
+    if(!relevan.length){
+      w.innerHTML = `<div class="empty"><div class="eico">🍳</div><p>Tidak ada order hari ini/besok/lusa.</p></div>`;
+      return;
+    }
+
+    // kategori -> "tgl|jamBerangkat|item" -> {tgl,jam,item,qty}
+    const kategoriMap = {};
+    KATEGORI_MASAK.forEach(([key])=>{ kategoriMap[key] = {}; });
+
+    relevan.forEach(o=>{
+      const tgl = String(o.tanggal_kirim||o.tgl_kirim||'').slice(0,10);
+      const jb  = jamBerangkat_(o.jam_sampai);
+      const qty = Number(o.qty)||0;
+      KATEGORI_MASAK.forEach(([key])=>{
+        const item = String(o[key]||'').trim();
+        if(!item || item==='—') return;
+        const k = tgl+'|'+jb+'|'+item;
+        if(!kategoriMap[key][k]) kategoriMap[key][k] = { tgl, jam:jb, item, qty:0 };
+        kategoriMap[key][k].qty += qty;
+      });
+    });
+
+    // Render 2 seksi besar terpisah: HARI INI dulu (semua kategori), baru BESOK (semua kategori)
+    function renderSeksiHari(tglTarget, labelHari){
+      let bodyHtml = '';
+      let totalItem = 0;
+      KATEGORI_MASAK.forEach(([key,label])=>{
+        const rows = Object.values(kategoriMap[key]).filter(r=>r.tgl===tglTarget);
+        if(!rows.length) return;
+        rows.sort((a,b)=> a.jam.localeCompare(b.jam) || a.item.localeCompare(b.item));
+        totalItem += rows.length;
+        const rowsHtml = rows.map(r=>`<div class="jw-row masak">
+          <div class="jw-jam">${r.jam||'—'}</div>
+          <div class="jw-qty">${r.qty}</div>
+          <div class="jw-paket" style="cursor:default;text-decoration:none;color:var(--ink);font-weight:600;">${r.item}</div>
+        </div>`).join('');
+        bodyHtml += `<div style="margin-top:10px;">
+          <div style="font-size:12px;font-weight:700;color:var(--ord);padding:4px 4px;">${label}</div>
+          <div class="jw-table">
+            <div class="jw-row masak head"><div>Berangkat</div><div>Qty</div><div>Item</div></div>
+            ${rowsHtml}
+          </div>
+        </div>`;
+      });
+      if(!bodyHtml) return '';
+      return `<div class="jw-daygroup">
+        <div class="jw-dayhead" style="background:var(--or);border-radius:8px;padding:10px 12px;">
+          <span class="jw-daydate" style="color:#fff;">📅 ${labelHari}</span>
+          <span class="jw-daybadge" style="background:rgba(255,255,255,.25);">${totalItem} item</span>
+        </div>
+        ${bodyHtml}
+      </div>`;
+    }
+
+    const html = renderSeksiHari(todayStr, 'HARI INI') + renderSeksiHari(tomorrowStr, 'BESOK') + renderSeksiHari(lusaStr, 'LUSA');
+
+    w.innerHTML = html || `<div class="empty"><div class="eico">🍳</div><p>Tidak ada item menu untuk dijadwalkan.</p></div>`;
+  }catch(e){
+    console.error('renderJadwalMasak error:', e);
+    w.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>Gagal menampilkan jadwal masak: ${e.message}</p></div>`;
+  }
+}
+
 function openOrderDetail(no){
   const o = allOrders.find(x => String(x.no_order) === String(no));
   if(!o){ toast('Data order tidak ditemukan (coba refresh).','err'); return; }
@@ -1738,6 +1847,7 @@ function goTab(id,btn){
   document.getElementById('panel-'+id).classList.add('on');
   btn.classList.add('on');
   if(id==='jadwal'){ if(allOrders.length===0) loadOrders().then(renderJadwal); else renderJadwal(); }
+  if(id==='masak'){ if(allOrders.length===0) loadOrders().then(renderJadwalMasak); else renderJadwalMasak(); }
   if(id==='absensi'){ initAbsensiTab(); if(CURRENT_USER && CURRENT_USER.role!=='karyawan') loadStatusTim(); }
 }
 function resetForm(){
