@@ -1728,6 +1728,12 @@ async function loadGrafik(){
   }
 }
 
+function formatRupiahSingkat_(v){
+  if(v>=1000000) return (v/1000000).toLocaleString('id-ID',{maximumFractionDigits:1})+'jt';
+  if(v>=1000) return (v/1000).toLocaleString('id-ID',{maximumFractionDigits:0})+'rb';
+  return String(v);
+}
+
 function renderGrafikChart(j){
   const chartEl = document.getElementById('gf-chart');
   const bulanList = j.bulanList||[], kategoriList = j.kategoriList||[], data = j.data||{};
@@ -1739,17 +1745,32 @@ function renderGrafikChart(j){
   let maxVal = 1;
   bulanList.forEach(b => kategoriList.forEach(k => { maxVal = Math.max(maxVal, (data[b]&&data[b][k])||0); }));
 
+  // Skala sumbu Y: kelipatan rapi yang selalu bisa dibagi 50.000, target ~5 garis bantu
+  let step = Math.ceil((maxVal/5) / 50000) * 50000;
+  if (step <= 0) step = 50000;
+  const topVal  = Math.ceil(maxVal/step) * step;
+  const numGrid = topVal/step;
+
   const barMaxH = 160;
+  const leftM   = 54; // ruang label sumbu Y
   const groupW  = Math.max(70, kategoriList.length*24+24);
-  const totalW  = groupW * bulanList.length + 40;
+  const totalW  = groupW * bulanList.length + leftM + 20;
   const chartH  = barMaxH + 50;
+
+  let gridLines = '';
+  for(let g=0; g<=numGrid; g++){
+    const val = g*step;
+    const y = barMaxH - (val/topVal)*barMaxH + 20;
+    gridLines += `<line x1="${leftM}" y1="${y}" x2="${totalW-10}" y2="${y}" stroke="#EDE3D8" stroke-width="1"/>`;
+    gridLines += `<text x="${leftM-6}" y="${y+3}" font-size="9" fill="#9C8672" text-anchor="end">${formatRupiahSingkat_(val)}</text>`;
+  }
 
   let bars = '';
   bulanList.forEach((b, bi) => {
-    const groupX = 30 + bi*groupW;
+    const groupX = leftM + 10 + bi*groupW;
     kategoriList.forEach((k, ki) => {
       const val = (data[b]&&data[b][k]) || 0;
-      const h = (val/maxVal)*barMaxH;
+      const h = (val/topVal)*barMaxH;
       const barW = Math.max(14, (groupW-16)/kategoriList.length - 4);
       const x = groupX + ki*(barW+4);
       const y = barMaxH - h + 20;
@@ -1765,10 +1786,9 @@ function renderGrafikChart(j){
     </div>`).join('');
 
   chartEl.innerHTML = `
-    <div style="font-size:10px;color:var(--inks);margin-bottom:4px;">Skala tertinggi: Rp ${maxVal.toLocaleString('id-ID')}</div>
     <div style="overflow-x:auto;background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:12px;box-shadow:var(--sh);">
       <svg width="${totalW}" height="${chartH}" viewBox="0 0 ${totalW} ${chartH}">
-        <line x1="20" y1="${barMaxH+20}" x2="${totalW-10}" y2="${barMaxH+20}" stroke="#EDE3D8" stroke-width="1"/>
+        ${gridLines}
         ${bars}
       </svg>
     </div>
