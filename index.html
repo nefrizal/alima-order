@@ -869,14 +869,19 @@ async function handleGoogleCredential(resp){
     document.getElementById('app-content').classList.remove('hide');
     document.getElementById('who-badge').textContent = `${CURRENT_USER.nama} · ${CURRENT_USER.role}`;
 
-    if (CURRENT_USER.role === 'karyawan') {
-      applyKaryawanAccess();
+    if (isFullAccessRole(CURRENT_USER.role)) {
+      initAppContent(); // admin / sales: akses penuh (Order Baru, Revisi, Jadwal, Masak, Absensi)
     } else {
-      initAppContent(); // sales / admin: akses penuh
+      applyKaryawanAccess(); // role lain (Dapur, Finance, Pembelian, Service, dst): Jadwal, Masak, Absensi saja
     }
   }catch(e){
     showLoginDenied('Gagal menghubungi server: ' + e.message);
   }
+}
+
+// Role dengan akses penuh (semua tab). Role lain di luar ini hanya dapat Jadwal, Masak, Absensi.
+function isFullAccessRole(role){
+  return role === 'admin' || role === 'sales';
 }
 
 function showLoginDenied(msg){
@@ -1562,14 +1567,14 @@ async function doAbsen(tipe){
     if(!j.success){ toast(j.message,'err'); btn.disabled=false; return; }
     toast(`Absen ${tipe} berhasil jam ${j.jam} ✓`,'ok');
     initAbsensiTab();
-    if(CURRENT_USER.role !== 'karyawan') loadStatusTim();
+    if(isFullAccessRole(CURRENT_USER.role)) loadStatusTim();
   }catch(e){ hideOvl(); toast('Gagal: '+e.message,'err'); btn.disabled=false; }
 }
 
 async function loadStatusTim(){
   const section = document.getElementById('abs-tim-section');
   const list = document.getElementById('abs-tim-list');
-  if(!CURRENT_USER || CURRENT_USER.role === 'karyawan'){ section.style.display='none'; return; }
+  if(!CURRENT_USER || !isFullAccessRole(CURRENT_USER.role)){ section.style.display='none'; return; }
   section.style.display = 'block';
   list.innerHTML = '<div class="empty" style="padding:20px;"><p style="font-size:12px;">Memuat…</p></div>';
   try{
@@ -1797,7 +1802,7 @@ async function sendWAKlien(o){
   const total  = o.jumlah_total||0;
 
   const payLine = o.inv_status==='DP' && o.inv_sisa
-    ? `\n💳 DP diterima: Rp ${(o.inv_bayar||0).toLocaleString('id-ID')}\n⏳ Sisa      : *Rp ${o.inv_sisa.toLocaleString('id-ID')}*`
+    ? `\n💳 DP: Rp ${(o.inv_bayar||0).toLocaleString('id-ID')}\n⏳ Sisa      : *Rp ${o.inv_sisa.toLocaleString('id-ID')}*`
     : o.inv_status==='Lunas' ? `\n✅ *Pembayaran Lunas*` : '';
 
   const msg =
@@ -1821,7 +1826,10 @@ ${menuList||'  —'}
   ─────────────────
   • *Total    : Rp ${total.toLocaleString('id-ID')}*${payLine}
 
-Tim kami akan segera konfirmasi lebih lanjut.
+Pembayaran harap transfer ke rekening kami di Bank Mandiri no. rek *1090031113798* a.n. *Katering Sukses Mandiri*.
+
+Tim kami akan segera konfirmasi pelaksanaan lebih lanjut.
+Terima kasih.
 Salam, *KSM Katering* 🍱`;
 
   await fPost(o.hp_penerima, msg);
@@ -1848,7 +1856,7 @@ function goTab(id,btn){
   btn.classList.add('on');
   if(id==='jadwal'){ if(allOrders.length===0) loadOrders().then(renderJadwal); else renderJadwal(); }
   if(id==='masak'){ if(allOrders.length===0) loadOrders().then(renderJadwalMasak); else renderJadwalMasak(); }
-  if(id==='absensi'){ initAbsensiTab(); if(CURRENT_USER && CURRENT_USER.role!=='karyawan') loadStatusTim(); }
+  if(id==='absensi'){ initAbsensiTab(); if(CURRENT_USER && isFullAccessRole(CURRENT_USER.role)) loadStatusTim(); }
 }
 function resetForm(){
   ['f-cid','f-gol','f-produk','f-qty','f-hjual','f-fee','f-hksm','f-hmin','f-del','f-ket','f-pen','f-hp','f-adr','f-krd','f-inv-bayar','f-mirip','f-jam'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
