@@ -1683,7 +1683,9 @@ function renderJadwalMasak(){
           </div>
         </div>`;
       });
-      if(!bodyHtml) return '';
+      if(!bodyHtml){
+        bodyHtml = `<div class="empty" style="padding:16px;"><p style="font-size:12px;">Tidak ada order untuk tanggal ini.</p></div>`;
+      }
       return `<div class="jw-daygroup">
         <div class="jw-dayhead" style="background:var(--or);border-radius:8px;padding:10px 12px;">
           <span class="jw-daydate" style="color:#fff;">📅 ${labelHari}</span>
