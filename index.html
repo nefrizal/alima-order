@@ -1742,8 +1742,12 @@ function renderGrafikChart(j){
     return;
   }
 
+  // maxVal = total tumpukan (jumlah semua kategori) tertinggi per bulan
   let maxVal = 1;
-  bulanList.forEach(b => kategoriList.forEach(k => { maxVal = Math.max(maxVal, (data[b]&&data[b][k])||0); }));
+  bulanList.forEach(b => {
+    const totalBulan = kategoriList.reduce((s,k)=> s + ((data[b]&&data[b][k])||0), 0);
+    maxVal = Math.max(maxVal, totalBulan);
+  });
 
   // Skala sumbu Y: kelipatan rapi yang selalu bisa dibagi 50.000, target ~5 garis bantu
   let step = Math.ceil((maxVal/5) / 50000) * 50000;
@@ -1753,7 +1757,8 @@ function renderGrafikChart(j){
 
   const barMaxH = 160;
   const leftM   = 54; // ruang label sumbu Y
-  const groupW  = Math.max(70, kategoriList.length*24+24);
+  const barW    = 46;
+  const groupW  = 66;
   const totalW  = groupW * bulanList.length + leftM + 20;
   const chartH  = barMaxH + 50;
 
@@ -1765,19 +1770,22 @@ function renderGrafikChart(j){
     gridLines += `<text x="${leftM-6}" y="${y+3}" font-size="9" fill="#9C8672" text-anchor="end">${formatRupiahSingkat_(val)}</text>`;
   }
 
+  // Kategori ditumpuk dari BAWAH ke ATAS sesuai urutan kategoriList — jadi kategori
+  // yang muncul lebih akhir di daftar (mis. "prasmanan") duduk di ATAS kategori sebelumnya.
   let bars = '';
   bulanList.forEach((b, bi) => {
-    const groupX = leftM + 10 + bi*groupW;
+    const x = leftM + 10 + bi*groupW;
+    let stackedH = 0; // tinggi kumulatif dari dasar batang
     kategoriList.forEach((k, ki) => {
       const val = (data[b]&&data[b][k]) || 0;
+      if (val <= 0) return;
       const h = (val/topVal)*barMaxH;
-      const barW = Math.max(14, (groupW-16)/kategoriList.length - 4);
-      const x = groupX + ki*(barW+4);
-      const y = barMaxH - h + 20;
+      const y = barMaxH - stackedH - h + 20;
       const color = GRAFIK_COLORS[ki % GRAFIK_COLORS.length];
-      bars += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" fill="${color}" rx="2"></rect>`;
+      bars += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" fill="${color}" rx="1"></rect>`;
+      stackedH += h;
     });
-    bars += `<text x="${groupX + (groupW-16)/2}" y="${barMaxH+38}" font-size="10" fill="#5C4A35" text-anchor="middle">${formatBulanLabel_(b)}</text>`;
+    bars += `<text x="${x + barW/2}" y="${barMaxH+38}" font-size="10" fill="#5C4A35" text-anchor="middle">${formatBulanLabel_(b)}</text>`;
   });
 
   const legend = kategoriList.map((k,ki) => `
