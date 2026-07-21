@@ -375,6 +375,22 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   </div>
 </div>
 
+<!-- MODAL KONFIRMASI NOTIFIKASI -->
+<div class="modal-bg hide" id="notif-confirm-modal">
+  <div class="modal" style="padding-bottom:24px;">
+    <div class="modal-head">
+      <h2>📲 Kirim Notifikasi?</h2>
+      <button class="modal-close" onclick="batalkanSimpanOrder()">×</button>
+    </div>
+    <p style="font-size:13px;color:var(--inkm);line-height:1.6;margin-bottom:18px;">
+      Order akan tetap disimpan. Notifikasi ke <strong>Sales</strong> akan selalu terkirim.<br><br>
+      Kirim juga notifikasi WA konfirmasi order ke <strong>Customer</strong>?
+    </p>
+    <button class="bsub" onclick="prosesSimpanOrder(true)" style="margin-bottom:10px;">✅ Ya, Kirim ke Customer</button>
+    <button class="bsub" onclick="prosesSimpanOrder(false)" style="background:var(--inks);">🚫 Tidak, Cukup ke Sales</button>
+  </div>
+</div>
+
 <!-- MODAL DETAIL ORDER -->
 <div class="modal-bg hide" id="order-detail-modal">
   <div class="modal">
@@ -736,6 +752,40 @@ function recalcRev() {
   if (totEl)  totEl.textContent = 'Rp '+tot.toLocaleString('id-ID');
 }
 
+// Bandingkan data order sebelum & sesudah revisi, hasilkan daftar field yang berubah saja.
+function bangunDaftarPerubahan_(lama, baru) {
+  const fieldMap = [
+    ['tanggal_kirim','tgl_kirim','Tanggal Kirim', v=>fd(v)],
+    ['jam_sampai','jam_sampai','Jam Sampai'],
+    ['qty','qty','Qty'],
+    ['harga_jual_dlm_ribuan','harga_jual','Harga Jual (rb)'],
+    ['fee_jasa_broker','fee_broker','Fee Broker (rb)'],
+    ['delivery_charge','delivery','Delivery Charge', v=>'Rp '+Number(v||0).toLocaleString('id-ID')],
+    ['nama_penerima','penerima','Nama Penerima'],
+    ['no_hp_penerima','hp_penerima','No HP Penerima'],
+    ['alamat_pengiriman','alamat','Alamat'],
+    ['keterangan','keterangan','Keterangan'],
+    ['nasi','nasi','Nasi'],['lauk_utama','lauk_utama','Lauk Utama'],['tambahan','tambahan','Tambahan'],
+    ['sayur','sayur','Sayur'],['sambal','sambal','Sambal'],['kerupuk','kerupuk','Kerupuk'],
+    ['buah','buah','Buah'],['air_mineral','air_mineral','Air Mineral'],['kemasan','kemasan','Kemasan'],
+    ['pilihan_lain_1','lain1','Pilihan 1'],['pilihan_lain_2','lain2','Pilihan 2'],
+    ['pilihan_lain_3','lain3','Pilihan 3'],['pilihan_lain_4','lain4','Pilihan 4'],['pilihan_lain_5','lain5','Pilihan 5'],
+    ['puding','puding','Puding'],['snack','snack','Snack'],['minuman','minuman','Minuman'],
+  ];
+  const perubahan = [];
+  fieldMap.forEach(([oldKey,newKey,label,fmt]) => {
+    let oldVal = lama[oldKey];
+    let newVal = baru[newKey];
+    if (oldKey==='tanggal_kirim') { oldVal = String(oldVal||'').slice(0,10); newVal = String(newVal||'').slice(0,10); }
+    const oldStr = (oldVal===undefined||oldVal===null) ? '' : String(oldVal).trim();
+    const newStr = (newVal===undefined||newVal===null) ? '' : String(newVal).trim();
+    if (oldStr === newStr) return; // tidak berubah, jangan ditampilkan
+    const tampil = fmt ? fmt(newVal) : (newStr || '—');
+    perubahan.push(`${label}: ${tampil}`);
+  });
+  return perubahan;
+}
+
 async function submitRevisi() {
   if (!revisiData) return;
   const btn = document.getElementById('btn-sub-rev');
@@ -778,7 +828,9 @@ async function submitRevisi() {
     let waError = null;
     if (!APP.FONNTE_TOKEN.includes('GANTI')) {
       try {
-        const msg = `✏️ *REVISI ORDER — ${d.no_order}*\n\n📦 ${d.paket||''}\n👥 ${d.qty} pax\n📅 ${fd(d.tgl_kirim)} ${d.jam_sampai||''}\n📍 ${d.alamat||'—'}\n💵 Total: Rp ${tot.toLocaleString('id-ID')}\n${d.keterangan?'\n📝 '+d.keterangan:''}\n\n_${new Date().toLocaleString('id-ID')}_`;
+        const perubahan = bangunDaftarPerubahan_(revisiData, d);
+        const daftarStr = perubahan.length ? perubahan.map(p=>'• '+p).join('\n') : '(tidak ada perubahan terdeteksi)';
+        const msg = `✏️ *REVISI ORDER — ${d.no_order}*\n\n${daftarStr}`;
         await fPost(APP.WA_NOTIF, msg);
       } catch(waErr) {
         waError = waErr;
@@ -1362,6 +1414,8 @@ function getGPS(){
 }
 
 // ══ SUBMIT ════════════════════════════
+let PENDING_ORDER_DATA = null;
+
 async function submitOrder(){
   const btn=document.getElementById('btn-sub');
   if(btn.disabled) return; // cegah submit dobel (double-tap / klik cepat berulang)
@@ -1408,41 +1462,68 @@ async function submitOrder(){
       alamat:document.getElementById('f-adr').value.trim(),koordinat:document.getElementById('f-krd').value.trim(),
       status:'Baru'
     };
-    if(!d.customer_id)return toast('Pilih customer terlebih dahulu.','err');
-    if(!d.sales)return toast('Isi nama sales.','err');
-    if(!d.produk)return toast('Pilih produk.','err');
-    if(!d.paket)return toast('Pilih paket.','err');
-    if(!d.qty)return toast('Isi qty.','err');
-    if(!d.harga_jual)return toast('Isi harga jual.','err');
-    if(!d.tgl_kirim)return toast('Isi tanggal kirim.','err');
-    if(!d.jam_sampai)return toast('Isi jam sampai.','err');
-    showOvl('Menyimpan ke Google Sheets…');
-    try{
-      const qs = new URLSearchParams({action:'addOrder', ...d}).toString();
-      const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
-      if (!j.success) { hideOvl(); toast(j.message || 'Order ditolak server.', 'err'); return; }
-      // Order sudah tersimpan di titik ini. Kegagalan kirim WA di bawah TIDAK membatalkan order.
-      updOvl('Mengirim notifikasi WhatsApp…');
-      let waError = null;
-      try {
-        await sendWAInternal(d);
-        const salesHP=getSalesHP();
-        if(salesHP&&salesHP!==APP.WA_NOTIF)await sendWASales(d,salesHP);
-        if(d.hp_penerima&&d.hp_penerima.length>8)await sendWAKlien(d);
-      } catch(waErr) {
-        waError = waErr;
-        console.error('Gagal kirim notifikasi WA (order tetap tersimpan):', waErr);
-      }
-      hideOvl();
-      if (waError) {
-        toast(`Order ${no} TERSIMPAN ✓, tapi WA gagal terkirim (${waError.message}). Cek koneksi device Fonnte.`,'err');
-      } else {
-        toast(`Order ${no} tersimpan! ✓`,'ok');
-      }
-      allOrders.unshift(d);resetForm();
-    }catch(e){hideOvl();toast('Gagal menyimpan order: '+e.message,'err');console.error(e);}
-  } finally {
+    if(!d.customer_id){toast('Pilih customer terlebih dahulu.','err');btn.disabled=false;return;}
+    if(!d.sales){toast('Isi nama sales.','err');btn.disabled=false;return;}
+    if(!d.produk){toast('Pilih produk.','err');btn.disabled=false;return;}
+    if(!d.paket){toast('Pilih paket.','err');btn.disabled=false;return;}
+    if(!d.qty){toast('Isi qty.','err');btn.disabled=false;return;}
+    if(!d.harga_jual){toast('Isi harga jual.','err');btn.disabled=false;return;}
+    if(!d.tgl_kirim){toast('Isi tanggal kirim.','err');btn.disabled=false;return;}
+    if(!d.jam_sampai){toast('Isi jam sampai.','err');btn.disabled=false;return;}
+
+    // Validasi lolos — simpan data, tampilkan modal konfirmasi notifikasi.
+    // Tombol TETAP disabled sampai modal ini selesai diproses (Ya/Tidak/Batal),
+    // supaya tidak bisa submit dobel selagi modal terbuka.
+    PENDING_ORDER_DATA = d;
+    document.getElementById('notif-confirm-modal').classList.remove('hide');
+  }catch(e){
+    toast('Gagal menyiapkan order: '+e.message,'err');
+    console.error(e);
     btn.disabled=false;
+  }
+}
+
+function batalkanSimpanOrder(){
+  PENDING_ORDER_DATA = null;
+  document.getElementById('notif-confirm-modal').classList.add('hide');
+  const btn=document.getElementById('btn-sub');
+  if(btn) btn.disabled=false;
+}
+
+async function prosesSimpanOrder(kirimKeCustomer){
+  const d = PENDING_ORDER_DATA;
+  const btn = document.getElementById('btn-sub');
+  document.getElementById('notif-confirm-modal').classList.add('hide');
+  if(!d){ if(btn) btn.disabled=false; return; }
+
+  showOvl('Menyimpan ke Google Sheets…');
+  try{
+    const qs = new URLSearchParams({action:'addOrder', ...d}).toString();
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if (!j.success) { hideOvl(); toast(j.message || 'Order ditolak server.', 'err'); if(btn) btn.disabled=false; return; }
+    // Order sudah tersimpan di titik ini. Kegagalan kirim WA di bawah TIDAK membatalkan order.
+    updOvl('Mengirim notifikasi WhatsApp…');
+    let waError = null;
+    try {
+      const salesHP=getSalesHP();
+      if(salesHP)await sendWASales(d,salesHP); // notifikasi ke sales SELALU dikirim
+      if(kirimKeCustomer && d.hp_penerima && d.hp_penerima.length>8) await sendWAKlien(d);
+    } catch(waErr) {
+      waError = waErr;
+      console.error('Gagal kirim notifikasi WA (order tetap tersimpan):', waErr);
+    }
+    hideOvl();
+    if (waError) {
+      toast(`Order ${d.no_order} TERSIMPAN ✓, tapi WA gagal terkirim (${waError.message}). Cek koneksi device Fonnte.`,'err');
+    } else {
+      toast(`Order ${d.no_order} tersimpan! ✓${kirimKeCustomer?' Notifikasi ke customer & sales terkirim.':' Notifikasi ke sales terkirim.'}`,'ok');
+    }
+    allOrders.unshift(d);
+    PENDING_ORDER_DATA = null;
+    resetForm();
+  }catch(e){
+    hideOvl();toast('Gagal menyimpan order: '+e.message,'err');console.error(e);
+    if(btn) btn.disabled=false;
   }
 }
 
@@ -1877,14 +1958,6 @@ async function updStatus(no,st){
 }
 
 // ══ FONNTE ════════════════════════════
-async function sendWAInternal(o){
-  if(APP.FONNTE_TOKEN.includes('GANTI'))return;
-  const mf={Nasi:o.nasi,'Lauk':o.lauk_utama,'Tambahan':o.tambahan,'Sayur':o.sayur,'Sambal':o.sambal,'Kerupuk':o.kerupuk,'Buah':o.buah,'Air':o.air_mineral,'Kemasan':o.kemasan,'Puding':o.puding,'Snack':o.snack,'Minuman':o.minuman,'Lain-1':o.lain1,'Lain-2':o.lain2};
-  const ml=Object.entries(mf).filter(([,v])=>v&&v!=='—').map(([k,v])=>`  ${k.padEnd(10)}: ${v}`).join('\n');
-  const payInfo = o.inv_status ? `\n💳 *${o.inv_status}*${o.inv_bayar?' : Rp '+o.inv_bayar.toLocaleString('id-ID'):''}${o.inv_sisa?' | Sisa: Rp '+o.inv_sisa.toLocaleString('id-ID'):''}` : '';
-  const msg=`🍽️ *ORDER BARU — ${o.no_order}*\n\n👤 Sales    : ${o.sales} | Tim: ${o.tim||'—'}\n🏢 Customer : ${o.penerima||'—'} ${o.customer_id?'('+o.customer_id+')':''}\n📦 ${o.produk} · ${o.paket}\n👥 ${o.qty} pax | Kirim: ${fd(o.tgl_kirim)} ${o.jam_sampai||''}\n📍 ${o.alamat||'—'}\n\n🥘 *Menu:*\n${ml||'—'}\n${o.keterangan?'\n📝 '+o.keterangan:''}\n💰 Harga Jual : Rp ${(o.harga_jual*1000).toLocaleString('id-ID')}/pax\n💵 *TOTAL : Rp ${(o.jumlah_total||0).toLocaleString('id-ID')}*${payInfo}\n\n_${new Date().toLocaleString('id-ID')}_`;
-  await fPost(APP.WA_NOTIF,msg);
-}
 async function sendWASales(o,hp){
   if(APP.FONNTE_TOKEN.includes('GANTI'))return;
   const msg=`📋 *Order Baru untuk Anda — ${o.no_order}*\n\n🏢 ${o.penerima||'—'} ${o.customer_id?'('+o.customer_id+')':''}\n📦 ${o.produk||'—'}${o.paket?' · '+o.paket:''}\n👥 ${o.qty} pax\n📅 ${fd(o.tgl_kirim)}${o.jam_sampai?' · '+o.jam_sampai:''}\n📍 ${o.alamat||'—'}\n💰 *Total: Rp ${(o.jumlah_total||0).toLocaleString('id-ID')}*\n${o.keterangan?'\n📝 '+o.keterangan:''}\n_Segera konfirmasi ke customer._`;
