@@ -3,15 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Alima Boga Batam</title>
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#E8600A">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="icon" href="icon-192.png">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Alima Boga">
-<script src="https://accounts.google.com/gsi/client" async defer></script>
+<title>KSM Katering — Order</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -29,8 +21,8 @@ header{background:var(--or);color:#fff;padding:0 16px;display:flex;align-items:c
 .brand{font-family:'Playfair Display',serif;font-size:19px;font-weight:700;}
 .brand small{display:block;font-family:'Inter',sans-serif;font-size:10px;font-weight:500;opacity:.85;letter-spacing:1.5px;text-transform:uppercase;margin-top:-2px;}
 #cst{font-size:11px;opacity:.9;}
-.tabs{display:flex;background:var(--card);border-bottom:2px solid var(--bdr);position:sticky;top:54px;z-index:199;overflow-x:auto;-webkit-overflow-scrolling:touch;}
-.tbtn{flex:1;padding:11px 3px;border:none;background:transparent;font-family:'Inter',sans-serif;font-size:14px;font-weight:700;color:var(--inks);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;transition:color .2s,border-color .2s;letter-spacing:.2px;white-space:nowrap;text-transform:uppercase;}
+.tabs{display:flex;background:var(--card);border-bottom:2px solid var(--bdr);position:sticky;top:54px;z-index:199;}
+.tbtn{flex:1;padding:11px 6px;border:none;background:transparent;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;color:var(--inks);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;transition:color .2s,border-color .2s;letter-spacing:.3px;}
 .tbtn.on{color:var(--or);border-bottom-color:var(--or);}
 main{max-width:760px;margin:0 auto;padding:16px 14px 80px;}
 .panel{display:none;}.panel.on{display:block;}
@@ -67,25 +59,6 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 .bs{background:var(--grnl);color:var(--grn);}.bx{background:var(--redl);color:var(--red);}
 .obody{font-size:12px;color:var(--inkm);margin-bottom:8px;line-height:1.8;}.obody strong{color:var(--ink);}
 .pills{display:flex;flex-wrap:wrap;gap:4px;margin:5px 0;}
-.jw-daygroup{margin-bottom:16px;}
-.jw-dayhead{display:flex;align-items:center;gap:8px;padding:8px 4px;position:sticky;top:96px;background:var(--sur);z-index:50;}
-.jw-daydate{font-family:'Playfair Display',serif;font-weight:700;font-size:14px;color:var(--ord);}
-.jw-daybadge{background:var(--or);color:#fff;font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;}
-.jw-table{background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);overflow:hidden;box-shadow:var(--sh);}
-.jw-row{display:grid;grid-template-columns:64px 1fr 44px 1fr;gap:8px;padding:9px 12px;border-bottom:1px solid var(--bdr);font-size:12px;align-items:center;}
-.jw-row:last-child{border-bottom:none;}
-.jw-row.head{background:var(--orl);font-weight:700;color:var(--ord);font-size:10px;text-transform:uppercase;letter-spacing:.4px;}
-.jw-jam{font-weight:700;color:var(--inkm);}
-.jw-paket{color:var(--or);font-weight:600;text-decoration:underline;text-decoration-color:#f0c9ab;cursor:pointer;}
-.jw-qty{text-align:center;font-weight:700;color:var(--ord);}
-.jw-nama{color:var(--inks);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.jw-row.masak{grid-template-columns:60px 44px 1fr;}
-.jw-jam-hari{font-size:9px;color:var(--inks);font-weight:600;text-transform:uppercase;}
-.jw-menulist{border:1px solid var(--bdr);border-radius:8px;overflow:hidden;}
-.jw-menurow{display:flex;justify-content:space-between;gap:10px;padding:8px 12px;font-size:12px;border-bottom:1px solid var(--bdr);}
-.jw-menurow:last-child{border-bottom:none;}
-.jw-menuk{color:var(--inks);font-weight:600;flex-shrink:0;}
-.jw-menuv{color:var(--ink);text-align:right;}
 .pill{background:var(--orl);color:var(--ord);font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;}
 .ofoot{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--bdr);padding-top:8px;}
 .otot{font-weight:700;font-size:14px;color:var(--ord);}
@@ -98,11 +71,6 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 .toast.show{transform:translateX(-50%) translateY(0);}.toast.ok{background:var(--grn);}.toast.err{background:var(--red);}
 .ovl{position:fixed;inset:0;background:rgba(255,251,247,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:500;gap:12px;font-size:13px;color:var(--inkm);font-weight:500;}
 .ovl.hide{display:none;}
-.hide{display:none!important;}
-.login-gate{position:fixed;inset:0;z-index:999;background:linear-gradient(160deg,#FFFBF7,#FFF3EB);display:flex;align-items:center;justify-content:center;padding:24px;}
-.login-box{background:#fff;border:1px solid var(--bdr);border-radius:18px;padding:32px 24px;text-align:center;box-shadow:0 10px 40px rgba(26,18,8,.12);max-width:340px;width:100%;}
-.login-title{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:var(--ord);margin-top:14px;}
-.login-sub{font-size:12px;color:var(--inks);margin-top:6px;}
 .gps-btn{font-size:11px;padding:5px 10px;border:1.5px solid var(--bdr);border-radius:6px;background:var(--sur);cursor:pointer;color:var(--inkm);margin-top:5px;}
 .modal-bg{position:fixed;inset:0;background:rgba(26,18,8,.5);z-index:300;display:flex;align-items:flex-end;justify-content:center;}
 .modal-bg.hide{display:none;}
@@ -115,36 +83,16 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 </style>
 </head>
 <body>
-<div id="login-gate" class="login-gate">
-  <div class="login-box">
-    <img src="icon-192.png" alt="Alima Boga Batam" style="width:72px;height:72px;border-radius:18px;box-shadow:0 6px 20px rgba(232,96,10,.35);">
-    <div class="login-title">Alima Boga Batam</div>
-    <div class="login-sub" id="login-status">Memeriksa akun Google…</div>
-    <div id="g_id_signin_container" style="margin-top:16px;min-height:44px;"></div>
-    <div id="login-denied" style="display:none;">
-      <p id="login-denied-msg" style="color:var(--red);font-size:13px;margin-top:10px;line-height:1.6;"></p>
-      <button class="bico" style="margin-top:10px;" onclick="retryLogin()">🔄 Coba Akun Lain</button>
-    </div>
-  </div>
-</div>
-<div id="app-content" class="hide">
 <header>
-  <div class="brand">Alima Boga Batam<small>Sales Order App</small></div>
-  <div style="display:flex;align-items:center;gap:8px;">
-    <span id="who-badge" style="font-size:10px;background:rgba(255,255,255,.2);padding:3px 8px;border-radius:20px;"></span>
-    <div id="cst">⏳</div>
-  </div>
+  <div class="brand">KSM Katering<small>Sales Order App</small></div>
+  <div id="cst">⏳</div>
 </header>
 <div class="tabs">
-  <button class="tbtn on" id="tab-form" onclick="goTab('form',this)">➕ Order Baru</button>
-  <button class="tbtn" id="tab-revisi" onclick="goTab('revisi',this)">✏️ Revisi</button>
-  <button class="tbtn" id="tab-jadwal" onclick="goTab('jadwal',this)">📅 Jadwal</button>
-  <button class="tbtn" id="tab-masak" onclick="goTab('masak',this)">🍳 Masak</button>
-  <button class="tbtn" id="tab-grafik" onclick="goTab('grafik',this)">📊 Grafik</button>
-  <button class="tbtn" id="tab-absensi" onclick="goTab('absensi',this)">🕐 Absensi</button>
+  <button class="tbtn on" onclick="goTab('form',this)">➕ Order Baru</button>
+  <button class="tbtn" onclick="goTab('revisi',this)">✏️ Revisi</button>
+  <button class="tbtn" onclick="goTab('list',this)">📋 Daftar</button>
 </div>
 <div class="ovl hide" id="ovl"><div class="sp"></div><span id="ovl-msg">Memproses…</span></div>
-<div class="toast" id="toast"></div>
 <main>
 
 <!-- ═══ FORM ═══ -->
@@ -156,10 +104,6 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     <div class="g2">
       <div class="fld"><label>No. Order</label><input id="f-no" type="text" readonly placeholder="Auto"></div>
       <div class="fld"><label>Tanggal Kirim <span class="req">*</span></label><input id="f-tgl" type="date" onchange="onTglChange()"></div>
-    </div>
-    <div class="g2">
-      <div class="fld"><label>Jam Sampai <span class="req">*</span></label><input id="f-jam" type="time"></div>
-      <div class="fld"></div>
     </div>
     <div class="fld">
       <label>Order Mirip (opsional)</label>
@@ -195,7 +139,6 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
         </div>
         <div class="sales-hint">💾 Tersimpan otomatis · 📱 ambil dari kontak</div>
       </div>
-    </div>
   </div>
 
   <!-- Produk & Paket -->
@@ -227,16 +170,16 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     <div class="g2" style="margin-top:10px;">
       <div class="fld">
         <label>Status Pembayaran</label>
-        <select id="f-inv-status" onchange="recalc()">
+        <select id="f-inv-status">
           <option value="">— Pilih —</option>
           <option value="Invoice">Invoice</option>
-          <option value="DP" selected>DP</option>
+          <option value="DP">DP</option>
           <option value="Lunas">Lunas</option>
         </select>
       </div>
       <div class="fld">
         <label>Jumlah Bayar (Rp)</label>
-        <input id="f-inv-bayar" type="number" min="0" placeholder="0" oninput="recalc('bayar')">
+        <input id="f-inv-bayar" type="number" min="0" placeholder="0" oninput="recalc()">
       </div>
     </div>
     <div id="sisa-strip" style="display:none;background:var(--grnl);border:1px solid #b7dfc9;border-radius:8px;padding:10px 14px;margin-top:6px;">
@@ -277,7 +220,28 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     </div>
   </div>
 
-  <button class="bsub" id="btn-sub" onclick="submitOrder()">💾 Simpan Order &amp; Kirim Notifikasi WA</button>
+  <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px;">
+    <button class="bsub" id="btn-sub" onclick="confirmOrder()">💾 Simpan Order</button>
+  </div>
+
+  <!-- Popup Konfirmasi -->
+  <div id="confirm-modal" style="display:none;position:fixed;inset:0;background:rgba(26,18,8,.5);z-index:400;align-items:flex-end;justify-content:center;">
+    <div style="background:var(--card);border-radius:16px 16px 0 0;width:100%;max-width:720px;padding:24px 20px 32px;">
+      <div style="font-family:'Playfair Display',serif;font-size:17px;font-weight:700;color:var(--ord);margin-bottom:8px;">📤 Kirim Notifikasi WA?</div>
+      <p style="font-size:13px;color:var(--inkm);margin-bottom:20px;">Pilih apakah notifikasi WhatsApp dikirim ke customer juga, atau hanya ke sales/internal.</p>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <button onclick="submitOrder(true)" style="background:var(--or);color:#fff;border:none;border-radius:10px;padding:14px;font-family:'Playfair Display',serif;font-size:15px;font-weight:700;cursor:pointer;">
+          ✅ Ya — Simpan & Kirim ke Customer + Sales
+        </button>
+        <button onclick="submitOrder(false)" style="background:var(--orl);color:var(--ord);border:1.5px solid var(--or);border-radius:10px;padding:14px;font-family:'Playfair Display',serif;font-size:15px;font-weight:700;cursor:pointer;">
+          📋 Tidak — Simpan & Kirim ke Sales Saja
+        </button>
+        <button onclick="document.getElementById('confirm-modal').style.display='none'" style="background:transparent;color:var(--inks);border:none;padding:10px;font-size:13px;cursor:pointer;">
+          Batal
+        </button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- ═══ REVISI ═══ -->
@@ -298,54 +262,23 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   </div>
 </div>
 
-<!-- ═══ JADWAL ═══ -->
-<div class="panel" id="panel-jadwal">
+<!-- ═══ LIST ═══ -->
+<div class="panel" id="panel-list">
   <div class="lbar">
-    <button class="bico" onclick="loadOrders().then(renderJadwal)" style="flex:1;">↻ Refresh Jadwal</button>
+    <input type="text" id="s-q" placeholder="Cari no. order / nama…" oninput="renderList()">
+    <select id="s-st" onchange="renderList()">
+      <option value="">Semua Status</option>
+      <option>Baru</option><option>Proses</option><option>Selesai</option><option>Batal</option>
+    </select>
+    <button class="bico" onclick="loadOrders()">↻ Refresh</button>
   </div>
-  <div id="jw"><div class="empty"><div class="eico">📅</div><p>Klik Refresh untuk memuat jadwal.</p></div></div>
-</div>
-
-<!-- ═══ JADWAL MASAK ═══ -->
-<div class="panel" id="panel-masak">
-  <div class="lbar">
-    <button class="bico" onclick="loadOrders().then(renderJadwalMasak)" style="flex:1;">↻ Refresh Jadwal Masak</button>
-  </div>
-  <div id="jm"><div class="empty"><div class="eico">🍳</div><p>Klik Refresh untuk memuat jadwal masak.</p></div></div>
-</div>
-
-<!-- ═══ GRAFIK ═══ -->
-<div class="panel" id="panel-grafik">
-  <div class="lbar">
-    <button class="bico" onclick="loadGrafik()" style="flex:1;">↻ Refresh Grafik</button>
-  </div>
-  <div id="gf-updated" style="font-size:11px;color:var(--inks);text-align:center;margin-bottom:10px;"></div>
-  <div id="gf-chart"><div class="empty"><div class="eico">📊</div><p>Klik Refresh untuk memuat grafik.</p></div></div>
-</div>
-
-<!-- ═══ ABSENSI ═══ -->
-<div class="panel" id="panel-absensi">
-  <div class="sec">
-    <div class="stitle">🕐 Absensi Hari Ini</div>
-    <div id="abs-status" style="text-align:center;padding:16px 0;">
-      <div class="sp" style="margin:0 auto 10px;"></div>
-      <div style="font-size:12px;color:var(--inks);">Mendeteksi lokasi GPS…</div>
-    </div>
-    <div id="abs-jam" style="display:none;background:var(--orl);border:1px solid #f7d4bc;border-radius:8px;padding:10px 14px;margin-top:10px;font-size:12px;color:var(--inkm);"></div>
-    <button class="bsub" id="abs-btn-masuk" onclick="doAbsen('masuk')" style="display:none;margin-top:14px;">✅ Absen Datang</button>
-    <button class="bsub" id="abs-btn-pulang" onclick="doAbsen('pulang')" style="display:none;margin-top:14px;background:var(--blu);">🚪 Absen Pulang</button>
-    <button class="bico" onclick="initAbsensiTab()" style="width:100%;margin-top:10px;">↻ Deteksi Ulang Lokasi</button>
-  </div>
-
-  <div class="sec" id="abs-tim-section" style="display:none;">
-    <div class="stitle">👥 Status Tim Hari Ini
-      <button class="bico" onclick="loadStatusTim()" style="margin-left:auto;padding:5px 10px;font-size:11px;">↻</button>
-    </div>
-    <div id="abs-tim-list"><div class="empty" style="padding:20px;"><p style="font-size:12px;">Memuat status tim…</p></div></div>
-  </div>
+  <div id="lw"><div class="empty"><div class="eico">📋</div><p>Klik Refresh untuk memuat order.</p></div></div>
 </div>
 
 </main>
+<div style="position:fixed;bottom:70px;right:16px;z-index:999;">
+  <button onclick="alert('EMBEDDED:'+typeof EMBEDDED_MENU+'\nCUST:'+CUSTOMERS.length+'\nmdyn-nasi:'+document.getElementById('mdyn-nasi')?.tagName)" style="background:#333;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-size:12px;cursor:pointer;">🐛 Debug</button>
+</div>
 
 <!-- MODAL CUSTOMER -->
 <div class="modal-bg hide" id="cust-modal">
@@ -375,28 +308,13 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   </div>
 </div>
 
-<!-- MODAL DETAIL ORDER -->
-<div class="modal-bg hide" id="order-detail-modal">
-  <div class="modal">
-    <div class="modal-head">
-      <h2>📦 Detail Order</h2>
-      <button class="modal-close" onclick="closeOrderDetail()">×</button>
-    </div>
-    <div id="od-body"><!-- diisi JS --></div>
-  </div>
-</div>
-</div><!-- /app-content -->
-
 <script>
 // ══ KONFIGURASI ══════════════════════
 const APP = {
-  GAS_URL:      "https://script.google.com/macros/s/AKfycbyPgnhHNpbAWQbt4sNQiLFaDTRN-emDLn_rV68GVpvkdFAbFd41fyZxdMJUMqHdI1Zp/exec",
-  FONNTE_TOKEN: "CeRWm6bXYHAZRumRroUE",
-  WA_NOTIF:     "6282288175957",
-  GOOGLE_CLIENT_ID: "437595495608-lksqd7ofcl1jo1ebaa75re48mn04mtkl.apps.googleusercontent.com"
+  GAS_URL:      "https://script.google.com/macros/s/AKfycbzqS_xoX-qvkzkk8nlCq-Urgh4v4dQDmaA5v4zmjNR1yWwSw7iJSs4RfBP-pHiY0UxL/exec",
+  FONNTE_TOKEN: "o3iKrUUBhRaF2qHHqsD7",
+  WA_NOTIF:     "6285272739729"
 };
-let CURRENT_USER = null; // {email, nama, role} setelah login berhasil
-let ID_TOKEN = null;     // token Google, dikirim otomatis di setiap request backend (lihat gasFetch)
 
 // ══ MASTER DATA ═══════════════════════
 // Paket di-embed langsung dari sheet Paket — instant, tidak perlu GAS
@@ -416,8 +334,6 @@ const PAKET_DATA_EMBEDDED = {
 
 let PAKET_DATA = {...PAKET_DATA_EMBEDDED};
 let CUSTOMERS  = [];
-let SALES_DATA = [];
-let MENU_DATA  = null; // diisi setelah renderMenuGrid dipanggil (lihat bawah), null dulu supaya EMBEDDED_MENU dipakai sebagai fallback awal
 
 // Menu di-embed langsung — tidak perlu fetch GAS
 // Update manual di sini kalau sheet ListMenu berubah
@@ -497,7 +413,7 @@ function updateMenuHints() {
   const colMap = {
     'nasi':'nasi','lauk_utama':'lauk utama','tambahan':'tambahan',
     'sayur':'sayur','sambal':'sambal','kerupuk':'kerupuk','buah':'buah',
-    'air_mineral':'air mineral','kemasan':'kemasan',
+    'air_mineral':'air mineral','kotak':'kemasan',
     'lain1':'pilihan lain 1','lain2':'pilihan lain 2','lain3':'pilihan lain 3',
     'lain4':'pilihan lain 4','lain5':'pilihan lain 5',
     'puding':'puding','snack':'snack','minuman':'minuman'
@@ -547,7 +463,7 @@ async function cloneOrder() {
 
     // Customer — cari di CUSTOMERS lalu set search
     const custId = d.customer_id||'';
-    const cust   = CUSTOMERS.find(c => c.no_hp === custId);
+    const cust   = CUSTOMERS.find(c => c.id === custId);
     if (cust) {
       document.getElementById('f-cid').value = custId;
       document.getElementById('f-cid-search').value = cust.nama+(cust.nama_instansi?' — '+cust.nama_instansi:'');
@@ -562,13 +478,12 @@ async function cloneOrder() {
     if (d.tim_eksekusi||d.tim) { /* tim dihapus */ }
 
     // ── Produk & Paket ──
-    // Produk tidak lagi disimpan di sheet (hanya alat bantu UI) — cari kategori produk
-    // berdasarkan nama paket yang tersimpan, bukan dari field d.produk (sudah tidak ada).
-    const produk = findProdukByPaket(d.paket||'');
-    // Pastikan dropdown produk sudah terisi
+    const produk = (d.produk||'').toLowerCase();
+    // Pastikan produk ada di dropdown
     await waitForEl('f-produk');
     const prodSel = document.getElementById('f-produk');
-    const prodOpt = Array.from(prodSel.options).find(o => o.value.toLowerCase() === produk.toLowerCase());
+    // Cari option yang cocok
+    const prodOpt = Array.from(prodSel.options).find(o => o.value.toLowerCase() === produk);
     if (prodOpt) {
       prodSel.value = prodOpt.value;
       onProduk(); // render paket dropdown
@@ -592,13 +507,12 @@ async function cloneOrder() {
     document.getElementById('f-adr').value = d.alamat_pengiriman||d.alamat||'';
     document.getElementById('f-krd').value = d.koordinat||'';
     document.getElementById('f-ket').value = d.keterangan||'';
-    document.getElementById('f-jam').value = d.jam_sampai||'';
 
     // ── Menu — set setelah render grid ──
     const menuMap = {
       'nasi':d.nasi,'lauk_utama':d.lauk_utama,'tambahan':d.tambahan,
       'sayur':d.sayur,'sambal':d.sambal,'kerupuk':d.kerupuk,'buah':d.buah,
-      'air_mineral':d.air_mineral,'kemasan':d.kemasan,
+      'air_mineral':d.air_mineral,'kotak':d.kotak,
       'lain1':d.pilihan_lain_1||d.lain1,'lain2':d.pilihan_lain_2||d.lain2,
       'lain3':d.pilihan_lain_3||d.lain3,'lain4':d.pilihan_lain_4||d.lain4,
       'lain5':d.pilihan_lain_5||d.lain5,
@@ -658,14 +572,14 @@ function renderRevisiForm(d) {
     ['tambahan','Tambahan',d.tambahan],['sayur','Sayur',d.sayur],
     ['sambal','Sambal',d.sambal],['kerupuk','Kerupuk',d.kerupuk],
     ['buah','Buah',d.buah],['air_mineral','Air Mineral',d.air_mineral],
-    ['kemasan','Kemasan',d.kemasan],['lain1','Pilihan 1',d.pilihan_lain_1],
+    ['kotak','Packaging',d.kotak],['lain1','Pilihan 1',d.pilihan_lain_1],
     ['lain2','Pilihan 2',d.pilihan_lain_2],['lain3','Pilihan 3',d.pilihan_lain_3],
     ['lain4','Pilihan 4',d.pilihan_lain_4],['lain5','Pilihan 5',d.pilihan_lain_5],
     ['puding','Puding',d.puding],['minuman','Minuman',d.minuman],['snack','Snack',d.snack]
   ];
 
   const menuHTML = menuFields.map(([fk, lbl, val]) => {
-    const opts = (MENU_DATA||EMBEDDED_MENU)[Object.keys(MENU_KEY_MAP).find(k=>MENU_KEY_MAP[k]===fk)] || [];
+    const opts = EMBEDDED_MENU[Object.keys(MENU_KEY_MAP).find(k=>MENU_KEY_MAP[k]===fk)] || [];
     const optsHTML = ['—',...opts].map(o =>
       `<option value="${o==='—'?'':o}" ${(val||'')===(o==='—'?'':o)?'selected':''}>${o}</option>`
     ).join('');
@@ -717,7 +631,7 @@ function renderRevisiForm(d) {
         <textarea id="rv-ket" style="min-height:52px;">${d.keterangan||''}</textarea></div>
     </div>
     <div style="display:flex;gap:10px;margin-top:4px;">
-      <button class="bsub" id="btn-sub-rev" onclick="submitRevisi()" style="flex:1;">💾 Simpan Revisi</button>
+      <button class="bsub" onclick="submitRevisi()" style="flex:1;">💾 Simpan Revisi</button>
       <button onclick="document.getElementById('rev-form').style.display='none';revisiData=null;"
         style="background:var(--redl);color:var(--red);border:1.5px solid var(--red);border-radius:var(--r);padding:14px 16px;font-weight:600;cursor:pointer;">Batal</button>
     </div>`;
@@ -738,10 +652,6 @@ function recalcRev() {
 
 async function submitRevisi() {
   if (!revisiData) return;
-  const btn = document.getElementById('btn-sub-rev');
-  if (btn && btn.disabled) return; // cegah submit dobel (double-tap)
-  if (btn) btn.disabled = true;
-  try {
   const qty   = parseFloat(document.getElementById('rv-qty')?.value)||0;
   const hjl   = parseFloat(document.getElementById('rv-hjual')?.value)||0;
   const fee   = parseFloat(document.getElementById('rv-fee')?.value)||0;
@@ -751,7 +661,7 @@ async function submitRevisi() {
   const tot   = jml+del;
 
   const menuKeys = ['nasi','lauk_utama','tambahan','sayur','sambal','kerupuk','buah',
-    'air_mineral','kemasan','lain1','lain2','lain3','lain4','lain5','puding','minuman','snack'];
+    'air_mineral','kotak','lain1','lain2','lain3','lain4','lain5','puding','minuman','snack'];
   const menuVals = {};
   menuKeys.forEach(k => { menuVals[k] = document.getElementById('rv-'+k)?.value||''; });
 
@@ -771,36 +681,25 @@ async function submitRevisi() {
 
   showOvl('Menyimpan revisi…');
   try {
-    const qs = new URLSearchParams({action:'updateOrder', ...d}).toString();
-    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
-    if (!j.success) { hideOvl(); toast(j.message || 'Revisi ditolak server.', 'err'); return; }
-    // Revisi sudah tersimpan di titik ini. Kegagalan kirim WA di bawah TIDAK membatalkan revisi.
-    let waError = null;
+    await fetch(APP.GAS_URL, {
+      method:'POST', mode:'no-cors',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'updateOrder', data:d})
+    });
+    // Kirim WA notif revisi ke internal
     if (!APP.FONNTE_TOKEN.includes('GANTI')) {
-      try {
-        const msg = `✏️ *REVISI ORDER — ${d.no_order}*\n\n📦 ${d.paket||''}\n👥 ${d.qty} pax\n📅 ${fd(d.tgl_kirim)} ${d.jam_sampai||''}\n📍 ${d.alamat||'—'}\n💵 Total: Rp ${tot.toLocaleString('id-ID')}\n${d.keterangan?'\n📝 '+d.keterangan:''}\n\n_${new Date().toLocaleString('id-ID')}_`;
-        await fPost(APP.WA_NOTIF, msg);
-      } catch(waErr) {
-        waError = waErr;
-        console.error('Gagal kirim notifikasi WA revisi (revisi tetap tersimpan):', waErr);
-      }
+      const msg = `✏️ *REVISI ORDER — ${d.no_order}*\n\n📦 ${d.produk||''} · ${d.paket||''}\n👥 ${d.qty} pax\n📅 ${fd(d.tgl_kirim)} ${d.jam_sampai||''}\n📍 ${d.alamat||'—'}\n💵 Total: Rp ${tot.toLocaleString('id-ID')}\n${d.keterangan?'\n📝 '+d.keterangan:''}\n\n_${new Date().toLocaleString('id-ID')}_`;
+      await fPost(APP.WA_NOTIF, msg);
     }
     hideOvl();
-    if (waError) {
-      toast(`Revisi ${d.no_order} TERSIMPAN ✓, tapi WA gagal terkirim (${waError.message}).`,'err');
-    } else {
-      toast(`Revisi ${d.no_order} tersimpan! ✓`,'ok');
-    }
+    toast(`Revisi ${d.no_order} tersimpan! ✓`,'ok');
     document.getElementById('rev-form').style.display='none';
     document.getElementById('rev-status').innerHTML='';
     document.getElementById('rev-no').value='';
     revisiData=null;
   } catch(e) {
     hideOvl();
-    toast('Gagal menyimpan revisi: '+e.message,'err');
-  }
-  } finally {
-    if (btn) btn.disabled = false;
+    toast('Gagal: '+e.message,'err');
   }
 }
 // ══ CACHE (in-memory) ═════════════════
@@ -810,18 +709,6 @@ function cGet(k){ return MEM[k]||null; }
 
 // ══ INIT ══════════════════════════════
 document.addEventListener('DOMContentLoaded',()=>{
-  initGoogleAuth();
-});
-
-// Daftarkan service worker — WAJIB supaya Chrome mau menawarkan "Add to Home screen"/"Install app"
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(err => console.warn('SW register gagal:', err));
-  });
-}
-
-
-function initAppContent(){
   setDefaults();
   initNoDisplay();
   loadSalesLocal();
@@ -832,103 +719,14 @@ function initAppContent(){
   applyDefaultProduk();
   // Load customer & paket update di background
   loadCustomers();
-  loadSalesData();
   loadMasterFromGAS();
   checkConn();
-}
-
-// ══ LOGIN GMAIL (Google Identity Services) ═══════════
-function initGoogleAuth(){
-  if (APP.GOOGLE_CLIENT_ID.includes('GANTI')) {
-    document.getElementById('login-status').textContent = '';
-    showLoginDenied('⚠️ Login Google belum dikonfigurasi (OAuth Client ID belum diisi). Hubungi admin/developer.');
-    return;
-  }
-  if (!window.google || !google.accounts || !google.accounts.id) {
-    setTimeout(initGoogleAuth, 300); // tunggu script GIS selesai load
-    return;
-  }
-  google.accounts.id.initialize({
-    client_id: APP.GOOGLE_CLIENT_ID,
-    callback: handleGoogleCredential,
-    auto_select: true,
-    cancel_on_tap_outside: false
-  });
-  google.accounts.id.renderButton(
-    document.getElementById('g_id_signin_container'),
-    { theme:'filled_blue', size:'large', shape:'pill', text:'signin_with', width:260 }
-  );
-  google.accounts.id.prompt((notif) => {
-    if (notif.isNotDisplayed && (notif.isNotDisplayed() || notif.isSkippedMoment())) {
-      document.getElementById('login-status').textContent = 'Silakan login dengan akun Google terdaftar';
-    }
-  });
-}
-
-async function handleGoogleCredential(resp){
-  document.getElementById('login-status').textContent = 'Memverifikasi akun…';
-  const btnBox = document.getElementById('g_id_signin_container');
-  if (btnBox) btnBox.style.display = 'none';
-  try{
-    const j = await gasFetch(APP.GAS_URL + '?action=checkAuth&id_token=' + encodeURIComponent(resp.credential) + '&t=' + Date.now());
-    if (!j.success) { showLoginDenied(j.message || 'Akun tidak terdaftar.'); return; }
-
-    ID_TOKEN = resp.credential; // simpan token supaya request selanjutnya ikut terautentikasi
-    CURRENT_USER = { email:j.email, nama:j.nama, role:(j.role||'karyawan').toLowerCase() };
-    document.getElementById('login-gate').classList.add('hide');
-    document.getElementById('app-content').classList.remove('hide');
-    document.getElementById('who-badge').textContent = `${CURRENT_USER.nama} · ${CURRENT_USER.role}`;
-
-    if (isFullAccessRole(CURRENT_USER.role)) {
-      initAppContent(); // admin / sales: akses penuh (Order Baru, Revisi, Jadwal, Masak, Absensi)
-    } else {
-      applyKaryawanAccess(); // role lain (Dapur, Finance, Pembelian, Service, dst): Jadwal, Masak, Absensi saja
-    }
-  }catch(e){
-    showLoginDenied('Gagal menghubungi server: ' + e.message);
-  }
-}
-
-// Role dengan akses penuh (semua tab). Role lain di luar ini hanya dapat Jadwal, Masak, Absensi.
-function isFullAccessRole(role){
-  return role === 'admin' || role === 'sales';
-}
-
-function showLoginDenied(msg){
-  document.getElementById('login-status').textContent = '';
-  const btnBox = document.getElementById('g_id_signin_container');
-  if (btnBox) btnBox.style.display = 'none';
-  document.getElementById('login-denied').style.display = 'block';
-  document.getElementById('login-denied-msg').textContent = msg;
-}
-
-function retryLogin(){
-  document.getElementById('login-denied').style.display = 'none';
-  const btnBox = document.getElementById('g_id_signin_container');
-  if (btnBox) btnBox.style.display = 'block';
-  document.getElementById('login-status').textContent = 'Memeriksa akun Google…';
-  if (window.google && google.accounts && google.accounts.id) {
-    google.accounts.id.disableAutoSelect(); // supaya bisa pilih akun Google lain
-    google.accounts.id.prompt();
-  }
-}
-
-// Karyawan hanya boleh lihat tab Jadwal — tab lain disembunyikan total.
-function applyKaryawanAccess(){
-  document.getElementById('tab-form').classList.add('hide');
-  document.getElementById('tab-revisi').classList.add('hide');
-  document.getElementById('tab-grafik').classList.add('hide');
-  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
-  document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('on'));
-  document.getElementById('panel-absensi').classList.add('on');
-  document.getElementById('tab-absensi').classList.add('on');
-  initAbsensiTab();
-}
+});
 
 const BULAN_NAMA = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
 
 function applyDefaultProduk(){
-  // Set default produk = nasi kotak
+  // Set default produk
   const prodSel = document.getElementById('f-produk');
   if(!prodSel) return;
   const prodOpt = Array.from(prodSel.options).find(o=>o.value==='nasi kotak');
@@ -1022,9 +820,6 @@ async function pickSalesContact(){
 
 // ══ GAS FETCH ═════════════════════════
 async function gasFetch(url){
-  if (ID_TOKEN && !url.includes('id_token=')) {
-    url += (url.includes('?') ? '&' : '?') + 'id_token=' + encodeURIComponent(ID_TOKEN);
-  }
   const res=await fetch(url,{method:'GET',redirect:'follow'});
   const text=await res.text();
   if(text.trim().startsWith('<')) throw new Error('GAS return HTML');
@@ -1033,31 +828,56 @@ async function gasFetch(url){
 
 // ══ MASTER (hanya Paket dari GAS) ═════
 async function loadMasterFromGAS(){
-  const cachedPaket = cGet('alima_paket');
-  if(cachedPaket){ PAKET_DATA=cachedPaket; renderProdukDropdownKeepSelection(); }
-  const cachedMenu = cGet('alima_menu');
-  if(cachedMenu){ MENU_DATA=cachedMenu; renderMenuGridKeepSelection(MENU_DATA); }
+  const cached = cGet('alima_paket');
+  if(cached){ PAKET_DATA=cached; renderProdukDropdown(); }
   gasFetch(APP.GAS_URL+'?action=getMaster&t='+Date.now())
     .then(j=>{
       if(j?.success && j.paket){
         PAKET_DATA=j.paket;
         cSet('alima_paket', j.paket);
-        renderProdukDropdownKeepSelection();
-      }
-      if(j?.success && j.menu && Object.keys(j.menu).length){
-        MENU_DATA=j.menu;
-        cSet('alima_menu', j.menu);
-        renderMenuGridKeepSelection(MENU_DATA);
+        renderProdukDropdown();
       }
     }).catch(()=>{
-      if(!cachedPaket){
+      if(!cached){
         PAKET_DATA={"nasi kotak":[{nama:"nasi kotak A",harga_default:25},{nama:"nasi kotak B",harga_default:32},{nama:"nasi kotak C",harga_default:40}],"prasmanan":[{nama:"prasmanan A",harga_default:32},{nama:"prasmanan B",harga_default:40}],"coffee break":[{nama:"coffee break",harga_default:20}]};
-        renderProdukDropdownKeepSelection();
+        renderProdukDropdown();
       }
-      // Kalau fetch menu gagal & belum ada cache, EMBEDDED_MENU (sudah dirender saat init) tetap dipakai sebagai fallback.
     });
 }
 
+function renderMenuGrid(menuData){
+  const grid=document.getElementById('menu-dynamic-grid');
+  const pGrid=document.getElementById('pilihan-lain-grid');
+  const stat=document.getElementById('menu-status');
+  if(!menuData||!Object.keys(menuData).length) return;
+  const PLAIN=['lain1','lain2','lain3','lain4','lain5'];
+  const shown=new Set();let mHtml='',pHtml='';
+  const allKeys=Object.keys(menuData);
+  const ordered=[...MENU_ORDER.filter(k=>menuData[k]),...allKeys.filter(k=>!MENU_ORDER.includes(k))];
+  ordered.forEach(key=>{
+    const opts=menuData[key];if(!opts)return;
+    const fk=MENU_KEY_MAP[key]||key.replace(/\s+/g,'_');
+    if(shown.has(fk))return;shown.add(fk);
+    const lbl=key.charAt(0).toUpperCase()+key.slice(1);
+    const sid='mdyn-'+fk;
+    const ops=['—',...opts].map(o=>`<option value="${o==='—'?'':o}">${o}</option>`).join('');
+    const html=`<div class="fld"><label>${lbl}</label><select id="${sid}" data-field="${fk}">${ops}</select><div id="hint-${fk}" style="display:none;font-size:10px;color:var(--inks);margin-top:3px;"></div></div>`;
+    if(PLAIN.includes(fk))pHtml+=html;else mHtml+=html;
+  });
+  grid.innerHTML=mHtml||'';pGrid.innerHTML=pHtml||'';
+  if(stat) stat.textContent=`✓ ${Object.keys(menuData).length} komponen`;
+}
+
+function collectMenuValues(){
+  const r={};
+  document.querySelectorAll('#menu-dynamic-grid [data-field],#pilihan-lain-grid [data-field]').forEach(el=>{r[el.dataset.field]=el.value?.trim()||'';});
+  return r;
+}
+function resetMenuSelects(){
+  document.querySelectorAll('#menu-dynamic-grid [data-field],#pilihan-lain-grid [data-field]').forEach(el=>{el.value='';});
+}
+
+// ══ RENDER MENU GRID ══════════════════
 function renderMenuGrid(menuData){
   const grid=document.getElementById('menu-dynamic-grid');
   const pGrid=document.getElementById('pilihan-lain-grid');
@@ -1099,22 +919,6 @@ function renderMenuGrid(menuData){
   applyDefaultMenu();
 }
 
-// Render ulang grid menu dengan data terbaru (mis. dari sheet ListMenu) TANPA menghapus
-// pilihan yang sudah dipilih user — pilihan yang sudah tidak ada di sheet otomatis hilang
-// dari dropdown (sesuai perilaku yang diharapkan), pilihan lain tetap dipertahankan.
-function renderMenuGridKeepSelection(menuData){
-  const prev = collectMenuValues(); // {field: value, ...} dari selects sebelum dirender ulang
-  renderMenuGrid(menuData);
-  Object.entries(prev).forEach(([fk, val]) => {
-    if(!val) return;
-    const sel = document.getElementById('mdyn-'+fk);
-    if(!sel) return;
-    const stillExists = Array.from(sel.options).some(o => o.value === val);
-    if(stillExists) sel.value = val; // pertahankan pilihan lama kalau masih ada di data baru
-    // kalau sudah tidak ada (mis. dihapus dari sheet), biarkan kosong — user perlu pilih ulang
-  });
-}
-
 function collectMenuValues(){
   const r={};
   document.querySelectorAll('#menu-dynamic-grid [data-field],#pilihan-lain-grid [data-field]').forEach(el=>{
@@ -1135,37 +939,6 @@ function renderProdukDropdown(){
   if(!keys.length)return;
   sel.innerHTML='<option value="">— Pilih Produk —</option>'+keys.map(k=>`<option value="${k}">${k.charAt(0).toUpperCase()+k.slice(1)}</option>`).join('');
 }
-// Render ulang dropdown produk (mis. setelah data master ter-update dari server) TANPA menghilangkan
-// pilihan produk/paket yang sudah dipilih user (atau default awal) — mencegah field tiba-tiba kosong.
-function renderProdukDropdownKeepSelection(){
-  const prodSel=document.getElementById('f-produk');
-  const paketSelBefore=document.getElementById('f-paket');
-  const prevProduk = prodSel?.value || '';
-  const prevPaket  = paketSelBefore?.value || '';
-  renderProdukDropdown();
-  if(!prodSel) return;
-  if(prevProduk && Array.from(prodSel.options).some(o=>o.value===prevProduk)){
-    prodSel.value=prevProduk;
-    onProduk();
-    if(prevPaket){
-      const paketSel=document.getElementById('f-paket');
-      const opt=Array.from(paketSel.options).find(o=>o.value===prevPaket);
-      if(opt){ paketSel.value=prevPaket; onPaket(); }
-    }
-  } else if(!prevProduk){
-    applyDefaultProduk(); // belum ada pilihan sama sekali -> pakai default (nasi kotak)
-  }
-}
-// Cari kategori Produk dari nama Paket (Produk tidak disimpan di sheet, jadi ini satu-satunya cara
-// menentukan Produk saat memuat order lama, mis. untuk fitur Order Mirip/Clone).
-function findProdukByPaket(paketNama){
-  if(!paketNama) return '';
-  const target = paketNama.trim().toLowerCase();
-  for(const [produk, list] of Object.entries(PAKET_DATA)){
-    if((list||[]).some(p => (p.nama||'').trim().toLowerCase() === target)) return produk;
-  }
-  return '';
-}
 function onProduk(){
   const produk=document.getElementById('f-produk').value;
   const psel=document.getElementById('f-paket');
@@ -1180,7 +953,7 @@ function onPaket(){
 }
 
 // ══ RECALC ════════════════════════════
-function recalc(source){
+function recalc(){
   const qty=parseFloat(document.getElementById('f-qty').value)||0;
   const hjl=parseFloat(document.getElementById('f-hjual').value)||0;
   const fee=parseFloat(document.getElementById('f-fee').value)||0;
@@ -1192,16 +965,8 @@ function recalc(source){
   document.getElementById('c-del').textContent='Rp '+del.toLocaleString('id-ID');
   document.getElementById('c-tot').textContent='Rp '+tot.toLocaleString('id-ID');
 
-  // Auto-isi Jumlah Bayar berdasarkan Status Pembayaran (kecuali user sedang mengetik manual di kolom Bayar)
-  const bayarEl=document.getElementById('f-inv-bayar');
-  const statusVal=document.getElementById('f-inv-status')?.value||'';
-  if(bayarEl&&source!=='bayar'){
-    if(statusVal==='DP')     bayarEl.value=Math.round(tot*0.5)||'';
-    else if(statusVal==='Lunas') bayarEl.value=tot||'';
-  }
-
   // Hitung sisa
-  const bayar=parseFloat(bayarEl?.value)||0;
+  const bayar=parseFloat(document.getElementById('f-inv-bayar')?.value)||0;
   const sisa=tot-bayar;
   const strip=document.getElementById('sisa-strip');
   if(bayar>0&&strip){
@@ -1228,14 +993,6 @@ async function loadCustomers(){
     else throw new Error();
   }catch(e){sel.innerHTML='<option value="">⚠️ Gagal load customer</option>';}
 }
-async function loadSalesData(){
-  const cached=cGet('alima_sales');
-  if(cached){SALES_DATA=cached;}
-  try{
-    const j=await gasFetch(APP.GAS_URL+'?action=getSales&t='+Date.now());
-    if(j.success&&j.data){SALES_DATA=j.data;cSet('alima_sales',j.data);}
-  }catch(e){ console.warn('Gagal load data sales:', e.message); }
-}
 function renderCustDD(){
   // Tidak perlu render dropdown — pakai autocomplete
   const inp = document.getElementById('f-cid-search');
@@ -1250,45 +1007,26 @@ function filterCust(){
   document.getElementById('cust-info').style.display = 'none';
   document.getElementById('f-gol').value = '';
 
-  let filtered, totalMatch;
-  if (q.length < 1) {
-    filtered = CUSTOMERS.slice(0, 20);  // tampilkan 20 pertama saat kosong
-    totalMatch = filtered.length;
-  } else {
-    const namaStarts = [], namaContains = [], lainnya = [];
-    CUSTOMERS.forEach(c => {
-      const nama = (c.nama||'').toLowerCase();
-      if (nama.startsWith(q)) { namaStarts.push(c); return; }
-      if (nama.includes(q)) { namaContains.push(c); return; }
-      const cocokLain =
+  const filtered = q.length < 1
+    ? CUSTOMERS.slice(0, 20)  // tampilkan 20 pertama saat kosong
+    : CUSTOMERS.filter(c =>
+        (c.nama||'').toLowerCase().includes(q) ||
         (c.nama_instansi||'').toLowerCase().includes(q) ||
-        (c.id||'').toLowerCase().includes(q) ||
-        (c.no_hp||'').toLowerCase().includes(q) ||
-        (c.sales||'').toLowerCase().includes(q);
-      if (cocokLain) lainnya.push(c);
-    });
-    namaStarts.sort((a,b) => (a.nama||'').localeCompare(b.nama||''));
-    namaContains.sort((a,b) => (a.nama||'').localeCompare(b.nama||''));
-    const all = [...namaStarts, ...namaContains, ...lainnya];
-    totalMatch = all.length;
-    filtered = all.slice(0, 30);
-  }
+        (c.id||'').toLowerCase().includes(q)
+      ).slice(0, 20);
 
   if(!filtered.length){
     dd.style.display = 'none';
     return;
   }
-  const hintRow = totalMatch > filtered.length
-    ? `<div style="padding:8px 12px;font-size:11px;color:var(--inks);text-align:center;background:var(--sur);">+${totalMatch-filtered.length} hasil lain — ketik lebih spesifik</div>`
-    : '';
   dd.innerHTML = filtered.map(c => `
     <div onclick="selectCust('${c.id}')"
       style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--bdr);font-size:13px;"
       onmouseover="this.style.background='var(--orl)'" onmouseout="this.style.background=''">
       <strong>${c.nama||'—'}</strong>
       ${c.nama_instansi?`<span style="color:var(--inks);font-size:11px;"> — ${c.nama_instansi}</span>`:''}
-      <br><span style="color:var(--inks);font-size:11px;">📱 ${c.no_hp||'—'} · ${c.instansi||'—'}${c.sales?' · Sales: '+c.sales:''}</span>
-    </div>`).join('') + hintRow;
+      <br><span style="color:var(--inks);font-size:11px;">📱 ${c.no_hp||'—'} · ${c.instansi||'—'}</span>
+    </div>`).join('');
   dd.style.display = 'block';
 }
 
@@ -1331,23 +1069,11 @@ async function saveNewCustomer(){
   if(!nama)return toast('Nama customer wajib.','err');
   if(!hp)return toast('No. HP wajib.','err');
   const waHp = normalizeWA(hp);
-  const btn=document.getElementById('btn-save-cust');btn.disabled=true;btn.textContent='Menyimpan…';
-
-  // Refresh dulu list customer supaya pengecekan duplikat tidak pakai data basi/kosong
-  try{
-    const jc = await gasFetch(APP.GAS_URL+'?action=getCustomers&t='+Date.now());
-    if(jc?.success&&jc.data){CUSTOMERS=jc.data;cSet('alima_custs',CUSTOMERS);renderCustDD();}
-  }catch(e){ /* kalau refresh gagal, lanjut pakai data lama sebagai fallback */ }
-
-  const dup = CUSTOMERS.find(c => c.no_hp === waHp);
-  if (dup) { btn.disabled=false;btn.textContent='💾 Simpan Customer'; return toast(`No. HP sudah terdaftar atas nama ${dup.nama}${dup.nama_instansi?' — '+dup.nama_instansi:''}.`,'err'); }
-
-  const newId = waHp; // ID = nomor HP (aman krn no. HP dijamin unik per customer)
+  const newId = waHp; // ID = nomor HP
   const data={id:newId,sales:document.getElementById('nc-sales').value.trim(),gender:document.getElementById('nc-gender').value,nama,nama_instansi:document.getElementById('nc-instansi').value.trim(),no_hp:waHp,instansi:document.getElementById('nc-tipe').value,alamat:document.getElementById('nc-alamat').value.trim()};
+  const btn=document.getElementById('btn-save-cust');btn.disabled=true;btn.textContent='Menyimpan…';
   try{
-    const qs = new URLSearchParams({action:'addCustomer', ...data}).toString();
-    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
-    if(!j.success) throw new Error(j.message || 'Gagal menyimpan customer.');
+    if(!APP.GAS_URL.includes('GANTI'))await fetch(APP.GAS_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'addCustomer',data})});
     CUSTOMERS.push(data);cSet('alima_custs',CUSTOMERS);renderCustDD();
     selectCust(newId);
     toast(`Customer ${nama} ditambahkan ✓`,'ok');closeCustModal();
@@ -1362,524 +1088,135 @@ function getGPS(){
 }
 
 // ══ SUBMIT ════════════════════════════
-async function submitOrder(){
-  const btn=document.getElementById('btn-sub');
-  if(btn.disabled) return; // cegah submit dobel (double-tap / klik cepat berulang)
-  btn.disabled=true;
-  try{
-    const{jml,tot,hksm}=recalc();
-    const menu=collectMenuValues();
+function confirmOrder(){
+  // Validasi dulu sebelum popup
+  const sales = document.getElementById('f-sales').value.trim();
+  const produk = document.getElementById('f-produk').value;
+  const paket  = document.getElementById('f-paket').value;
+  const qty    = document.getElementById('f-qty').value;
+  const tgl    = document.getElementById('f-tgl').value;
+  const hjual  = document.getElementById('f-hjual').value;
+  if(!sales)  return toast('Isi nama sales.','err');
+  if(!produk) return toast('Pilih produk.','err');
+  if(!paket)  return toast('Pilih paket.','err');
+  if(!qty)    return toast('Isi qty.','err');
+  if(!hjual)  return toast('Isi harga jual.','err');
+  if(!tgl)    return toast('Isi tanggal kirim.','err');
+  // Tampilkan popup
+  document.getElementById('confirm-modal').style.display='flex';
+}
 
-    // Generate nomor order saat submit (bukan saat form dibuka)
-    let no = '';
-    try {
-      const j = await gasFetch(APP.GAS_URL + '?action=getNextNo&t=' + Date.now());
-      if (j.success && j.no) {
-        no = j.no;
-        localStorage.setItem('alima_last_no_v2', String(parseInt(j.no)));
-      } else throw new Error('GAS no error');
-    } catch(e) {
-      no = genNoLocal() + '-L'; // suffix -L = Local fallback, perlu dicek manual
-      console.warn('Nomor order dari fallback lokal:', no);
-    }
-    document.getElementById('f-no').value = no;
-    const d={
-      no_order:no,
-      customer_id:document.getElementById('f-cid').value,
-      sales:document.getElementById('f-sales').value.trim(),
-      produk:document.getElementById('f-produk').value,paket:document.getElementById('f-paket').value,
-      qty:parseFloat(document.getElementById('f-qty').value)||0,
-      harga_jual:parseFloat(document.getElementById('f-hjual').value)||0,
-      fee_broker:parseFloat(document.getElementById('f-fee').value)||0,
-      harga_ksm:hksm,harga_min:parseFloat(document.getElementById('f-hmin').value)||0,
-      jumlah:jml,delivery:parseFloat(document.getElementById('f-del').value)||0,jumlah_total:tot,
-      inv_status:document.getElementById('f-inv-status')?.value||'',
-      inv_bayar:parseFloat(document.getElementById('f-inv-bayar')?.value)||0,
-      inv_sisa:Math.max(0,tot-(parseFloat(document.getElementById('f-inv-bayar')?.value)||0)),
-      keterangan:document.getElementById('f-ket').value.trim(),
-      nasi:menu.nasi||'',lauk_utama:menu.lauk_utama||'',tambahan:menu.tambahan||'',
-      sayur:menu.sayur||'',sambal:menu.sambal||'',kerupuk:menu.kerupuk||'',buah:menu.buah||'',
-      air_mineral:menu.air_mineral||'',kemasan:menu.kemasan||'',puding:menu.puding||'',
-      snack:menu.snack||'',minuman:menu.minuman||'',
-      lain1:menu.lain1||'',lain2:menu.lain2||'',lain3:menu.lain3||'',lain4:menu.lain4||'',lain5:menu.lain5||'',
-      tgl_kirim:document.getElementById('f-tgl').value,jam_sampai:document.getElementById('f-jam').value,
-      penerima:document.getElementById('f-pen').value.trim(),
-      hp_penerima:normalizeWA(document.getElementById('f-hp').value.trim()),
-      alamat:document.getElementById('f-adr').value.trim(),koordinat:document.getElementById('f-krd').value.trim(),
-      status:'Baru'
-    };
-    if(!d.customer_id)return toast('Pilih customer terlebih dahulu.','err');
-    if(!d.sales)return toast('Isi nama sales.','err');
-    if(!d.produk)return toast('Pilih produk.','err');
-    if(!d.paket)return toast('Pilih paket.','err');
-    if(!d.qty)return toast('Isi qty.','err');
-    if(!d.harga_jual)return toast('Isi harga jual.','err');
-    if(!d.tgl_kirim)return toast('Isi tanggal kirim.','err');
-    if(!d.jam_sampai)return toast('Isi jam sampai.','err');
-    showOvl('Menyimpan ke Google Sheets…');
-    try{
-      const qs = new URLSearchParams({action:'addOrder', ...d}).toString();
-      const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
-      if (!j.success) { hideOvl(); toast(j.message || 'Order ditolak server.', 'err'); return; }
-      // Order sudah tersimpan di titik ini. Kegagalan kirim WA di bawah TIDAK membatalkan order.
-      updOvl('Mengirim notifikasi WhatsApp…');
-      let waError = null;
-      try {
-        await sendWAInternal(d);
-        const salesHP=getSalesHP();
-        if(salesHP&&salesHP!==APP.WA_NOTIF)await sendWASales(d,salesHP);
-        if(d.hp_penerima&&d.hp_penerima.length>8)await sendWAKlien(d);
-      } catch(waErr) {
-        waError = waErr;
-        console.error('Gagal kirim notifikasi WA (order tetap tersimpan):', waErr);
-      }
-      hideOvl();
-      if (waError) {
-        toast(`Order ${no} TERSIMPAN ✓, tapi WA gagal terkirim (${waError.message}). Cek koneksi device Fonnte.`,'err');
-      } else {
-        toast(`Order ${no} tersimpan! ✓`,'ok');
-      }
-      allOrders.unshift(d);resetForm();
-    }catch(e){hideOvl();toast('Gagal menyimpan order: '+e.message,'err');console.error(e);}
-  } finally {
-    btn.disabled=false;
+async function submitOrder(kirimKustomer=true){
+  const{jml,tot,hksm}=recalc();
+  const menu=collectMenuValues();
+
+  // Generate nomor order saat submit (bukan saat form dibuka)
+  let no = '';
+  try {
+    const j = await gasFetch(APP.GAS_URL + '?action=getNextNo&t=' + Date.now());
+    if (j.success && j.no) {
+      no = j.no;
+      localStorage.setItem('alima_last_no_v2', String(parseInt(j.no)));
+    } else throw new Error('GAS no error');
+  } catch(e) {
+    no = genNoLocal() + '-L'; // suffix -L = Local fallback, perlu dicek manual
+    console.warn('Nomor order dari fallback lokal:', no);
   }
+  document.getElementById('f-no').value = no;
+  const d={
+    no_order:no,
+    customer_id:document.getElementById('f-cid').value,golongan:document.getElementById('f-gol').value,
+    sales:document.getElementById('f-sales').value.trim(),
+    produk:document.getElementById('f-produk').value,paket:document.getElementById('f-paket').value,
+    qty:parseFloat(document.getElementById('f-qty').value)||0,
+    harga_jual:parseFloat(document.getElementById('f-hjual').value)||0,
+    fee_broker:parseFloat(document.getElementById('f-fee').value)||0,
+    harga_ksm:hksm,harga_min:parseFloat(document.getElementById('f-hmin').value)||0,
+    jumlah:jml,delivery:parseFloat(document.getElementById('f-del').value)||0,jumlah_total:tot,
+    inv_status:document.getElementById('f-inv-status')?.value||'',
+    inv_bayar:parseFloat(document.getElementById('f-inv-bayar')?.value)||0,
+    inv_sisa:Math.max(0,tot-(parseFloat(document.getElementById('f-inv-bayar')?.value)||0)),
+    keterangan:document.getElementById('f-ket').value.trim(),
+    nasi:menu.nasi||'',lauk_utama:menu.lauk_utama||'',tambahan:menu.tambahan||'',
+    sayur:menu.sayur||'',sambal:menu.sambal||'',kerupuk:menu.kerupuk||'',buah:menu.buah||'',
+    air_mineral:menu.air_mineral||'',kemasan:menu.kemasan||'',puding:menu.puding||'',
+    snack:menu.snack||'',minuman:menu.minuman||'',
+    lain1:menu.lain1||'',lain2:menu.lain2||'',lain3:menu.lain3||'',lain4:menu.lain4||'',lain5:menu.lain5||'',
+    tgl_kirim:document.getElementById('f-tgl').value,jam_sampai:document.getElementById('f-jam').value,
+    penerima:document.getElementById('f-pen').value.trim(),
+    hp_penerima:normalizeWA(document.getElementById('f-hp').value.trim()),
+    alamat:document.getElementById('f-adr').value.trim(),koordinat:document.getElementById('f-krd').value.trim(),
+    status:'Baru'
+  };
+  if(!d.bulan)return toast('Pilih bulan.','err');
+  if(!d.sales)return toast('Isi nama sales.','err');
+  if(!d.produk)return toast('Pilih produk.','err');
+  if(!d.paket)return toast('Pilih paket.','err');
+  if(!d.qty)return toast('Isi qty.','err');
+  if(!d.harga_jual)return toast('Isi harga jual.','err');
+  if(!d.tgl_kirim)return toast('Isi tanggal kirim.','err');
+
+  // Tutup popup konfirmasi
+  document.getElementById('confirm-modal').style.display='none';
+
+  const btn=document.getElementById('btn-sub');btn.disabled=true;
+  showOvl('Menyimpan ke Google Sheets…');
+  try{
+    await fetch(APP.GAS_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'addOrder',data:d})});
+    updOvl('Mengirim notifikasi WhatsApp…');
+    // Kirim ke sales
+    const salesHP=getSalesHP();
+    if(salesHP) await sendWASales(d,salesHP);
+    // Kirim ke customer hanya jika pilih "Ya"
+    if(kirimKustomer && d.hp_penerima && d.hp_penerima.length>8) await sendWAKlien(d);
+    hideOvl();
+    toast(`Order ${no} tersimpan! ${kirimKustomer?'Notif customer terkirim ✓':'Notif sales saja ✓'}`,'ok');
+    allOrders.unshift(d);resetForm();
+  }catch(e){hideOvl();toast('Error: '+e.message,'err');console.error(e);}
+  finally{btn.disabled=false;}
 }
 
 // ══ LOAD / RENDER ORDERS ══════════════
 async function loadOrders(){
-  const w=document.getElementById('jw');
-  if(w) w.innerHTML='<div class="swrap"><div class="sp"></div>Memuat…</div>';
+  const w=document.getElementById('lw');
+  w.innerHTML='<div class="swrap"><div class="sp"></div>Memuat…</div>';
   try{
     const j=await gasFetch(APP.GAS_URL+'?action=getOrders&t='+Date.now());
-    if(j.success){allOrders=j.data||[];renderJadwal();toast(allOrders.length+' order dimuat.','ok');}
+    if(j.success){allOrders=j.data||[];renderList();toast(allOrders.length+' order dimuat.','ok');}
     else throw new Error(j.message);
-  }catch(e){if(w) w.innerHTML=`<div class="empty"><div class="eico">⚠️</div><p>Gagal: ${e.message}</p></div>`;}
+  }catch(e){w.innerHTML=`<div class="empty"><div class="eico">⚠️</div><p>Gagal: ${e.message}</p></div>`;}
 }
-function renderJadwal(){
-  const w = document.getElementById('jw');
-  try{
-    const now = new Date();
-    const todayStr = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
-    const upcoming = allOrders.filter(o => o.status !== 'Batal' && (o.tanggal_kirim||o.tgl_kirim) && String(o.tanggal_kirim||o.tgl_kirim).slice(0,10) >= todayStr);
-    if(!upcoming.length){ w.innerHTML=`<div class="empty"><div class="eico">📅</div><p>Tidak ada order ke depan.</p><p style="font-size:11px;margin-top:6px;">(${allOrders.length} order dimuat, tanggal hari ini: ${todayStr})</p></div>`; return; }
-
-    const groups = {};
-    upcoming.forEach(o => {
-      const key = String(o.tanggal_kirim||o.tgl_kirim).slice(0,10);
-      if(!groups[key]) groups[key] = [];
-      groups[key].push(o);
-    });
-
-    const dates = Object.keys(groups).sort(); // format yyyy-MM-dd -> urut string = urut tanggal
-    w.innerHTML = dates.map(dt => {
-      const rows = groups[dt].slice().sort((a,b) => (a.jam_sampai||'99:99').localeCompare(b.jam_sampai||'99:99'));
-      const totalQty = rows.reduce((s,o) => s + (Number(o.qty)||0), 0);
-      const rowsHtml = rows.map(o => `
-        <div class="jw-row">
-          <div class="jw-jam">${o.jam_sampai||'—'}</div>
-          <div class="jw-paket" onclick="openOrderDetail('${o.no_order}')">${o.paket||'—'}</div>
-          <div class="jw-qty">${o.qty||0}</div>
-          <div class="jw-nama">${o.nama_penerima||o.customer_id||'—'}</div>
-        </div>`).join('');
-      return `
-        <div class="jw-daygroup">
-          <div class="jw-dayhead">
-            <span class="jw-daydate">📅 ${fd(dt)}</span>
-            <span class="jw-daybadge">${totalQty} pax</span>
-          </div>
-          <div class="jw-table">
-            <div class="jw-row head"><div>Jam</div><div>Paket</div><div>Qty</div><div>Penerima</div></div>
-            ${rowsHtml}
-          </div>
-        </div>`;
-    }).join('');
-  }catch(e){
-    console.error('renderJadwal error:', e);
-    w.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>Gagal menampilkan jadwal: ${e.message}</p></div>`;
-  }
-}
-
-// ══ ABSENSI ═══════════════════════════
-let ABS_LAST_COORDS = null;
-
-async function initAbsensiTab(){
-  const statusEl  = document.getElementById('abs-status');
-  const btnMasuk  = document.getElementById('abs-btn-masuk');
-  const btnPulang = document.getElementById('abs-btn-pulang');
-  const jamEl     = document.getElementById('abs-jam');
-  btnMasuk.style.display='none'; btnPulang.style.display='none'; jamEl.style.display='none';
-  statusEl.innerHTML = '<div class="sp" style="margin:0 auto 10px;"></div><div style="font-size:12px;color:var(--inks);">Memeriksa data lokasi kantor…</div>';
-
-  // Cek dulu apakah lokasi kantor sudah diatur admin (ini juga men-trigger sheet "Lokasi" dibuat otomatis)
-  try{
-    const lok = await gasFetch(APP.GAS_URL + '?action=getLokasi&t=' + Date.now());
-    if(!lok.success){
-      statusEl.innerHTML = `<div style="color:var(--red);font-size:12px;line-height:1.6;">⚠️ ${lok.message}<br><br>Sheet "Lokasi" sudah otomatis dibuat — admin tinggal isi baris ke-2: Nama Lokasi, Latitude, Longitude, Radius (meter).</div>`;
-      return;
-    }
-  }catch(e){
-    statusEl.innerHTML = `<div style="color:var(--red);font-size:12px;">Gagal cek data lokasi: ${e.message}</div>`;
-    return;
-  }
-
-  statusEl.innerHTML = '<div class="sp" style="margin:0 auto 10px;"></div><div style="font-size:12px;color:var(--inks);">Mendeteksi lokasi GPS…</div>';
-
-  if(!navigator.geolocation){
-    statusEl.innerHTML = '<div style="color:var(--red);font-size:12px;">GPS tidak didukung browser ini.</div>';
-    return;
-  }
-  navigator.geolocation.getCurrentPosition(async (pos)=>{
-    ABS_LAST_COORDS = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-    statusEl.innerHTML = '<div class="sp" style="margin:0 auto 10px;"></div><div style="font-size:12px;color:var(--inks);">Memeriksa status absen…</div>';
-    try{
-      const j = await gasFetch(APP.GAS_URL + '?action=getAbsensiHariIni&email=' + encodeURIComponent(CURRENT_USER.email) + '&t=' + Date.now());
-      if(!j.success){ statusEl.innerHTML = `<div style="color:var(--red);font-size:12px;">${j.message}</div>`; return; }
-      renderAbsensiStatus(j);
-    }catch(e){ statusEl.innerHTML = `<div style="color:var(--red);font-size:12px;">Gagal cek status: ${e.message}</div>`; }
-  }, (err)=>{
-    statusEl.innerHTML = `<div style="color:var(--red);font-size:12px;">Gagal ambil lokasi GPS: ${err.message}. Pastikan izin lokasi diaktifkan untuk situs ini.</div>`;
-  }, { enableHighAccuracy:true, timeout:15000 });
-}
-
-function renderAbsensiStatus(j){
-  const statusEl  = document.getElementById('abs-status');
-  const btnMasuk  = document.getElementById('abs-btn-masuk');
-  const btnPulang = document.getElementById('abs-btn-pulang');
-  const jamEl     = document.getElementById('abs-jam');
-
-  let jamHtml = '';
-  if(j.sudahMasuk)  jamHtml += `<div>✅ Masuk: <strong>${j.jamMasuk}</strong></div>`;
-  if(j.sudahPulang) jamHtml += `<div>🚪 Pulang: <strong>${j.jamPulang}</strong></div>`;
-  if(jamHtml){ jamEl.innerHTML = jamHtml; jamEl.style.display = 'block'; }
-
-  if(!j.sudahMasuk){
-    statusEl.innerHTML = '<div style="font-size:13px;color:var(--inkm);">📍 Lokasi terdeteksi. Siap absen datang.</div>';
-    btnMasuk.style.display = 'block'; btnMasuk.disabled = false;
-  } else if(!j.sudahPulang){
-    statusEl.innerHTML = '<div style="font-size:13px;color:var(--inkm);">Sedang bekerja. Jangan lupa absen pulang nanti.</div>';
-    btnPulang.style.display = 'block'; btnPulang.disabled = false;
-  } else {
-    statusEl.innerHTML = '<div style="font-size:13px;color:var(--grn);">✓ Absensi hari ini sudah lengkap. Sampai jumpa besok!</div>';
-  }
-}
-
-async function doAbsen(tipe){
-  if(!ABS_LAST_COORDS){ toast('Lokasi belum terdeteksi, coba deteksi ulang.','err'); return; }
-  const btn = document.getElementById(tipe==='masuk' ? 'abs-btn-masuk' : 'abs-btn-pulang');
-  if(btn.disabled) return;
-  btn.disabled = true;
-  showOvl(tipe==='masuk' ? 'Mencatat absen datang…' : 'Mencatat absen pulang…');
-  try{
-    const action = tipe==='masuk' ? 'absenMasuk' : 'absenPulang';
-    const qs = new URLSearchParams({ action, email:CURRENT_USER.email, nama:CURRENT_USER.nama, lat:ABS_LAST_COORDS.lat, lng:ABS_LAST_COORDS.lng }).toString();
-    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
-    hideOvl();
-    if(!j.success){ toast(j.message,'err'); btn.disabled=false; return; }
-    toast(`Absen ${tipe} berhasil jam ${j.jam} ✓`,'ok');
-    initAbsensiTab();
-    if(isFullAccessRole(CURRENT_USER.role)) loadStatusTim();
-  }catch(e){ hideOvl(); toast('Gagal: '+e.message,'err'); btn.disabled=false; }
-}
-
-async function loadStatusTim(){
-  const section = document.getElementById('abs-tim-section');
-  const list = document.getElementById('abs-tim-list');
-  if(!CURRENT_USER || !isFullAccessRole(CURRENT_USER.role)){ section.style.display='none'; return; }
-  section.style.display = 'block';
-  list.innerHTML = '<div class="empty" style="padding:20px;"><p style="font-size:12px;">Memuat…</p></div>';
-  try{
-    const j = await gasFetch(APP.GAS_URL + '?action=getStatusTimHariIni&t=' + Date.now());
-    if(!j.success){ list.innerHTML = `<div class="empty" style="padding:20px;"><p style="font-size:12px;color:var(--red);">${j.message}</p></div>`; return; }
-    if(!j.data.length){ list.innerHTML = '<div class="empty" style="padding:20px;"><p style="font-size:12px;">Belum ada karyawan terdaftar.</p></div>'; return; }
-    const bc = { Bekerja:'bb', Pulang:'bs', Belum:'bx' };
-    list.innerHTML = j.data.map(k => `
-      <div class="jw-row" style="grid-template-columns:1fr auto;">
-        <div>
-          <div style="font-weight:600;font-size:13px;">${k.nama}</div>
-          <div style="font-size:11px;color:var(--inks);">${k.role}${k.jamMasuk?' · Masuk '+k.jamMasuk:''}${k.jamPulang?' · Pulang '+k.jamPulang:''}</div>
-        </div>
-        <span class="badge ${bc[k.status]||'bb'}">${k.status}</span>
-      </div>`).join('');
-  }catch(e){ list.innerHTML = `<div class="empty" style="padding:20px;"><p style="font-size:12px;color:var(--red);">Gagal: ${e.message}</p></div>`; }
-}
-
-// ══ JADWAL MASAK (produksi dapur) ═════
-const KATEGORI_MASAK = [
-  ['nasi','🍚 Nasi'], ['lauk_utama','🍗 Lauk Utama'], ['tambahan','🥟 Tambahan'],
-  ['sayur','🥬 Sayur'], ['sambal','🌶️ Sambal'], ['kerupuk','🍘 Kerupuk'],
-  ['buah','🍊 Buah'], ['air_mineral','💧 Air Mineral'], ['kemasan','📦 Kemasan'],
-  ['pilihan_lain_1','➕ Pilihan 1'], ['pilihan_lain_2','➕ Pilihan 2'],
-  ['pilihan_lain_3','➕ Pilihan 3'], ['pilihan_lain_4','➕ Pilihan 4'], ['pilihan_lain_5','➕ Pilihan 5'],
-  ['puding','🍮 Puding'], ['snack','🍪 Snack'], ['minuman','🥤 Minuman']
-];
-
-// Jam berangkat = jam sampai dikurangi 1 jam
-function jamBerangkat_(jamSampai){
-  if(!jamSampai || !jamSampai.includes(':')) return '';
-  let [h,m] = jamSampai.split(':').map(Number);
-  let total = h*60+m-60;
-  if(total < 0) total += 24*60;
-  return String(Math.floor(total/60)).padStart(2,'0')+':'+String(total%60).padStart(2,'0');
-}
-
-function renderJadwalMasak(){
-  const w = document.getElementById('jm');
-  try{
-    const now = new Date();
-    const fmtTgl = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-    const todayStr = fmtTgl(now);
-    const tmr = new Date(now); tmr.setDate(tmr.getDate()+1);
-    const tomorrowStr = fmtTgl(tmr);
-    const lsa = new Date(now); lsa.setDate(lsa.getDate()+2);
-    const lusaStr = fmtTgl(lsa);
-
-    const relevan = allOrders.filter(o=>{
-      const tgl = String(o.tanggal_kirim||o.tgl_kirim||'').slice(0,10);
-      return o.status!=='Batal' && (tgl===todayStr || tgl===tomorrowStr || tgl===lusaStr) && o.jam_sampai;
-    });
-
-    if(!relevan.length){
-      w.innerHTML = `<div class="empty"><div class="eico">🍳</div><p>Tidak ada order hari ini/besok/lusa.</p></div>`;
-      return;
-    }
-
-    // kategori -> "tgl|jamBerangkat|item" -> {tgl,jam,item,qty}
-    const kategoriMap = {};
-    KATEGORI_MASAK.forEach(([key])=>{ kategoriMap[key] = {}; });
-
-    relevan.forEach(o=>{
-      const tgl = String(o.tanggal_kirim||o.tgl_kirim||'').slice(0,10);
-      const jb  = jamBerangkat_(o.jam_sampai);
-      const qty = Number(o.qty)||0;
-      KATEGORI_MASAK.forEach(([key])=>{
-        const item = String(o[key]||'').trim();
-        if(!item || item==='—') return;
-        const k = tgl+'|'+jb+'|'+item;
-        if(!kategoriMap[key][k]) kategoriMap[key][k] = { tgl, jam:jb, item, qty:0 };
-        kategoriMap[key][k].qty += qty;
-      });
-    });
-
-    // Render 2 seksi besar terpisah: HARI INI dulu (semua kategori), baru BESOK (semua kategori)
-    function renderSeksiHari(tglTarget, labelHari){
-      let bodyHtml = '';
-      let totalItem = 0;
-      KATEGORI_MASAK.forEach(([key,label])=>{
-        const rows = Object.values(kategoriMap[key]).filter(r=>r.tgl===tglTarget);
-        if(!rows.length) return;
-        rows.sort((a,b)=> a.jam.localeCompare(b.jam) || a.item.localeCompare(b.item));
-        totalItem += rows.length;
-        const rowsHtml = rows.map(r=>`<div class="jw-row masak">
-          <div class="jw-jam">${r.jam||'—'}</div>
-          <div class="jw-qty">${r.qty}</div>
-          <div class="jw-paket" style="cursor:default;text-decoration:none;color:var(--ink);font-weight:600;">${r.item}</div>
-        </div>`).join('');
-        bodyHtml += `<div style="margin-top:10px;">
-          <div style="font-size:12px;font-weight:700;color:var(--ord);padding:4px 4px;">${label}</div>
-          <div class="jw-table">
-            <div class="jw-row masak head"><div>Berangkat</div><div>Qty</div><div>Item</div></div>
-            ${rowsHtml}
-          </div>
-        </div>`;
-      });
-      if(!bodyHtml){
-        bodyHtml = `<div class="empty" style="padding:16px;"><p style="font-size:12px;">Tidak ada order untuk tanggal ini.</p></div>`;
-      }
-      return `<div class="jw-daygroup">
-        <div class="jw-dayhead" style="background:var(--or);border-radius:8px;padding:10px 12px;">
-          <span class="jw-daydate" style="color:#fff;">📅 ${labelHari}</span>
-          <span class="jw-daybadge" style="background:rgba(255,255,255,.25);">${totalItem} item</span>
-        </div>
-        ${bodyHtml}
-      </div>`;
-    }
-
-    const html = renderSeksiHari(todayStr, 'HARI INI') + renderSeksiHari(tomorrowStr, 'BESOK') + renderSeksiHari(lusaStr, 'LUSA');
-
-    w.innerHTML = html || `<div class="empty"><div class="eico">🍳</div><p>Tidak ada item menu untuk dijadwalkan.</p></div>`;
-  }catch(e){
-    console.error('renderJadwalMasak error:', e);
-    w.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>Gagal menampilkan jadwal masak: ${e.message}</p></div>`;
-  }
-}
-
-// ══ GRAFIK (jumlah total per produk per bulan) ═══════
-const GRAFIK_COLORS = ['#E8600A','#1565C0','#1B7A4A','#C04E06','#9C27B0','#F9A825','#00838F','#AD1457','#5D4037','#3949AB'];
-
-function formatBulanLabel_(bulanStr){
-  const [y,m] = bulanStr.split('-');
-  const namaBulan = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
-  return namaBulan[parseInt(m,10)-1] + ' ' + y;
-}
-
-async function loadGrafik(){
-  const chartEl = document.getElementById('gf-chart');
-  const updEl = document.getElementById('gf-updated');
-  chartEl.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat grafik…</div>';
-  try{
-    const j = await gasFetch(APP.GAS_URL + '?action=getGrafikData&t=' + Date.now());
-    if(!j.success){ chartEl.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>${j.message}</p></div>`; return; }
-    if(j.lastUpdated){
-      const d = new Date(j.lastUpdated);
-      updEl.textContent = 'Data per: ' + d.toLocaleString('id-ID', {dateStyle:'medium', timeStyle:'short'}) + ' · update otomatis tiap jam 20:00';
-    }
-    renderGrafikChart(j);
-  }catch(e){
-    chartEl.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>Gagal memuat: ${e.message}</p></div>`;
-  }
-}
-
-function formatRupiahSingkat_(v){
-  if(v>=1000000) return (v/1000000).toLocaleString('id-ID',{maximumFractionDigits:1})+'jt';
-  if(v>=1000) return (v/1000).toLocaleString('id-ID',{maximumFractionDigits:0})+'rb';
-  return String(v);
-}
-
-function renderGrafikChart(j){
-  const chartEl = document.getElementById('gf-chart');
-  const bulanList = j.bulanList||[], kategoriList = j.kategoriList||[], data = j.data||{};
-  if(!bulanList.length){
-    chartEl.innerHTML = `<div class="empty"><div class="eico">📊</div><p>Belum ada data order sejak Juli 2026.</p></div>`;
-    return;
-  }
-
-  // maxVal = total tumpukan (jumlah semua kategori) tertinggi per bulan
-  let maxVal = 1;
-  bulanList.forEach(b => {
-    const totalBulan = kategoriList.reduce((s,k)=> s + ((data[b]&&data[b][k])||0), 0);
-    maxVal = Math.max(maxVal, totalBulan);
-  });
-
-  // Skala sumbu Y: kelipatan rapi yang selalu bisa dibagi 50.000, target ~5 garis bantu
-  let step = Math.ceil((maxVal/5) / 50000) * 50000;
-  if (step <= 0) step = 50000;
-  const topVal  = Math.ceil(maxVal/step) * step;
-  const numGrid = topVal/step;
-
-  const barMaxH = 160;
-  const leftM   = 54; // ruang label sumbu Y
-  const barW    = 46;
-  const groupW  = 66;
-  const totalW  = groupW * bulanList.length + leftM + 20;
-  const chartH  = barMaxH + 50;
-
-  let gridLines = '';
-  for(let g=0; g<=numGrid; g++){
-    const val = g*step;
-    const y = barMaxH - (val/topVal)*barMaxH + 20;
-    gridLines += `<line x1="${leftM}" y1="${y}" x2="${totalW-10}" y2="${y}" stroke="#EDE3D8" stroke-width="1"/>`;
-    gridLines += `<text x="${leftM-6}" y="${y+3}" font-size="9" fill="#9C8672" text-anchor="end">${formatRupiahSingkat_(val)}</text>`;
-  }
-
-  // Kategori ditumpuk dari BAWAH ke ATAS sesuai urutan kategoriList — jadi kategori
-  // yang muncul lebih akhir di daftar (mis. "prasmanan") duduk di ATAS kategori sebelumnya.
-  let bars = '';
-  bulanList.forEach((b, bi) => {
-    const x = leftM + 10 + bi*groupW;
-    let stackedH = 0; // tinggi kumulatif dari dasar batang
-    kategoriList.forEach((k, ki) => {
-      const val = (data[b]&&data[b][k]) || 0;
-      if (val <= 0) return;
-      const h = (val/topVal)*barMaxH;
-      const y = barMaxH - stackedH - h + 20;
-      const color = GRAFIK_COLORS[ki % GRAFIK_COLORS.length];
-      bars += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" fill="${color}" rx="1"></rect>`;
-      stackedH += h;
-    });
-    bars += `<text x="${x + barW/2}" y="${barMaxH+38}" font-size="10" fill="#5C4A35" text-anchor="middle">${formatBulanLabel_(b)}</text>`;
-  });
-
-  const legend = kategoriList.map((k,ki) => `
-    <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--inkm);margin:3px 10px 3px 0;">
-      <span style="width:10px;height:10px;border-radius:2px;background:${GRAFIK_COLORS[ki%GRAFIK_COLORS.length]};display:inline-block;flex-shrink:0;"></span>${k}
-    </div>`).join('');
-
-  chartEl.innerHTML = `
-    <div style="overflow-x:auto;background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:12px;box-shadow:var(--sh);">
-      <svg width="${totalW}" height="${chartH}" viewBox="0 0 ${totalW} ${chartH}">
-        ${gridLines}
-        ${bars}
-      </svg>
-    </div>
-    <div style="display:flex;flex-wrap:wrap;margin-top:10px;padding:0 4px;">${legend}</div>
-  `;
-}
-
-function openOrderDetail(no){
-  const o = allOrders.find(x => String(x.no_order) === String(no));
-  if(!o){ toast('Data order tidak ditemukan (coba refresh).','err'); return; }
-
-  const menuFields = [
-    ['Nasi',o.nasi],['Lauk Utama',o.lauk_utama],['Tambahan',o.tambahan],['Sayur',o.sayur],
-    ['Sambal',o.sambal],['Kerupuk',o.kerupuk],['Buah',o.buah],['Air Mineral',o.air_mineral],
-    ['Kemasan',o.kemasan],['Pilihan 1',o.pilihan_lain_1],['Pilihan 2',o.pilihan_lain_2],['Pilihan 3',o.pilihan_lain_3],
-    ['Pilihan 4',o.pilihan_lain_4],['Pilihan 5',o.pilihan_lain_5],['Puding',o.puding],['Snack',o.snack],['Minuman',o.minuman]
-  ].filter(([,v]) => v && v!=='—');
-
-  const tot = Number(o.jumlah_total)||0;
+function renderList(){
+  const q=document.getElementById('s-q').value.toLowerCase();
+  const st=document.getElementById('s-st').value;
+  const f=allOrders.filter(o=>(!q||(o.no_order||'').toLowerCase().includes(q)||(o.penerima||'').toLowerCase().includes(q))&&(!st||o.status===st));
+  const w=document.getElementById('lw');
+  if(!f.length){w.innerHTML='<div class="empty"><div class="eico">🔍</div><p>Tidak ada order.</p></div>';return;}
   const bc={Baru:'bb',Proses:'bp',Selesai:'bs',Batal:'bx'};
-
-  document.getElementById('od-body').innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-      <div class="ono" style="font-size:17px;">${o.no_order}</div>
-      <span class="badge ${bc[o.status]||'bb'}">${o.status||'Baru'}</span>
-    </div>
-    <div class="pstrip" style="margin-top:0;">
-      <div class="prow"><span>📅 Tanggal Kirim</span><span>${fd(o.tanggal_kirim)}</span></div>
-      <div class="prow"><span>🕐 Jam Sampai</span><span>${o.jam_sampai||'—'}</span></div>
-      <div class="prow"><span>🍱 Paket</span><span>${o.paket||'—'}</span></div>
-      <div class="prow"><span>👥 Qty</span><span>${o.qty||0} pax</span></div>
-      <div class="prow"><span>👤 Sales</span><span>${o.nama_sales||'—'}</span></div>
-    </div>
-    <div style="margin-top:12px;font-size:12px;color:var(--inkm);line-height:1.8;">
-      <strong>${o.nama_penerima||o.customer_id||'—'}</strong><br>
-      📱 ${o.no_hp_penerima||'—'}<br>
-      📍 ${o.alamat_pengiriman||'—'}
-      ${o.koordinat?`<br>🗺️ ${o.koordinat}`:''}
-    </div>
-    ${menuFields.length?`
-    <div class="stitle" style="margin-top:16px;font-size:13px;">🥘 Komposisi Menu</div>
-    <div class="jw-menulist">${menuFields.map(([k,v])=>`<div class="jw-menurow"><span class="jw-menuk">${k}</span><span class="jw-menuv">${v}</span></div>`).join('')}</div>
-    `:''}
-    ${o.keterangan?`<div style="margin-top:10px;font-size:12px;color:var(--inkm);"><strong>Keterangan:</strong> ${o.keterangan}</div>`:''}
-    ${isFullAccessRole(CURRENT_USER.role) ? `
-    <div class="pstrip">
-      <div class="prow"><span>Harga Jual</span><span>Rp ${((o.harga_jual_dlm_ribuan||0)*1000).toLocaleString('id-ID')}/pax</span></div>
-      <div class="prow"><span>Delivery Charge</span><span>Rp ${(o.delivery_charge||0).toLocaleString('id-ID')}</span></div>
-      <div class="prow tot"><span>Jumlah Total</span><span>Rp ${tot.toLocaleString('id-ID')}</span></div>
-    </div>
-    ${o.status_pembayaran?`
-    <div class="pstrip" style="background:var(--grnl);border-color:#b7dfc9;">
-      <div class="prow"><span>💳 Status Pembayaran</span><span>${o.status_pembayaran||'—'}</span></div>
-      <div class="prow"><span>Jumlah Bayar</span><span>Rp ${Number(o.jumlah_bayar||0).toLocaleString('id-ID')}</span></div>
-      <div class="prow tot" style="color:var(--grn);border-top-color:#b7dfc9;"><span>Sisa</span><span>Rp ${Number(o.sisa_bayar||0).toLocaleString('id-ID')}</span></div>
-    </div>`:''}
-    ` : ''}
-    <div class="fld" style="margin-top:14px;">
-      <label>Ubah Status</label>
-      <select id="od-status" onchange="updStatus('${o.no_order}',this.value); closeOrderDetail();">
-        ${['Baru','Proses','Selesai','Batal'].map(s=>`<option ${o.status===s?'selected':''}>${s}</option>`).join('')}
-      </select>
-    </div>
-  `;
-  document.getElementById('order-detail-modal').classList.remove('hide');
+  w.innerHTML=f.map(o=>{
+    const pls=[o.nasi,o.lauk_utama,o.tambahan,o.sayur,o.sambal].filter(x=>x&&x!=='—').map(x=>`<span class="pill">${x}</span>`).join('');
+    const tot=Number(o.jumlah_total)||0;
+    return `<div class="ocard">
+      <div class="och"><div><div class="ono">${o.no_order||'—'}</div><div class="odt">📅 ${fd(o.tgl_kirim)} ${o.jam_sampai?'· '+o.jam_sampai:''} · ${o.qty||0} pax</div></div>
+      <span class="badge ${bc[o.status]||'bb'}">${o.status||'Baru'}</span></div>
+      <div class="obody"><strong>${o.penerima||o.customer_id||'—'}</strong><br>📍 ${o.alamat||'—'}<br>🍱 ${o.produk||'—'}${o.paket?' · '+o.paket:''} · Sales: ${o.sales||'—'}</div>
+      ${pls?`<div class="pills">${pls}</div>`:''}
+      <div class="ofoot"><div class="otot">Rp ${tot.toLocaleString('id-ID')}</div>
+      <select class="ssel" onchange="updStatus('${o.no_order}',this.value)">${['Baru','Proses','Selesai','Batal'].map(s=>`<option ${o.status===s?'selected':''}>${s}</option>`).join('')}</select></div>
+    </div>`;
+  }).join('');
 }
-function closeOrderDetail(){
-  document.getElementById('order-detail-modal').classList.add('hide');
-}
-
 async function updStatus(no,st){
   try{
     await fetch(APP.GAS_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'updateStatus',no_order:no,status:st})});
-    const o=allOrders.find(x=>String(x.no_order)===String(no));if(o)o.status=st;renderJadwal();toast('Status diperbarui.','ok');
+    const o=allOrders.find(x=>x.no_order===no);if(o)o.status=st;renderList();toast('Status diperbarui.','ok');
   }catch(e){toast('Gagal update.','err');}
 }
 
 // ══ FONNTE ════════════════════════════
 async function sendWAInternal(o){
   if(APP.FONNTE_TOKEN.includes('GANTI'))return;
-  const mf={Nasi:o.nasi,'Lauk':o.lauk_utama,'Tambahan':o.tambahan,'Sayur':o.sayur,'Sambal':o.sambal,'Kerupuk':o.kerupuk,'Buah':o.buah,'Air':o.air_mineral,'Kemasan':o.kemasan,'Puding':o.puding,'Snack':o.snack,'Minuman':o.minuman,'Lain-1':o.lain1,'Lain-2':o.lain2};
+  const mf={Nasi:o.nasi,'Lauk':o.lauk_utama,'Tambahan':o.tambahan,'Sayur':o.sayur,'Sambal':o.sambal,'Kerupuk':o.kerupuk,'Buah':o.buah,'Air':o.air_mineral,'Kotak':o.kotak,'Puding':o.puding,'Snack':o.snack,'Minuman':o.minuman,'Lain-1':o.lain1,'Lain-2':o.lain2};
   const ml=Object.entries(mf).filter(([,v])=>v&&v!=='—').map(([k,v])=>`  ${k.padEnd(10)}: ${v}`).join('\n');
   const payInfo = o.inv_status ? `\n💳 *${o.inv_status}*${o.inv_bayar?' : Rp '+o.inv_bayar.toLocaleString('id-ID'):''}${o.inv_sisa?' | Sisa: Rp '+o.inv_sisa.toLocaleString('id-ID'):''}` : '';
   const msg=`🍽️ *ORDER BARU — ${o.no_order}*\n\n👤 Sales    : ${o.sales} | Tim: ${o.tim||'—'}\n🏢 Customer : ${o.penerima||'—'} ${o.customer_id?'('+o.customer_id+')':''}\n📦 ${o.produk} · ${o.paket}\n👥 ${o.qty} pax | Kirim: ${fd(o.tgl_kirim)} ${o.jam_sampai||''}\n📍 ${o.alamat||'—'}\n\n🥘 *Menu:*\n${ml||'—'}\n${o.keterangan?'\n📝 '+o.keterangan:''}\n💰 Harga Jual : Rp ${(o.harga_jual*1000).toLocaleString('id-ID')}/pax\n💵 *TOTAL : Rp ${(o.jumlah_total||0).toLocaleString('id-ID')}*${payInfo}\n\n_${new Date().toLocaleString('id-ID')}_`;
@@ -1892,7 +1229,7 @@ async function sendWASales(o,hp){
 }
 async function sendWAKlien(o){
   if(APP.FONNTE_TOKEN.includes('GANTI'))return;
-  const cust = CUSTOMERS.find(c => c.no_hp === o.customer_id);
+  const cust = CUSTOMERS.find(c => c.id === o.customer_id);
   const gender = cust?.gender || '';
   const sapaMap = {'bu':'Bu','bp.':'Bp.','bp':'Bp.','kak':'Kak','mba':'Mba'};
   const sapa = sapaMap[gender.toLowerCase()] || '';
@@ -1903,7 +1240,7 @@ async function sendWAKlien(o){
   const mf = {
     'Nasi':o.nasi,'Lauk Utama':o.lauk_utama,'Tambahan':o.tambahan,
     'Sayur':o.sayur,'Sambal':o.sambal,'Kerupuk':o.kerupuk,
-    'Buah':o.buah,'Air Mineral':o.air_mineral,'Kemasan':o.kemasan,
+    'Buah':o.buah,'Air Mineral':o.air_mineral,'Kotak/Packaging':o.kotak,
     'Puding':o.puding,'Snack':o.snack,'Minuman':o.minuman,
     'Lain-1':o.lain1,'Lain-2':o.lain2,'Lain-3':o.lain3
   };
@@ -1919,7 +1256,7 @@ async function sendWAKlien(o){
   const total  = o.jumlah_total||0;
 
   const payLine = o.inv_status==='DP' && o.inv_sisa
-    ? `\n💳 DP: Rp ${(o.inv_bayar||0).toLocaleString('id-ID')}\n⏳ Sisa      : *Rp ${o.inv_sisa.toLocaleString('id-ID')}*`
+    ? `\n💳 DP diterima: Rp ${(o.inv_bayar||0).toLocaleString('id-ID')}\n⏳ Sisa      : *Rp ${o.inv_sisa.toLocaleString('id-ID')}*`
     : o.inv_status==='Lunas' ? `\n✅ *Pembayaran Lunas*` : '';
 
   const msg =
@@ -1943,10 +1280,7 @@ ${menuList||'  —'}
   ─────────────────
   • *Total    : Rp ${total.toLocaleString('id-ID')}*${payLine}
 
-Pembayaran harap transfer ke rekening kami di Bank Mandiri no. rek *1090031113798* a.n. *Katering Sukses Mandiri*.
-
-Tim kami akan segera konfirmasi pelaksanaan lebih lanjut.
-Terima kasih.
+Tim kami akan segera konfirmasi lebih lanjut.
 Salam, *KSM Katering* 🍱`;
 
   await fPost(o.hp_penerima, msg);
@@ -1971,16 +1305,13 @@ function goTab(id,btn){
   document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('on'));
   document.getElementById('panel-'+id).classList.add('on');
   btn.classList.add('on');
-  if(id==='jadwal'){ if(allOrders.length===0) loadOrders().then(renderJadwal); else renderJadwal(); }
-  if(id==='masak'){ if(allOrders.length===0) loadOrders().then(renderJadwalMasak); else renderJadwalMasak(); }
-  if(id==='grafik'){ loadGrafik(); }
-  if(id==='absensi'){ initAbsensiTab(); if(CURRENT_USER && isFullAccessRole(CURRENT_USER.role)) loadStatusTim(); }
+  if(id==='list'&&allOrders.length===0)loadOrders();
 }
 function resetForm(){
-  ['f-cid','f-gol','f-produk','f-qty','f-hjual','f-fee','f-hksm','f-hmin','f-del','f-ket','f-pen','f-hp','f-adr','f-krd','f-inv-bayar','f-mirip','f-jam'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  ['f-cid','f-gol','f-produk','f-qty','f-hjual','f-fee','f-hksm','f-hmin','f-del','f-ket','f-pen','f-hp','f-adr','f-krd','f-inv-bayar','f-mirip'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   const cs=document.getElementById('f-cid-search');if(cs)cs.value='';
   const ms=document.getElementById('mirip-status');if(ms)ms.textContent='';
-  const invs=document.getElementById('f-inv-status');if(invs)invs.value='DP';
+  const invs=document.getElementById('f-inv-status');if(invs)invs.value='';
   const ss=document.getElementById('sisa-strip');if(ss)ss.style.display='none';
   document.getElementById('f-paket').innerHTML='<option value="">— Pilih Produk dulu —</option>';
   document.getElementById('cust-info').style.display='none';
