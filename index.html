@@ -232,6 +232,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
           <option value="Invoice">Invoice</option>
           <option value="DP" selected>DP</option>
           <option value="Lunas">Lunas</option>
+          <option value="COD">COD</option>
         </select>
       </div>
       <div class="fld">
@@ -254,10 +255,6 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       <div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--inks);font-size:12px;">
         <div class="sp" style="margin:0 auto 8px;"></div>Memuat pilihan menu…
       </div>
-    </div>
-    <div class="fld" style="margin-top:8px;">
-      <label>🔍 Cari Menu Pilihan 1-5</label>
-      <input type="text" id="pilihan-search" placeholder="Ketik nama menu untuk filter Pilihan 1-5…" oninput="filterPilihanOptions()">
     </div>
     <div class="mgrid" style="margin-top:8px;" id="pilihan-lain-grid"></div>
     <div class="fld" style="margin-top:10px;">
@@ -656,6 +653,7 @@ async function cloneOrder() {
       const sel = document.getElementById('mdyn-'+fk);
       setSelectValueCocok_(sel, val);
     });
+    syncPilihanSearchLabels();
 
     stat.innerHTML = `✅ Data dari order <strong>${no}</strong> berhasil disalin. Edit kolom yang berbeda lalu simpan.`;
     toast('Order disalin! ✓','ok');
@@ -1169,17 +1167,73 @@ function renderMenuGrid(menuData){
     const lbl=key.charAt(0).toUpperCase()+key.slice(1);
     const sid='mdyn-'+fk;
     const ops=['—',...opts].map(o=>`<option value="${o==='—'?'':o}">${o}</option>`).join('');
-    const html=`<div class="fld">
-      <label>${lbl}</label>
-      <select id="${sid}" data-field="${fk}">${ops}</select>
-      <div id="hint-${fk}" style="display:none;font-size:10px;color:var(--inks);margin-top:3px;line-height:1.5;"></div>
-    </div>`;
+    let html;
+    if(PLAIN.includes(fk)){
+      // Pilihan 1-5: field pencarian custom (bukan native select) supaya ada kolom "cari" sendiri.
+      html=`<div class="fld" style="position:relative;">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <label style="margin-bottom:0;">${lbl}</label>
+        </div>
+        <input type="text" id="${sid}-search" placeholder="🔍 Cari ${lbl.toLowerCase()}…" autocomplete="off"
+          oninput="pilihanSearchInput('${fk}')" onfocus="pilihanSearchInput('${fk}')" onblur="setTimeout(()=>hidePilihanDD('${fk}'),200)">
+        <select id="${sid}" data-field="${fk}" class="hide">${ops}</select>
+        <div id="${sid}-dd" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--or);border-radius:0 0 8px 8px;max-height:180px;overflow-y:auto;z-index:100;box-shadow:var(--sh);"></div>
+        <div id="hint-${fk}" style="display:none;font-size:10px;color:var(--inks);margin-top:3px;line-height:1.5;"></div>
+      </div>`;
+    } else {
+      html=`<div class="fld">
+        <label>${lbl}</label>
+        <select id="${sid}" data-field="${fk}">${ops}</select>
+        <div id="hint-${fk}" style="display:none;font-size:10px;color:var(--inks);margin-top:3px;line-height:1.5;"></div>
+      </div>`;
+    }
     if(PLAIN.includes(fk))pHtml+=html; else mHtml+=html;
   });
 
   grid.innerHTML=mHtml||'';pGrid.innerHTML=pHtml||'';
   stat.textContent=`✓ ${Object.keys(menuData).length} komponen`;
   applyDefaultMenu();
+  syncPilihanSearchLabels(); // isi teks kotak cari sesuai value default/tersimpan
+}
+
+// Tampilkan daftar pilihan hasil pencarian utk field Pilihan 1-5 (dropdown custom).
+function pilihanSearchInput(fk){
+  const sel = document.getElementById('mdyn-'+fk);
+  const dd  = document.getElementById('mdyn-'+fk+'-dd');
+  const inp = document.getElementById('mdyn-'+fk+'-search');
+  if(!sel||!dd||!inp) return;
+  const q = inp.value.toLowerCase().trim();
+  const semuaOpsi = Array.from(sel.options).map(o=>o.value).filter(v=>v);
+  const hasil = q ? semuaOpsi.filter(o=>o.toLowerCase().includes(q)) : semuaOpsi;
+  if(!hasil.length){
+    dd.innerHTML = '<div style="padding:9px 12px;font-size:12px;color:var(--inks);">Tidak ada hasil</div>';
+    dd.style.display='block';
+    return;
+  }
+  dd.innerHTML = ['<div onclick="pilihPilihanOption(\''+fk+'\', \'\')" style="padding:8px 12px;cursor:pointer;font-size:12px;color:var(--inks);border-bottom:1px solid var(--bdr);">— (kosongkan)</div>']
+    .concat(hasil.map(o=>`<div onclick="pilihPilihanOption('${fk}','${o.replace(/'/g,"\\'")}')" style="padding:9px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--bdr);" onmouseover="this.style.background='var(--orl)'" onmouseout="this.style.background=''">${o}</div>`))
+    .join('');
+  dd.style.display='block';
+}
+function pilihPilihanOption(fk, val){
+  const sel = document.getElementById('mdyn-'+fk);
+  const inp = document.getElementById('mdyn-'+fk+'-search');
+  const dd  = document.getElementById('mdyn-'+fk+'-dd');
+  if(sel) sel.value = val;
+  if(inp) inp.value = val;
+  if(dd) dd.style.display='none';
+}
+function hidePilihanDD(fk){
+  const dd = document.getElementById('mdyn-'+fk+'-dd');
+  if(dd) dd.style.display='none';
+}
+// Sinkronkan teks di kotak cari dengan value select tersembunyi (dipanggil setelah render/clone/dsb)
+function syncPilihanSearchLabels(){
+  ['lain1','lain2','lain3','lain4','lain5'].forEach(fk=>{
+    const sel = document.getElementById('mdyn-'+fk);
+    const inp = document.getElementById('mdyn-'+fk+'-search');
+    if(sel && inp) inp.value = sel.value || '';
+  });
 }
 
 // Render ulang grid menu dengan data terbaru (mis. dari sheet ListMenu) TANPA menghapus
@@ -1196,6 +1250,7 @@ function renderMenuGridKeepSelection(menuData){
     if(stillExists) sel.value = val; // pertahankan pilihan lama kalau masih ada di data baru
     // kalau sudah tidak ada (mis. dihapus dari sheet), biarkan kosong — user perlu pilih ulang
   });
+  syncPilihanSearchLabels();
 }
 
 // Filter dropdown "Pilihan 1" s/d "Pilihan 5" berdasarkan kata kunci pencarian di atasnya.
@@ -1228,6 +1283,7 @@ function collectMenuValues(){
 function resetMenuSelects(){
   document.querySelectorAll('#menu-dynamic-grid [data-field],#pilihan-lain-grid [data-field]').forEach(el=>{el.value='';});
   applyDefaultMenu();
+  syncPilihanSearchLabels();
 }
 
 // ══ PRODUK → PAKET ════════════════════
