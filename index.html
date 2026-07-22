@@ -1656,10 +1656,7 @@ function renderJadwal(){
     const now = new Date();
     const todayStr = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
     let upcoming = allOrders.filter(o => o.status !== 'Batal' && (o.tanggal_kirim||o.tgl_kirim) && String(o.tanggal_kirim||o.tgl_kirim).slice(0,10) >= todayStr);
-    // Role "snack": cuma boleh lihat order dengan produk kategori "snack"
-    if (CURRENT_USER && CURRENT_USER.role === 'snack') {
-      upcoming = upcoming.filter(o => findProdukByPaket(o.paket||'').toLowerCase() === 'snack');
-    }
+    // (Role "snack" sekarang melihat Jadwal lengkap, tanpa filter kategori — akses tab tetap dibatasi hanya Jadwal saja)
     if(!upcoming.length){ w.innerHTML=`<div class="empty"><div class="eico">📅</div><p>Tidak ada order ke depan.</p><p style="font-size:11px;margin-top:6px;">(${allOrders.length} order dimuat, tanggal hari ini: ${todayStr})</p></div>`; return; }
 
     const groups = {};
