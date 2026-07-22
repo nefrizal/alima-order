@@ -1167,26 +1167,16 @@ function renderMenuGrid(menuData){
     const lbl=key.charAt(0).toUpperCase()+key.slice(1);
     const sid='mdyn-'+fk;
     const ops=['—',...opts].map(o=>`<option value="${o==='—'?'':o}">${o}</option>`).join('');
-    let html;
-    if(PLAIN.includes(fk)){
-      // Pilihan 1-5: field pencarian custom (bukan native select) supaya ada kolom "cari" sendiri.
-      html=`<div class="fld" style="position:relative;">
-        <div style="display:flex;align-items:center;justify-content:space-between;">
-          <label style="margin-bottom:0;">${lbl}</label>
-        </div>
-        <input type="text" id="${sid}-search" placeholder="🔍 Cari ${lbl.toLowerCase()}…" autocomplete="off"
-          oninput="pilihanSearchInput('${fk}')" onfocus="pilihanSearchInput('${fk}')" onblur="setTimeout(()=>hidePilihanDD('${fk}'),200)">
-        <select id="${sid}" data-field="${fk}" class="hide">${ops}</select>
-        <div id="${sid}-dd" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--or);border-radius:0 0 8px 8px;max-height:180px;overflow-y:auto;z-index:100;box-shadow:var(--sh);"></div>
-        <div id="hint-${fk}" style="display:none;font-size:10px;color:var(--inks);margin-top:3px;line-height:1.5;"></div>
-      </div>`;
-    } else {
-      html=`<div class="fld">
-        <label>${lbl}</label>
-        <select id="${sid}" data-field="${fk}">${ops}</select>
-        <div id="hint-${fk}" style="display:none;font-size:10px;color:var(--inks);margin-top:3px;line-height:1.5;"></div>
-      </div>`;
-    }
+    // Semua field komposisi menu pakai kotak pencarian custom (bukan native select),
+    // supaya gampang cari item di antara banyak pilihan.
+    const html=`<div class="fld" style="position:relative;">
+      <label>${lbl}</label>
+      <input type="text" id="${sid}-search" placeholder="🔍 Cari ${lbl.toLowerCase()}…" autocomplete="off"
+        oninput="pilihanSearchInput('${fk}')" onfocus="pilihanSearchInput('${fk}')" onblur="setTimeout(()=>hidePilihanDD('${fk}'),200)">
+      <select id="${sid}" data-field="${fk}" class="hide">${ops}</select>
+      <div id="${sid}-dd" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--or);border-radius:0 0 8px 8px;max-height:180px;overflow-y:auto;z-index:100;box-shadow:var(--sh);"></div>
+      <div id="hint-${fk}" style="display:none;font-size:10px;color:var(--inks);margin-top:3px;line-height:1.5;"></div>
+    </div>`;
     if(PLAIN.includes(fk))pHtml+=html; else mHtml+=html;
   });
 
@@ -1229,10 +1219,9 @@ function hidePilihanDD(fk){
 }
 // Sinkronkan teks di kotak cari dengan value select tersembunyi (dipanggil setelah render/clone/dsb)
 function syncPilihanSearchLabels(){
-  ['lain1','lain2','lain3','lain4','lain5'].forEach(fk=>{
-    const sel = document.getElementById('mdyn-'+fk);
-    const inp = document.getElementById('mdyn-'+fk+'-search');
-    if(sel && inp) inp.value = sel.value || '';
+  document.querySelectorAll('#menu-dynamic-grid select[data-field], #pilihan-lain-grid select[data-field]').forEach(sel=>{
+    const inp = document.getElementById(sel.id+'-search');
+    if(inp) inp.value = sel.value || '';
   });
 }
 
