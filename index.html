@@ -962,6 +962,8 @@ async function handleGoogleCredential(resp){
 
     if (isFullAccessRole(CURRENT_USER.role)) {
       initAppContent(); // admin / sales: akses penuh (Order Baru, Revisi, Jadwal, Masak, Absensi)
+    } else if (CURRENT_USER.role === 'snack') {
+      applySnackAccess(); // role snack: HANYA tab Jadwal, difilter khusus produk kategori Snack
     } else {
       applyKaryawanAccess(); // role lain (Dapur, Finance, Pembelian, Service, dst): Jadwal, Masak, Absensi saja
     }
@@ -1004,6 +1006,21 @@ function applyKaryawanAccess(){
   document.getElementById('panel-absensi').classList.add('on');
   document.getElementById('tab-absensi').classList.add('on');
   initAbsensiTab();
+}
+
+// Role "snack": HANYA tab Jadwal yang tampil (semua tab lain disembunyikan, termasuk Absensi).
+// Isi Jadwal-nya sendiri otomatis difilter cuma order dengan produk kategori "snack" (lihat renderJadwal).
+function applySnackAccess(){
+  document.getElementById('tab-form').classList.add('hide');
+  document.getElementById('tab-revisi').classList.add('hide');
+  document.getElementById('tab-masak').classList.add('hide');
+  document.getElementById('tab-grafik').classList.add('hide');
+  document.getElementById('tab-absensi').classList.add('hide');
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('on'));
+  document.getElementById('panel-jadwal').classList.add('on');
+  document.getElementById('tab-jadwal').classList.add('on');
+  loadOrders().then(renderJadwal);
 }
 
 const BULAN_NAMA = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
@@ -1638,7 +1655,11 @@ function renderJadwal(){
   try{
     const now = new Date();
     const todayStr = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
-    const upcoming = allOrders.filter(o => o.status !== 'Batal' && (o.tanggal_kirim||o.tgl_kirim) && String(o.tanggal_kirim||o.tgl_kirim).slice(0,10) >= todayStr);
+    let upcoming = allOrders.filter(o => o.status !== 'Batal' && (o.tanggal_kirim||o.tgl_kirim) && String(o.tanggal_kirim||o.tgl_kirim).slice(0,10) >= todayStr);
+    // Role "snack": cuma boleh lihat order dengan produk kategori "snack"
+    if (CURRENT_USER && CURRENT_USER.role === 'snack') {
+      upcoming = upcoming.filter(o => findProdukByPaket(o.paket||'').toLowerCase() === 'snack');
+    }
     if(!upcoming.length){ w.innerHTML=`<div class="empty"><div class="eico">📅</div><p>Tidak ada order ke depan.</p><p style="font-size:11px;margin-top:6px;">(${allOrders.length} order dimuat, tanggal hari ini: ${todayStr})</p></div>`; return; }
 
     const groups = {};
