@@ -255,6 +255,10 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
         <div class="sp" style="margin:0 auto 8px;"></div>Memuat pilihan menu…
       </div>
     </div>
+    <div class="fld" style="margin-top:8px;">
+      <label>🔍 Cari Menu Pilihan 1-5</label>
+      <input type="text" id="pilihan-search" placeholder="Ketik nama menu untuk filter Pilihan 1-5…" oninput="filterPilihanOptions()">
+    </div>
     <div class="mgrid" style="margin-top:8px;" id="pilihan-lain-grid"></div>
     <div class="fld" style="margin-top:10px;">
       <label>Keterangan</label>
@@ -536,6 +540,24 @@ function updateMenuHints() {
 }
 
 // ══ CLONE ORDER (Order Mirip) ══════════
+// Isi value <select> dengan pencocokan yang kebal beda huruf besar/kecil & spasi.
+// Kalau nilainya sudah tidak ada di daftar pilihan saat ini, tetap ditambahkan sebagai
+// opsi tambahan supaya kelihatan (bukan hilang diam-diam).
+function setSelectValueCocok_(sel, val){
+  if (!sel || !val) return;
+  const target = String(val).trim().toLowerCase();
+  const opt = Array.from(sel.options).find(o => o.value.trim().toLowerCase() === target);
+  if (opt) {
+    sel.value = opt.value;
+  } else {
+    const customOpt = document.createElement('option');
+    customOpt.value = val;
+    customOpt.textContent = val + ' (tidak ada di daftar saat ini)';
+    sel.appendChild(customOpt);
+    sel.value = val;
+  }
+}
+
 async function cloneOrder() {
   const no   = document.getElementById('f-mirip').value.trim();
   const stat = document.getElementById('mirip-status');
@@ -571,6 +593,12 @@ async function cloneOrder() {
       const info = document.getElementById('cust-info');
       info.style.display='block';
       info.innerHTML=`<strong>${cust.nama}</strong>${cust.nama_instansi?' · '+cust.nama_instansi:''}<br>📱 ${cust.no_hp||'—'} · ${cust.instansi||'—'}<br>📍 ${cust.alamat||'—'}`;
+    } else if (custId) {
+      // Data customer belum ter-load di cache lokal (mis. Order Mirip dipakai sebelum daftar
+      // customer selesai fetch) — tetap isi ID mentahnya supaya tidak hilang begitu saja.
+      document.getElementById('f-cid').value = custId;
+      document.getElementById('f-cid-search').value = custId;
+      toast('Data customer belum lengkap ter-load, cek ulang field Customer.','err');
     }
 
     // Sales & Tim
@@ -600,7 +628,8 @@ async function cloneOrder() {
     document.getElementById('f-fee').value   = d.fee_jasa_broker||d.fee_broker||0;
     document.getElementById('f-del').value   = d.delivery_charge||d.delivery||0;
     document.getElementById('f-hmin').value  = d.harga_jual_minimal||d.harga_min||0;
-    recalc();
+    document.getElementById('f-inv-status').value = d.status_pembayaran||d.inv_status||'';
+    recalc(); // jumlah bayar otomatis kehitung ulang sesuai status pembayaran yang baru disalin
 
     // ── Pengiriman ──
     document.getElementById('f-pen').value = d.nama_penerima||d.penerima||'';
@@ -609,6 +638,8 @@ async function cloneOrder() {
     document.getElementById('f-krd').value = d.koordinat||'';
     document.getElementById('f-ket').value = d.keterangan||'';
     document.getElementById('f-jam').value = d.jam_sampai||'';
+    document.getElementById('f-tgl').value = String(d.tanggal_kirim||d.tgl_kirim||'').slice(0,10);
+    onTglChange(); // refresh info menu hari itu sesuai tanggal yang baru disalin
 
     // ── Menu — set setelah render grid ──
     const menuMap = {
@@ -623,7 +654,7 @@ async function cloneOrder() {
     Object.entries(menuMap).forEach(([fk, val]) => {
       if (!val) return;
       const sel = document.getElementById('mdyn-'+fk);
-      if (sel) sel.value = val;
+      setSelectValueCocok_(sel, val);
     });
 
     stat.innerHTML = `✅ Data dari order <strong>${no}</strong> berhasil disalin. Edit kolom yang berbeda lalu simpan.`;
@@ -1167,6 +1198,26 @@ function renderMenuGridKeepSelection(menuData){
   });
 }
 
+// Filter dropdown "Pilihan 1" s/d "Pilihan 5" berdasarkan kata kunci pencarian di atasnya.
+// Pilihan yang sudah dipilih user tetap dipertahankan meski tidak cocok filter, supaya tidak hilang.
+function filterPilihanOptions(){
+  const q = (document.getElementById('pilihan-search')?.value||'').toLowerCase().trim();
+  const sumberMenu = MENU_DATA || EMBEDDED_MENU;
+  ['lain1','lain2','lain3','lain4','lain5'].forEach((fk, i) => {
+    const sel = document.getElementById('mdyn-'+fk);
+    if(!sel) return;
+    const sourceKey = 'pilihan ' + (i+1);
+    const semuaOpsi = sumberMenu[sourceKey] || [];
+    const nilaiTerpilih = sel.value;
+    const tersaring = q ? semuaOpsi.filter(o => o.toLowerCase().includes(q)) : semuaOpsi;
+    // Pastikan nilai yang sedang terpilih tetap ada di daftar walau tidak lolos filter
+    const daftarFinal = (nilaiTerpilih && !tersaring.includes(nilaiTerpilih))
+      ? [nilaiTerpilih, ...tersaring] : tersaring;
+    sel.innerHTML = ['—', ...daftarFinal].map(o => `<option value="${o==='—'?'':o}">${o}</option>`).join('');
+    sel.value = nilaiTerpilih || '';
+  });
+}
+
 function collectMenuValues(){
   const r={};
   document.querySelectorAll('#menu-dynamic-grid [data-field],#pilihan-lain-grid [data-field]').forEach(el=>{
@@ -1248,8 +1299,8 @@ function recalc(source){
   const bayarEl=document.getElementById('f-inv-bayar');
   const statusVal=document.getElementById('f-inv-status')?.value||'';
   if(bayarEl&&source!=='bayar'){
-    if(statusVal==='DP')     bayarEl.value=Math.round(tot*0.5)||'';
-    else if(statusVal==='Lunas') bayarEl.value=tot||'';
+    if(statusVal==='DP') bayarEl.value=Math.round(tot*0.5)||'';
+    else bayarEl.value=0; // status selain DP -> Jumlah Bayar otomatis 0
   }
 
   // Hitung sisa
