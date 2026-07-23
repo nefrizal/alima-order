@@ -1573,16 +1573,32 @@ function extractKoordinatDariLinkModal(url){
   if(m) return `${m[1]},${m[2]}`;
   return null;
 }
-function ambilDariLinkModal(){
+async function ambilDariLinkModal(){
   const link = document.getElementById('nc-maplink').value.trim();
   if(!link) return toast('Tempel link Google Maps dulu.','err');
-  if(/maps\.app\.goo\.gl|goo\.gl\/maps/.test(link)){
-    return toast('Link pendek belum didukung — buka dulu di browser, copy link penuh dari address bar.','err');
+
+  const koorLangsung = extractKoordinatDariLinkModal(link);
+  if(koorLangsung){
+    document.getElementById('nc-koordinat').value = koorLangsung;
+    return toast('Koordinat berhasil diambil ✓','ok');
   }
-  const koor = extractKoordinatDariLinkModal(link);
-  if(!koor) return toast('Koordinat tidak ditemukan di link ini.','err');
-  document.getElementById('nc-koordinat').value = koor;
-  toast('Koordinat berhasil diambil ✓','ok');
+
+  if(/maps\.app\.goo\.gl|goo\.gl\/maps/.test(link)){
+    toast('Link pendek, membuka dulu di server…','ok');
+    try{
+      const qs = new URLSearchParams({action:'resolveMapsLink', url:link}).toString();
+      const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+      if(j.success && j.koordinat){
+        document.getElementById('nc-koordinat').value = j.koordinat;
+        return toast('Koordinat berhasil diambil ✓','ok');
+      }
+      return toast(j.message || 'Gagal membaca koordinat dari link pendek.','err');
+    }catch(e){
+      return toast('Gagal proses link pendek: '+e.message,'err');
+    }
+  }
+
+  return toast('Koordinat tidak ditemukan di link ini.','err');
 }
 
 async function saveCustomerModal(){
@@ -1650,16 +1666,32 @@ function getGPS(){
   navigator.geolocation.getCurrentPosition(p=>{document.getElementById('f-krd').value=`${p.coords.latitude.toFixed(6)},${p.coords.longitude.toFixed(6)}`;toast('Koordinat didapat ✓','ok');},()=>toast('Tidak bisa akses GPS.','err'));
 }
 
-function ambilDariLinkOrder(){
+async function ambilDariLinkOrder(){
   const link = document.getElementById('f-maplink').value.trim();
   if(!link) return toast('Tempel link Google Maps dulu.','err');
-  if(/maps\.app\.goo\.gl|goo\.gl\/maps/.test(link)){
-    return toast('Link pendek belum didukung — buka dulu di browser, copy link penuh dari address bar.','err');
+
+  const koorLangsung = extractKoordinatDariLinkModal(link);
+  if(koorLangsung){
+    document.getElementById('f-krd').value = koorLangsung;
+    return toast('Koordinat berhasil diambil ✓','ok');
   }
-  const koor = extractKoordinatDariLinkModal(link);
-  if(!koor) return toast('Koordinat tidak ditemukan di link ini.','err');
-  document.getElementById('f-krd').value = koor;
-  toast('Koordinat berhasil diambil ✓','ok');
+
+  if(/maps\.app\.goo\.gl|goo\.gl\/maps/.test(link)){
+    toast('Link pendek, membuka dulu di server…','ok');
+    try{
+      const qs = new URLSearchParams({action:'resolveMapsLink', url:link}).toString();
+      const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+      if(j.success && j.koordinat){
+        document.getElementById('f-krd').value = j.koordinat;
+        return toast('Koordinat berhasil diambil ✓','ok');
+      }
+      return toast(j.message || 'Gagal membaca koordinat dari link pendek.','err');
+    }catch(e){
+      return toast('Gagal proses link pendek: '+e.message,'err');
+    }
+  }
+
+  return toast('Koordinat tidak ditemukan di link ini.','err');
 }
 
 // Simpan koordinat baru ke data customer (supaya kepakai lagi utk order berikutnya)
