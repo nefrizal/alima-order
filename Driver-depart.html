@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KSM — Konfirmasi Berangkat</title>
+<style>
+  :root{--brand:#C8521A;--bg:#faf7f4;--card:#fff;--text:#2a2a2a;--muted:#8a8378;--ok:#2f9e44;--warn:#e8590c;}
+  *{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',Roboto,Arial,sans-serif;}
+  body{background:var(--bg);color:var(--text);min-height:100vh;padding:16px;}
+  .header{text-align:center;padding:20px 0;}
+  .header h1{font-size:20px;color:var(--brand);}
+  .header p{color:var(--muted);font-size:13px;margin-top:4px;}
+  .select-driver{max-width:420px;margin:0 auto 20px;background:var(--card);border-radius:14px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.06);}
+  select,button{width:100%;padding:12px;border-radius:10px;border:1px solid #e5ded5;font-size:15px;}
+  button{background:var(--brand);color:#fff;border:none;font-weight:600;margin-top:10px;cursor:pointer;}
+  button:disabled{background:#ccc;}
+  .card{max-width:420px;margin:0 auto 14px;background:var(--card);border-radius:14px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.06);border-left:5px solid var(--muted);}
+  .card.siap{border-left-color:var(--warn);}
+  .card.terkirim{border-left-color:var(--ok);opacity:.6;}
+  .card h3{font-size:16px;margin-bottom:6px;}
+  .card p{font-size:13px;color:var(--muted);margin:2px 0;}
+  .badge{display:inline-block;font-size:11px;padding:3px 8px;border-radius:20px;background:#fff3e0;color:var(--warn);margin-bottom:6px;}
+  .btn-berangkat{background:var(--brand);color:#fff;border:none;border-radius:10px;padding:10px;width:100%;margin-top:10px;font-weight:600;cursor:pointer;}
+  .empty{text-align:center;color:var(--muted);padding:30px;}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#2a2a2a;color:#fff;padding:12px 20px;border-radius:30px;font-size:14px;display:none;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🚗 Konfirmasi Berangkat</h1>
+  <p>Scan berhasil — pilih nama & order yang mau diantar</p>
+</div>
+
+<div class="select-driver" id="pilihDriver">
+  <select id="driverSelect"><option value="">Memuat daftar driver...</option></select>
+  <button id="btnMuat">Tampilkan Order Saya</button>
+</div>
+
+<div id="listOrder"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const API_URL = "https://script.google.com/macros/s/AKfycbyPgnhHNpbAWQbt4sNQiLFaDTRN-emDLn_rV68GVpvkdFAbFd41fyZxdMJUMqHdI1Zp/exec";
+let currentDriver = "";
+
+function jsonp(url, params) {
+  return new Promise((resolve) => {
+    const cb = "cb_" + Date.now();
+    window[cb] = (data) => { resolve(data); delete window[cb]; document.body.removeChild(script); };
+    const qs = new URLSearchParams({...params, callback: cb}).toString();
+    const script = document.createElement("script");
+    script.src = url + "?" + qs;
+    document.body.appendChild(script);
+  });
+}
+
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.style.display = "block";
+  setTimeout(() => t.style.display = "none", 3000);
+}
+
+async function loadDrivers() {
+  const res = await jsonp(API_URL, { action: "list_drivers" });
+  const sel = document.getElementById("driverSelect");
+  sel.innerHTML = '<option value="">-- Pilih Nama Driver --</option>';
+  if (res.ok) {
+    res.drivers.forEach(d => {
+      const opt = document.createElement("option");
+      opt.value = d.nama; opt.textContent = d.nama;
+      sel.appendChild(opt);
+    });
+  }
+}
+
+async function loadOrders() {
+  currentDriver = document.getElementById("driverSelect").value;
+  if (!currentDriver) { showToast("Pilih nama driver dulu"); return; }
+  const listDiv = document.getElementById("listOrder");
+  listDiv.innerHTML = '<p class="empty">Memuat order...</p>';
+  const res = await jsonp(API_URL, { action: "list_orders_driver", driver: currentDriver });
+  if (!res.ok || res.orders.length === 0) {
+    listDiv.innerHTML = '<p class="empty">Tidak ada order menunggu keberangkatan 🎉</p>';
+    return;
+  }
+  listDiv.innerHTML = "";
+  res.orders.forEach(o => {
+    const div = document.createElement("div");
+    div.className = "card" + (o.siapBerangkat ? " siap" : "");
+    div.innerHTML = `
+      ${o.siapBerangkat ? '<span class="badge">Segera Berangkat</span>' : ''}
+      <h3>${o.pemesan} — ${o.paket}</h3>
+      <p>Qty: ${o.qty} | No: ${o.no}</p>
+      <p>📍 ${o.alamat}</p>
+      <p>🕐 Target sampai: ${o.jamTarget} (${o.tanggal})</p>
+      <button class="btn-berangkat" onclick="konfirmasiBerangkat('${o.no}', this)">Konfirmasi Berangkat</button>
+    `;
+    listDiv.appendChild(div);
+  });
+}
+
+async function konfirmasiBerangkat(noOrder, btn) {
+  btn.disabled = true;
+  btn.textContent = "Mengirim WA...";
+  const res = await jsonp(API_URL, { action: "confirm_depart", no: noOrder, driver: currentDriver });
+  if (res.ok) {
+    btn.closest(".card").classList.add("terkirim");
+    btn.textContent = "✅ WA & QR Terkirim ke Penerima";
+    showToast("Berhasil! WA otomatis sudah dikirim ke penerima");
+  } else {
+    btn.disabled = false;
+    btn.textContent = "Konfirmasi Berangkat";
+    showToast("Gagal: " + res.error);
+  }
+}
+
+document.getElementById("btnMuat").addEventListener("click", loadOrders);
+loadDrivers();
+</script>
+</body>
+</html>
