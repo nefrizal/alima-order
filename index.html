@@ -273,7 +273,11 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     <div class="fld"><label>Alamat Pengiriman</label><textarea id="f-adr" placeholder="Alamat lengkap…" style="min-height:52px;"></textarea></div>
     <div class="fld">
       <label>Koordinat (opsional)</label>
-      <input id="f-krd" type="text" placeholder="1.123456,104.567890">
+      <input id="f-krd" type="text" placeholder="1.123456,104.567890" readonly style="background:#f5f0ea;">
+      <div style="display:flex;gap:6px;margin-top:6px;">
+        <input id="f-maplink" type="text" placeholder="Tempel link share-loc Google Maps di sini…" style="flex:1;">
+        <button class="gps-btn" type="button" onclick="ambilDariLinkOrder()" style="white-space:nowrap;">🔗 Ambil</button>
+      </div>
       <button class="gps-btn" type="button" onclick="getGPS()">📍 Gunakan Lokasi Saya</button>
     </div>
   </div>
@@ -348,13 +352,24 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 
 </main>
 
-<!-- MODAL CUSTOMER -->
+<!-- MODAL CUSTOMER (gabungan Tambah Baru + Edit/Revisi) -->
 <div class="modal-bg hide" id="cust-modal">
   <div class="modal">
     <div class="modal-head">
-      <h2>👤 Tambah Customer Baru</h2>
+      <h2 id="cust-modal-title">👤 Tambah / Edit Customer</h2>
       <button class="modal-close" onclick="closeCustModal()">×</button>
     </div>
+    <div class="fld" style="position:relative;">
+      <label>Cari Customer Lama (utk edit) — kosongkan untuk tambah baru</label>
+      <input id="nc-search" type="text" placeholder="Ketik nama / no. HP customer yang mau diedit…" autocomplete="off"
+        oninput="filterCustModal()" onfocus="filterCustModal()" onblur="setTimeout(hideCustModalDD,200)">
+      <div id="nc-search-dd" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--or);border-radius:0 0 8px 8px;max-height:180px;overflow-y:auto;z-index:100;box-shadow:var(--sh);"></div>
+    </div>
+    <div id="nc-edit-badge" style="display:none;background:var(--orl);border:1px solid #f7d4bc;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:var(--ord);font-weight:600;">
+      ✏️ Mode edit — perubahan akan menimpa data customer ini
+      <button type="button" onclick="resetCustModalToAdd()" style="float:right;background:none;border:none;color:var(--ord);text-decoration:underline;cursor:pointer;font-size:11px;">Batal edit, tambah baru</button>
+    </div>
+    <input id="nc-id" type="hidden" value="">
     <div class="g2">
       <div class="fld"><label>Nama <span class="req">*</span></label><input id="nc-nama" type="text" placeholder="Nama lengkap"></div>
       <div class="fld"><label>Gender</label>
@@ -372,7 +387,15 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       <div class="fld"><label>Nama Sales</label><input id="nc-sales" type="text" placeholder="Nama sales"></div>
     </div>
     <div class="fld"><label>Alamat</label><textarea id="nc-alamat" placeholder="Alamat lengkap…" style="min-height:52px;"></textarea></div>
-    <button class="bsub" id="btn-save-cust" onclick="saveNewCustomer()" style="margin-top:8px;">💾 Simpan Customer</button>
+    <div class="fld">
+      <label>Koordinat (opsional)</label>
+      <input id="nc-koordinat" type="text" placeholder="1.123456,104.567890" readonly style="background:#f5f0ea;">
+      <div style="display:flex;gap:6px;margin-top:6px;">
+        <input id="nc-maplink" type="text" placeholder="Tempel link share-loc Google Maps di sini…" style="flex:1;">
+        <button class="gps-btn" type="button" onclick="ambilDariLinkModal()" style="white-space:nowrap;">🔗 Ambil</button>
+      </div>
+    </div>
+    <button class="bsub" id="btn-save-cust" onclick="saveCustomerModal()" style="margin-top:8px;">💾 Simpan Customer</button>
   </div>
 </div>
 
@@ -1467,6 +1490,8 @@ function selectCust(id){
   pen.value  = c.nama||'';
   fhp.value  = c.no_hp||'';
   fadr.value = c.alamat||'';
+  const fkrd = document.getElementById('f-krd');
+  if(fkrd) fkrd.value = c.koordinat||'';
   const info = document.getElementById('cust-info');
   info.style.display = 'block';
   info.innerHTML = `<strong>${c.nama}</strong>${c.nama_instansi?' · '+c.nama_instansi:''}<br>📱 ${c.no_hp||'—'} · ${c.instansi||'—'}<br>📍 ${c.alamat||'—'}`;
@@ -1475,33 +1500,139 @@ function selectCust(id){
 function onCustChange(){} // tidak dipakai lagi
 function openCustModal(){
   document.getElementById('cust-modal').classList.remove('hide');
+  resetCustModalToAdd();
   const s=document.getElementById('f-sales')?.value||'';
   if(s)document.getElementById('nc-sales').value=s;
 }
 function closeCustModal(){
   document.getElementById('cust-modal').classList.add('hide');
-  ['nc-nama','nc-instansi','nc-hp','nc-sales','nc-alamat'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
-  document.getElementById('nc-gender').value='';document.getElementById('nc-tipe').value='';
+  resetCustModalToAdd();
 }
-async function saveNewCustomer(){
-  const nama=document.getElementById('nc-nama').value.trim();
-  const hp=document.getElementById('nc-hp').value.trim();
-  if(!nama)return toast('Nama customer wajib.','err');
-  if(!hp)return toast('No. HP wajib.','err');
-  const waHp = normalizeWA(hp);
-  const btn=document.getElementById('btn-save-cust');btn.disabled=true;btn.textContent='Menyimpan…';
+function resetCustModalToAdd(){
+  ['nc-nama','nc-instansi','nc-hp','nc-sales','nc-alamat','nc-koordinat','nc-maplink','nc-search','nc-id'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  document.getElementById('nc-gender').value='';document.getElementById('nc-tipe').value='';
+  document.getElementById('nc-hp').readOnly=false;
+  document.getElementById('nc-edit-badge').style.display='none';
+  document.getElementById('cust-modal-title').textContent='👤 Tambah Customer Baru';
+  const btn=document.getElementById('btn-save-cust');
+  if(btn) btn.textContent='💾 Simpan Customer';
+  document.getElementById('nc-search-dd').style.display='none';
+}
 
-  // Refresh dulu list customer supaya pengecekan duplikat tidak pakai data basi/kosong
+function filterCustModal(){
+  const q = document.getElementById('nc-search').value.toLowerCase().trim();
+  const dd = document.getElementById('nc-search-dd');
+  if(q.length<1){ dd.style.display='none'; return; }
+  const filtered = CUSTOMERS.filter(c =>
+    (c.nama||'').toLowerCase().includes(q) ||
+    (c.nama_instansi||'').toLowerCase().includes(q) ||
+    (c.no_hp||'').toLowerCase().includes(q)
+  ).slice(0,15);
+  if(!filtered.length){ dd.innerHTML='<div style="padding:10px 12px;font-size:12px;color:var(--inks);">Tidak ditemukan — isi form di bawah utk tambah baru</div>'; dd.style.display='block'; return; }
+  dd.innerHTML = filtered.map(c => `
+    <div onclick="pilihCustUntukEdit('${c.id}')"
+      style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--bdr);font-size:13px;"
+      onmouseover="this.style.background='var(--orl)'" onmouseout="this.style.background=''">
+      <strong>${c.nama||'—'}</strong>${c.nama_instansi?' — '+c.nama_instansi:''}<br>
+      <span style="color:var(--inks);font-size:11px;">📱 ${c.no_hp||'—'}${c.koordinat?' · 📍 ada koordinat':''}</span>
+    </div>`).join('');
+  dd.style.display='block';
+}
+function hideCustModalDD(){ document.getElementById('nc-search-dd').style.display='none'; }
+
+function pilihCustUntukEdit(id){
+  const c = CUSTOMERS.find(x => x.id === id);
+  if(!c) return;
+  document.getElementById('nc-id').value = c.id;
+  document.getElementById('nc-search').value = c.nama + (c.nama_instansi?' — '+c.nama_instansi:'');
+  document.getElementById('nc-search-dd').style.display='none';
+  document.getElementById('nc-nama').value = c.nama||'';
+  document.getElementById('nc-gender').value = c.gender||'';
+  document.getElementById('nc-instansi').value = c.nama_instansi||'';
+  document.getElementById('nc-tipe').value = c.instansi||'';
+  document.getElementById('nc-hp').value = c.no_hp||'';
+  document.getElementById('nc-hp').readOnly = true; // no. HP jadi ID, tidak diubah lewat sini
+  document.getElementById('nc-sales').value = c.sales||'';
+  document.getElementById('nc-alamat').value = c.alamat||'';
+  document.getElementById('nc-koordinat').value = c.koordinat||'';
+  document.getElementById('nc-edit-badge').style.display='block';
+  document.getElementById('cust-modal-title').textContent='✏️ Edit Customer';
+  document.getElementById('btn-save-cust').textContent='💾 Simpan Perubahan';
+}
+
+// Ekstrak lat,lng dari link Google Maps — sama seperti di form order.
+function extractKoordinatDariLinkModal(url){
+  if(!url) return null;
+  let m = url.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+  if(m) return `${m[1]},${m[2]}`;
+  m = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if(m) return `${m[1]},${m[2]}`;
+  m = url.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if(m) return `${m[1]},${m[2]}`;
+  m = url.match(/^\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)\s*$/);
+  if(m) return `${m[1]},${m[2]}`;
+  return null;
+}
+function ambilDariLinkModal(){
+  const link = document.getElementById('nc-maplink').value.trim();
+  if(!link) return toast('Tempel link Google Maps dulu.','err');
+  if(/maps\.app\.goo\.gl|goo\.gl\/maps/.test(link)){
+    return toast('Link pendek belum didukung — buka dulu di browser, copy link penuh dari address bar.','err');
+  }
+  const koor = extractKoordinatDariLinkModal(link);
+  if(!koor) return toast('Koordinat tidak ditemukan di link ini.','err');
+  document.getElementById('nc-koordinat').value = koor;
+  toast('Koordinat berhasil diambil ✓','ok');
+}
+
+async function saveCustomerModal(){
+  const editId = document.getElementById('nc-id').value;
+  const nama = document.getElementById('nc-nama').value.trim();
+  const hp   = document.getElementById('nc-hp').value.trim();
+  if(!nama) return toast('Nama customer wajib.','err');
+  if(!hp)   return toast('No. HP wajib.','err');
+  const btn = document.getElementById('btn-save-cust');
+  btn.disabled = true; btn.textContent = 'Menyimpan…';
+
+  if(editId){
+    // ── MODE EDIT ──
+    const data = {
+      id: editId,
+      sales: document.getElementById('nc-sales').value.trim(),
+      gender: document.getElementById('nc-gender').value,
+      nama,
+      nama_instansi: document.getElementById('nc-instansi').value.trim(),
+      no_hp: document.getElementById('nc-hp').value.trim(),
+      instansi: document.getElementById('nc-tipe').value,
+      alamat: document.getElementById('nc-alamat').value.trim(),
+      koordinat: document.getElementById('nc-koordinat').value.trim(),
+    };
+    try{
+      const qs = new URLSearchParams({action:'updateCustomer', ...data}).toString();
+      const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+      if(!j.success) throw new Error(j.message || 'Gagal menyimpan perubahan.');
+      const idx = CUSTOMERS.findIndex(c => c.id === editId);
+      if(idx>=0) CUSTOMERS[idx] = {...CUSTOMERS[idx], ...data};
+      cSet('alima_custs', CUSTOMERS);
+      selectCust(editId);
+      toast(`Customer ${nama} diperbarui ✓`,'ok'); closeCustModal();
+    }catch(e){ toast('Gagal: '+e.message,'err'); }
+    finally{ btn.disabled=false; btn.textContent='💾 Simpan Perubahan'; }
+    return;
+  }
+
+  // ── MODE TAMBAH BARU ──
+  const waHp = normalizeWA(hp);
   try{
     const jc = await gasFetch(APP.GAS_URL+'?action=getCustomers&t='+Date.now());
     if(jc?.success&&jc.data){CUSTOMERS=jc.data;cSet('alima_custs',CUSTOMERS);renderCustDD();}
-  }catch(e){ /* kalau refresh gagal, lanjut pakai data lama sebagai fallback */ }
+  }catch(e){ /* fallback pakai data lama */ }
 
   const dup = CUSTOMERS.find(c => c.no_hp === waHp);
   if (dup) { btn.disabled=false;btn.textContent='💾 Simpan Customer'; return toast(`No. HP sudah terdaftar atas nama ${dup.nama}${dup.nama_instansi?' — '+dup.nama_instansi:''}.`,'err'); }
 
-  const newId = waHp; // ID = nomor HP (aman krn no. HP dijamin unik per customer)
-  const data={id:newId,sales:document.getElementById('nc-sales').value.trim(),gender:document.getElementById('nc-gender').value,nama,nama_instansi:document.getElementById('nc-instansi').value.trim(),no_hp:waHp,instansi:document.getElementById('nc-tipe').value,alamat:document.getElementById('nc-alamat').value.trim()};
+  const newId = waHp;
+  const data={id:newId,sales:document.getElementById('nc-sales').value.trim(),gender:document.getElementById('nc-gender').value,nama,nama_instansi:document.getElementById('nc-instansi').value.trim(),no_hp:waHp,instansi:document.getElementById('nc-tipe').value,alamat:document.getElementById('nc-alamat').value.trim(),koordinat:document.getElementById('nc-koordinat').value.trim()};
   try{
     const qs = new URLSearchParams({action:'addCustomer', ...data}).toString();
     const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
@@ -1517,6 +1648,32 @@ async function saveNewCustomer(){
 function getGPS(){
   if(!navigator.geolocation)return toast('GPS tidak tersedia.','err');
   navigator.geolocation.getCurrentPosition(p=>{document.getElementById('f-krd').value=`${p.coords.latitude.toFixed(6)},${p.coords.longitude.toFixed(6)}`;toast('Koordinat didapat ✓','ok');},()=>toast('Tidak bisa akses GPS.','err'));
+}
+
+function ambilDariLinkOrder(){
+  const link = document.getElementById('f-maplink').value.trim();
+  if(!link) return toast('Tempel link Google Maps dulu.','err');
+  if(/maps\.app\.goo\.gl|goo\.gl\/maps/.test(link)){
+    return toast('Link pendek belum didukung — buka dulu di browser, copy link penuh dari address bar.','err');
+  }
+  const koor = extractKoordinatDariLinkModal(link);
+  if(!koor) return toast('Koordinat tidak ditemukan di link ini.','err');
+  document.getElementById('f-krd').value = koor;
+  toast('Koordinat berhasil diambil ✓','ok');
+}
+
+// Simpan koordinat baru ke data customer (supaya kepakai lagi utk order berikutnya)
+async function simpanKoordinatCustomerJikaBeda(customerId, koordinatBaru){
+  if(!customerId || !koordinatBaru) return;
+  const cust = CUSTOMERS.find(c => c.id === customerId || c.no_hp === customerId);
+  if(!cust) return;
+  if(cust.koordinat === koordinatBaru) return;
+  try{
+    const qs = new URLSearchParams({action:'updateCustomerKoordinat', id:cust.id, koordinat:koordinatBaru}).toString();
+    await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    cust.koordinat = koordinatBaru;
+    cSet('alima_custs', CUSTOMERS);
+  }catch(e){ /* gagal simpan koordinat tidak menggagalkan submit order */ }
 }
 
 // ══ SUBMIT ════════════════════════════
@@ -1608,6 +1765,7 @@ async function prosesSimpanOrder(kirimKeCustomer){
     const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
     if (!j.success) { hideOvl(); toast(j.message || 'Order ditolak server.', 'err'); if(btn) btn.disabled=false; return; }
     // Order sudah tersimpan di titik ini. Kegagalan kirim WA di bawah TIDAK membatalkan order.
+    simpanKoordinatCustomerJikaBeda(d.customer_id, d.koordinat); // tidak di-await, tidak menunda flow
     updOvl('Mengirim notifikasi WhatsApp…');
     let waError = null;
     try {
