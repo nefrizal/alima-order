@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>KSM — Konfirmasi Berangkat</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
   :root{--brand:#C8521A;--bg:#faf7f4;--card:#fff;--text:#2a2a2a;--muted:#8a8378;--ok:#2f9e44;--warn:#e8590c;}
   *{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',Roboto,Arial,sans-serif;}
@@ -23,6 +25,13 @@
   .badge{display:inline-block;font-size:11px;padding:3px 8px;border-radius:20px;background:#fff3e0;color:var(--warn);margin-bottom:6px;}
   .btn-berangkat{background:var(--brand);color:#fff;border:none;border-radius:10px;padding:10px;width:100%;margin-top:10px;font-weight:600;cursor:pointer;}
   .empty{text-align:center;color:var(--muted);padding:30px;}
+  .btn-rute{background:#fff;color:var(--brand);border:1px solid var(--brand);border-radius:10px;padding:9px;width:100%;margin-top:8px;font-weight:600;cursor:pointer;font-size:14px;}
+  .map-box{width:100%;height:220px;border-radius:10px;margin-top:10px;display:none;overflow:hidden;}
+  .map-info{font-size:12px;color:var(--muted);margin-top:6px;display:none;}
+  .live-box{margin-top:8px;}
+  .btn-live{background:#2f9e44;color:#fff;border:none;border-radius:10px;padding:10px;width:100%;font-weight:600;cursor:pointer;font-size:14px;}
+  .btn-live-stop{background:#fff;color:#e03131;border:1px solid #e03131;border-radius:10px;padding:8px;width:100%;margin-top:6px;font-weight:600;cursor:pointer;font-size:13px;}
+  .live-status{font-size:12px;color:#2f9e44;font-weight:600;margin-top:8px;text-align:center;}
   .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#2a2a2a;color:#fff;padding:12px 20px;border-radius:30px;font-size:14px;display:none;}
 </style>
 </head>
@@ -43,7 +52,70 @@
 
 <script>
 const API_URL = "https://script.google.com/macros/s/AKfycbyPgnhHNpbAWQbt4sNQiLFaDTRN-emDLn_rV68GVpvkdFAbFd41fyZxdMJUMqHdI1Zp/exec";
+const DAPUR = { lat: 1.0458043297442836, lng: 104.0494540672629 };
 let currentDriver = "";
+const mapInstances = {};
+
+function parseKoordinat(str) {
+  if (!str) return null;
+  const parts = String(str).split(",").map(s => parseFloat(s.trim()));
+  if (parts.length !== 2 || isNaN(parts[0]) || isNaN(parts[1])) return null;
+  return { lat: parts[0], lng: parts[1] };
+}
+
+async function toggleRute(noOrder, koordinatStr, btn) {
+  const mapDiv = document.getElementById("map-" + noOrder);
+  const infoDiv = document.getElementById("mapinfo-" + noOrder);
+  const tujuan = parseKoordinat(koordinatStr);
+
+  if (mapDiv.style.display === "block") {
+    mapDiv.style.display = "none";
+    infoDiv.style.display = "none";
+    btn.textContent = "🗺️ Lihat Rute";
+    return;
+  }
+
+  if (!tujuan) {
+    showToast("Koordinat tujuan belum diisi di sheet");
+    return;
+  }
+
+  mapDiv.style.display = "block";
+  infoDiv.style.display = "block";
+  infoDiv.textContent = "Memuat rute...";
+  btn.textContent = "🗺️ Sembunyikan Rute";
+
+  if (!mapInstances[noOrder]) {
+    const map = L.map("map-" + noOrder).setView([DAPUR.lat, DAPUR.lng], 13);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "© OpenStreetMap"
+    }).addTo(map);
+    L.marker([DAPUR.lat, DAPUR.lng]).addTo(map).bindPopup("🏠 Dapur KSM");
+    L.marker([tujuan.lat, tujuan.lng]).addTo(map).bindPopup("📍 Tujuan Pengiriman");
+    mapInstances[noOrder] = map;
+
+    try {
+      const url = `https://router.project-osrm.org/route/v1/driving/${DAPUR.lng},${DAPUR.lat};${tujuan.lng},${tujuan.lat}?overview=full&geometries=geojson`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.routes && data.routes[0]) {
+        const coords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+        L.polyline(coords, { color: "#C8521A", weight: 4 }).addTo(map);
+        map.fitBounds(coords);
+        const jarakKm = (data.routes[0].distance / 1000).toFixed(1);
+        const menit = Math.round(data.routes[0].duration / 60);
+        infoDiv.textContent = `📏 ${jarakKm} km — 🕐 ~${menit} menit (estimasi)`;
+      } else {
+        infoDiv.textContent = "Rute tidak ditemukan, menampilkan lokasi saja.";
+        map.fitBounds([[DAPUR.lat, DAPUR.lng], [tujuan.lat, tujuan.lng]]);
+      }
+    } catch (err) {
+      infoDiv.textContent = "Gagal memuat rute (cek koneksi internet).";
+    }
+  } else {
+    setTimeout(() => mapInstances[noOrder].invalidateSize(), 100);
+  }
+}
 
 function jsonp(url, params) {
   return new Promise((resolve) => {
@@ -96,7 +168,11 @@ async function loadOrders() {
       <p>Qty: ${o.qty} | No: ${o.no}</p>
       <p>📍 ${o.alamat}</p>
       <p>🕐 Target sampai: ${o.jamTarget} (${o.tanggal})</p>
+      <button class="btn-rute" onclick="toggleRute('${o.no}', '${o.koordinat || ""}', this)">🗺️ Lihat Rute</button>
+      <div class="map-box" id="map-${o.no}"></div>
+      <p class="map-info" id="mapinfo-${o.no}"></p>
       <button class="btn-berangkat" onclick="konfirmasiBerangkat('${o.no}', this)">Konfirmasi Berangkat</button>
+      <div class="live-box" id="live-${o.no}"></div>
     `;
     listDiv.appendChild(div);
   });
@@ -110,11 +186,58 @@ async function konfirmasiBerangkat(noOrder, btn) {
     btn.closest(".card").classList.add("terkirim");
     btn.textContent = "✅ WA & QR Terkirim ke Penerima";
     showToast("Berhasil! WA otomatis sudah dikirim ke penerima");
+    tampilkanTombolLive(noOrder);
   } else {
     btn.disabled = false;
     btn.textContent = "Konfirmasi Berangkat";
     showToast("Gagal: " + res.error);
   }
+}
+
+// ══ LIVE TRACKING ═══════════════════════
+const liveTimers = {}; // noOrder -> interval id
+
+function tampilkanTombolLive(noOrder) {
+  const box = document.getElementById("live-" + noOrder);
+  if (!box) return;
+  box.innerHTML = `<button class="btn-live" onclick="mulaiLiveTracking('${noOrder}', this)">🛰️ Mulai Kirim Lokasi Live</button>`;
+}
+
+function mulaiLiveTracking(noOrder, btn) {
+  if (!navigator.geolocation) { showToast("GPS tidak tersedia di HP ini"); return; }
+
+  const box = document.getElementById("live-" + noOrder);
+  box.innerHTML = `<div class="live-status" id="livestat-${noOrder}">🟢 Live aktif — mengirim lokasi pertama…</div>
+    <button class="btn-live-stop" onclick="stopLiveTracking('${noOrder}')">⏹ Stop Kirim Lokasi</button>`;
+
+  const kirimLokasi = () => {
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      const lat = pos.coords.latitude.toFixed(6);
+      const lng = pos.coords.longitude.toFixed(6);
+      await jsonp(API_URL, { action: "update_driver_location", no: noOrder, lat, lng });
+      const stat = document.getElementById("livestat-" + noOrder);
+      if (stat) {
+        const jam = new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+        stat.textContent = `🟢 Live aktif — update terakhir ${jam}`;
+      }
+    }, () => {
+      const stat = document.getElementById("livestat-" + noOrder);
+      if (stat) stat.textContent = "🔴 Gagal ambil lokasi — cek izin GPS browser";
+    }, { enableHighAccuracy: true, timeout: 10000 });
+  };
+
+  kirimLokasi(); // kirim langsung sekali
+  liveTimers[noOrder] = setInterval(kirimLokasi, 15000); // lalu tiap 15 detik
+}
+
+function stopLiveTracking(noOrder) {
+  if (liveTimers[noOrder]) {
+    clearInterval(liveTimers[noOrder]);
+    delete liveTimers[noOrder];
+  }
+  const box = document.getElementById("live-" + noOrder);
+  if (box) box.innerHTML = `<div class="live-status">⏹ Live tracking dihentikan</div>
+    <button class="btn-live" onclick="mulaiLiveTracking('${noOrder}', this)">🛰️ Mulai Lagi</button>`;
 }
 
 document.getElementById("btnMuat").addEventListener("click", loadOrders);
