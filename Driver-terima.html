@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KSM — Konfirmasi Serah Terima</title>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+  :root{--brand:#C8521A;--bg:#faf7f4;--card:#fff;--text:#2a2a2a;--muted:#8a8378;--ok:#2f9e44;}
+  *{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',Roboto,Arial,sans-serif;}
+  body{background:var(--bg);color:var(--text);min-height:100vh;padding:16px;}
+  .header{text-align:center;padding:16px 0;}
+  .header h1{font-size:20px;color:var(--brand);}
+  .header p{color:var(--muted);font-size:13px;margin-top:4px;}
+  .box{max-width:420px;margin:0 auto;background:var(--card);border-radius:14px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.06);}
+  select,button{width:100%;padding:12px;border-radius:10px;border:1px solid #e5ded5;font-size:15px;}
+  button{background:var(--brand);color:#fff;border:none;font-weight:600;margin-top:10px;cursor:pointer;}
+  #reader{width:100%;margin-top:14px;border-radius:12px;overflow:hidden;}
+  .result{margin-top:16px;padding:14px;border-radius:12px;background:#eafbe7;border:1px solid var(--ok);display:none;}
+  .result h3{color:var(--ok);margin-bottom:6px;}
+  .result p{font-size:13px;color:var(--text);margin:2px 0;}
+  .error{margin-top:16px;padding:14px;border-radius:12px;background:#fff0ee;border:1px solid #e03131;color:#c92a2a;font-size:13px;display:none;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📷 Konfirmasi Serah Terima</h1>
+  <p>Minta penerima tunjukkan QR dari WhatsApp, lalu scan di sini</p>
+</div>
+
+<div class="box">
+  <select id="driverSelect"><option value="">Memuat daftar driver...</option></select>
+  <button id="btnMulaiScan">Mulai Scan QR</button>
+  <div id="reader"></div>
+  <div class="result" id="hasil"></div>
+  <div class="error" id="errorBox"></div>
+</div>
+
+<script>
+const API_URL = "https://script.google.com/macros/s/AKfycbyPgnhHNpbAWQbt4sNQiLFaDTRN-emDLn_rV68GVpvkdFAbFd41fyZxdMJUMqHdI1Zp/exec";
+let html5QrCode;
+
+function jsonp(url, params) {
+  return new Promise((resolve) => {
+    const cb = "cb_" + Date.now();
+    window[cb] = (data) => { resolve(data); delete window[cb]; document.body.removeChild(script); };
+    const qs = new URLSearchParams({...params, callback: cb}).toString();
+    const script = document.createElement("script");
+    script.src = url + "?" + qs;
+    document.body.appendChild(script);
+  });
+}
+
+async function loadDrivers() {
+  const res = await jsonp(API_URL, { action: "list_drivers" });
+  const sel = document.getElementById("driverSelect");
+  sel.innerHTML = '<option value="">-- Pilih Nama Driver --</option>';
+  if (res.ok) {
+    res.drivers.forEach(d => {
+      const opt = document.createElement("option");
+      opt.value = d.nama; opt.textContent = d.nama;
+      sel.appendChild(opt);
+    });
+  }
+}
+
+function mulaiScan() {
+  const driver = document.getElementById("driverSelect").value;
+  if (!driver) { alert("Pilih nama driver dulu"); return; }
+
+  document.getElementById("hasil").style.display = "none";
+  document.getElementById("errorBox").style.display = "none";
+
+  html5QrCode = new Html5Qrcode("reader");
+  html5QrCode.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: 250 },
+    async (decodedText) => {
+      html5QrCode.stop();
+      await prosesQr(decodedText, driver);
+    },
+    () => {}
+  );
+}
+
+async function prosesQr(qrText, driver) {
+  const res = await jsonp(API_URL, { action: "confirm_receipt", qrdata: qrText, driver: driver });
+  if (res.ok) {
+    document.getElementById("hasil").style.display = "block";
+    document.getElementById("hasil").innerHTML = `
+      <h3>✅ Serah Terima Berhasil</h3>
+      <p>Order: ${res.order.no}</p>
+      <p>Pemesan: ${res.order.pemesan}</p>
+      <p>${res.order.paket} — ${res.order.qty} pax</p>
+      <p style="margin-top:8px;color:#2f9e44;font-weight:600;">Tugas driver selesai 🎉</p>
+    `;
+  } else {
+    document.getElementById("errorBox").style.display = "block";
+    document.getElementById("errorBox").textContent = "❌ " + res.error;
+  }
+}
+
+document.getElementById("btnMulaiScan").addEventListener("click", mulaiScan);
+loadDrivers();
+</script>
+</body>
+</html>
