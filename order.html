@@ -134,6 +134,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   <button class="tbtn on" id="tab-form" onclick="goTab('form',this)">➕ Order Baru</button>
   <button class="tbtn" id="tab-revisi" onclick="goTab('revisi',this)">✏️ Revisi</button>
   <button class="tbtn" id="tab-jadwal" onclick="goTab('jadwal',this)">📅 Jadwal</button>
+  <button class="tbtn" id="tab-pelanggan" onclick="goTab('pelanggan',this)">👥 Pelanggan</button>
 </div>
 <div class="ovl hide" id="ovl"><div class="sp"></div><span id="ovl-msg">Memproses…</span></div>
 <div class="toast" id="toast"></div>
@@ -303,6 +304,15 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   <div id="jw"><div class="empty"><div class="eico">📅</div><p>Klik Refresh untuk memuat jadwal.</p></div></div>
 </div>
 
+<!-- ═══ PELANGGAN ═══ -->
+<div class="panel" id="panel-pelanggan">
+  <div class="lbar">
+    <input id="pel-search" type="text" placeholder="Cari nama / instansi / no. HP…" oninput="renderPelangganList()">
+    <button class="bico" onclick="loadCustomers().then(renderPelangganList)">↻ Refresh</button>
+  </div>
+  <div id="pel-list"></div>
+</div>
+
 </main>
 
 <!-- MODAL CUSTOMER -->
@@ -330,6 +340,37 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     </div>
     <div class="fld"><label>Alamat</label><textarea id="nc-alamat" placeholder="Alamat lengkap…" style="min-height:52px;"></textarea></div>
     <button class="bsub" id="btn-save-cust" onclick="saveNewCustomer()" style="margin-top:8px;">💾 Simpan Customer</button>
+  </div>
+</div>
+
+<!-- MODAL EDIT CUSTOMER (dari tab Pelanggan) -->
+<div class="modal-bg hide" id="cust-edit-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>✏️ Edit Customer</h2>
+      <button class="modal-close" onclick="closeCustEditModal()">×</button>
+    </div>
+    <input id="ce-id" type="hidden">
+    <div class="g2">
+      <div class="fld"><label>Nama <span class="req">*</span></label><input id="ce-nama" type="text" placeholder="Nama lengkap"></div>
+      <div class="fld"><label>Gender</label>
+        <select id="ce-gender"><option value="">— Pilih —</option><option value="bu">Bu</option><option value="bp.">Bp.</option><option value="kak">Kak</option><option value="mba">Mba</option></select>
+      </div>
+    </div>
+    <div class="g2">
+      <div class="fld"><label>Nama Instansi/Perusahaan</label><input id="ce-instansi" type="text" placeholder="PT / Yayasan / dll"></div>
+      <div class="fld"><label>Tipe Instansi</label>
+        <select id="ce-tipe"><option value="">— Pilih —</option><option>Pemerintah</option><option>Swasta</option><option>BUMN</option><option>Personal</option><option>NGO</option></select>
+      </div>
+    </div>
+    <div class="g2">
+      <div class="fld"><label>No. HP</label><input id="ce-hp" type="tel" readonly style="background:#f5f0ea;"></div>
+      <div class="fld"><label>Nama Sales</label><input id="ce-sales" type="text" placeholder="Nama sales"></div>
+    </div>
+    <div class="fld"><label>Alamat</label><textarea id="ce-alamat" placeholder="Alamat lengkap…" style="min-height:52px;"></textarea></div>
+    <div class="fld"><label>Koordinat</label><input id="ce-koordinat" type="text" placeholder="1.123456,104.567890"></div>
+    <div style="font-size:11px;color:var(--inks);margin-top:-6px;margin-bottom:10px;">No. HP tidak bisa diubah di sini (dipakai sebagai ID). Hubungi developer kalau perlu ganti no. HP customer.</div>
+    <button class="bsub" id="btn-save-cust-edit" onclick="saveEditCustomer()">💾 Simpan Perubahan</button>
   </div>
 </div>
 
@@ -863,6 +904,7 @@ function retryLogin(){
 function applyKaryawanAccess(){
   document.getElementById('tab-form').classList.add('hide');
   document.getElementById('tab-revisi').classList.add('hide');
+  document.getElementById('tab-pelanggan').classList.add('hide');
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('on'));
   document.getElementById('panel-jadwal').classList.add('on');
@@ -1311,6 +1353,93 @@ async function saveNewCustomer(){
   finally{btn.disabled=false;btn.textContent='💾 Simpan Customer';}
 }
 
+// ══ TAB PELANGGAN — lihat/cari/edit customer ═══
+function renderPelangganList(){
+  const list = document.getElementById('pel-list');
+  if(!list) return;
+  const q = (document.getElementById('pel-search')?.value||'').toLowerCase().trim();
+  let filtered = CUSTOMERS;
+  if(q){
+    filtered = CUSTOMERS.filter(c =>
+      (c.nama||'').toLowerCase().includes(q) ||
+      (c.nama_instansi||'').toLowerCase().includes(q) ||
+      (c.no_hp||'').toLowerCase().includes(q) ||
+      (c.alamat||'').toLowerCase().includes(q)
+    );
+  }
+  if(!filtered.length){
+    list.innerHTML = '<div class="empty"><div class="eico">👥</div><p>Tidak ada customer ditemukan.</p></div>';
+    return;
+  }
+  const sorted = filtered.slice().sort((a,b)=>(a.nama||'').localeCompare(b.nama||''));
+  list.innerHTML = sorted.map(c => `
+    <div class="ocard" onclick="openCustEditModal('${c.id}')" style="cursor:pointer;">
+      <div class="och">
+        <div>
+          <div class="ono" style="font-size:14px;">${c.nama||'—'}</div>
+          <div class="odt">${c.nama_instansi||''}</div>
+        </div>
+        ${c.koordinat ? '<span class="badge bs">📍 Ada Koordinat</span>' : '<span class="badge bp">Belum Ada Koordinat</span>'}
+      </div>
+      <div class="obody">
+        📱 ${c.no_hp||'—'} · ${c.instansi||'—'}${c.sales?' · Sales: '+c.sales:''}<br>
+        📍 ${c.alamat||'—'}
+      </div>
+    </div>
+  `).join('');
+}
+
+function openCustEditModal(id){
+  const c = CUSTOMERS.find(x => x.id === id);
+  if(!c) return;
+  document.getElementById('ce-id').value = c.id;
+  document.getElementById('ce-nama').value = c.nama||'';
+  document.getElementById('ce-gender').value = c.gender||'';
+  document.getElementById('ce-instansi').value = c.nama_instansi||'';
+  document.getElementById('ce-tipe').value = c.instansi||'';
+  document.getElementById('ce-hp').value = c.no_hp||'';
+  document.getElementById('ce-sales').value = c.sales||'';
+  document.getElementById('ce-alamat').value = c.alamat||'';
+  document.getElementById('ce-koordinat').value = c.koordinat||'';
+  document.getElementById('cust-edit-modal').classList.remove('hide');
+}
+function closeCustEditModal(){
+  document.getElementById('cust-edit-modal').classList.add('hide');
+}
+async function saveEditCustomer(){
+  const id = document.getElementById('ce-id').value;
+  const nama = document.getElementById('ce-nama').value.trim();
+  if(!nama) return toast('Nama wajib diisi.','err');
+  const btn = document.getElementById('btn-save-cust-edit');
+  btn.disabled = true; btn.textContent = 'Menyimpan…';
+  const data = {
+    id,
+    sales: document.getElementById('ce-sales').value.trim(),
+    gender: document.getElementById('ce-gender').value,
+    nama,
+    nama_instansi: document.getElementById('ce-instansi').value.trim(),
+    no_hp: document.getElementById('ce-hp').value.trim(),
+    instansi: document.getElementById('ce-tipe').value,
+    alamat: document.getElementById('ce-alamat').value.trim(),
+    koordinat: document.getElementById('ce-koordinat').value.trim(),
+  };
+  try{
+    const qs = new URLSearchParams({action:'updateCustomer', ...data}).toString();
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message || 'Gagal menyimpan perubahan.');
+    const idx = CUSTOMERS.findIndex(c => c.id === id);
+    if(idx >= 0) CUSTOMERS[idx] = {...CUSTOMERS[idx], ...data};
+    cSet('alima_custs', CUSTOMERS);
+    renderPelangganList();
+    toast('Customer diperbarui ✓','ok');
+    closeCustEditModal();
+  }catch(e){
+    toast('Gagal: '+e.message,'err');
+  }finally{
+    btn.disabled=false; btn.textContent='💾 Simpan Perubahan';
+  }
+}
+
 // ══ GPS ═══════════════════════════════
 function getGPS(){
   if(!navigator.geolocation)return toast('GPS tidak tersedia.','err');
@@ -1680,6 +1809,7 @@ function goTab(id,btn){
   document.getElementById('panel-'+id).classList.add('on');
   btn.classList.add('on');
   if(id==='jadwal'){ if(allOrders.length===0) loadOrders().then(renderJadwal); else renderJadwal(); }
+  if(id==='pelanggan'){ renderPelangganList(); }
 }
 function resetForm(){
   ['f-cid','f-gol','f-produk','f-qty','f-hjual','f-fee','f-hksm','f-hmin','f-del','f-ket','f-pen','f-hp','f-adr','f-krd','f-inv-bayar','f-mirip','f-jam'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
