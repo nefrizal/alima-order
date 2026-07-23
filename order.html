@@ -264,8 +264,13 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     <div class="fld"><label>Alamat Pengiriman</label><textarea id="f-adr" placeholder="Alamat lengkap…" style="min-height:52px;"></textarea></div>
     <div class="fld">
       <label>Koordinat (opsional)</label>
-      <input id="f-krd" type="text" placeholder="1.123456,104.567890">
+      <input id="f-krd" type="text" placeholder="1.123456,104.567890" readonly style="background:#f5f0ea;">
+      <div style="display:flex;gap:6px;margin-top:6px;">
+        <input id="f-maplink" type="text" placeholder="Tempel link share-loc Google Maps di sini…" style="flex:1;">
+        <button class="gps-btn" type="button" onclick="ambilDariLink()" style="white-space:nowrap;">🔗 Ambil</button>
+      </div>
       <button class="gps-btn" type="button" onclick="getGPS()">📍 Gunakan Lokasi Saya</button>
+      <div id="krd-status" style="font-size:11px;color:var(--inks);margin-top:4px;"></div>
     </div>
   </div>
 
@@ -1249,6 +1254,17 @@ function selectCust(id){
   pen.value  = c.nama||'';
   fhp.value  = c.no_hp||'';
   fadr.value = c.alamat||'';
+  const fkrd = document.getElementById('f-krd');
+  const krdStatus = document.getElementById('krd-status');
+  if (c.koordinat) {
+    fkrd.value = c.koordinat;
+    krdStatus.textContent = '✓ Koordinat tersimpan dari order sebelumnya';
+    krdStatus.style.color = 'var(--grn)';
+  } else {
+    fkrd.value = '';
+    krdStatus.textContent = 'Belum ada koordinat tersimpan — minta share-loc WA ke customer kalau alamat baru/beda';
+    krdStatus.style.color = 'var(--inks)';
+  }
   const info = document.getElementById('cust-info');
   info.style.display = 'block';
   info.innerHTML = `<strong>${c.nama}</strong>${c.nama_instansi?' · '+c.nama_instansi:''}<br>📱 ${c.no_hp||'—'} · ${c.instansi||'—'}<br>📍 ${c.alamat||'—'}`;
@@ -1298,7 +1314,69 @@ async function saveNewCustomer(){
 // ══ GPS ═══════════════════════════════
 function getGPS(){
   if(!navigator.geolocation)return toast('GPS tidak tersedia.','err');
-  navigator.geolocation.getCurrentPosition(p=>{document.getElementById('f-krd').value=`${p.coords.latitude.toFixed(6)},${p.coords.longitude.toFixed(6)}`;toast('Koordinat didapat ✓','ok');},()=>toast('Tidak bisa akses GPS.','err'));
+  navigator.geolocation.getCurrentPosition(p=>{
+    document.getElementById('f-krd').value=`${p.coords.latitude.toFixed(6)},${p.coords.longitude.toFixed(6)}`;
+    document.getElementById('krd-status').textContent='📍 Koordinat dari lokasi HP saat ini';
+    document.getElementById('krd-status').style.color='var(--grn)';
+    toast('Koordinat didapat ✓','ok');
+  },()=>toast('Tidak bisa akses GPS.','err'));
+}
+
+// Ekstrak lat,lng dari berbagai format link Google Maps.
+// Contoh yang didukung:
+//   https://maps.google.com/?q=1.045,104.049
+//   https://www.google.com/maps/search/Nama/@1.045,104.049,17z
+//   https://www.google.com/maps/place/.../@1.045,104.049,17z/data=!...!3d1.045!4d104.049
+function extractKoordinatDariLink(url){
+  if(!url) return null;
+  let m = url.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/); // presisi tertinggi (link place/@)
+  if(m) return `${m[1]},${m[2]}`;
+  m = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if(m) return `${m[1]},${m[2]}`;
+  m = url.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if(m) return `${m[1]},${m[2]}`;
+  m = url.match(/^\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)\s*$/); // kalau user paste angka langsung
+  if(m) return `${m[1]},${m[2]}`;
+  return null;
+}
+
+function ambilDariLink(){
+  const link = document.getElementById('f-maplink').value.trim();
+  const status = document.getElementById('krd-status');
+  if(!link) return toast('Tempel link Google Maps dulu.','err');
+
+  if(/maps\.app\.goo\.gl|goo\.gl\/maps/.test(link)){
+    status.textContent = '⚠️ Link pendek belum didukung — buka link-nya dulu di browser, lalu copy link penuh dari address bar.';
+    status.style.color = 'var(--red)';
+    return toast('Link pendek belum bisa dibaca langsung.','err');
+  }
+
+  const koor = extractKoordinatDariLink(link);
+  if(!koor){
+    status.textContent = '❌ Koordinat tidak ditemukan di link ini.';
+    status.style.color = 'var(--red)';
+    return toast('Gagal baca koordinat dari link.','err');
+  }
+  document.getElementById('f-krd').value = koor;
+  status.textContent = '✓ Koordinat baru diambil dari link Maps';
+  status.style.color = 'var(--grn)';
+  toast('Koordinat berhasil diambil ✓','ok');
+}
+
+// Simpan koordinat baru ke data customer (supaya kepakai lagi utk order berikutnya),
+// hanya kalau koordinat di form beda dari yg sudah tersimpan.
+async function simpanKoordinatCustomerJikaBeda(customerId, koordinatBaru){
+  if(!customerId || !koordinatBaru) return;
+  const cust = CUSTOMERS.find(c => c.id === customerId || c.no_hp === customerId);
+  if(!cust) return;
+  if(cust.koordinat === koordinatBaru) return; // sudah sama, tidak perlu update
+
+  try{
+    const qs = new URLSearchParams({action:'updateCustomerKoordinat', id:cust.id, koordinat:koordinatBaru}).toString();
+    await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    cust.koordinat = koordinatBaru; // update cache lokal juga
+    cSet('alima_custs', CUSTOMERS);
+  }catch(e){ /* gagal simpan koordinat tidak menggagalkan submit order */ }
 }
 
 // ══ SUBMIT ════════════════════════════
@@ -1362,6 +1440,7 @@ async function submitOrder(){
       const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
       if (!j.success) { hideOvl(); toast(j.message || 'Order ditolak server.', 'err'); return; }
       // Order sudah tersimpan di titik ini. Kegagalan kirim WA di bawah TIDAK membatalkan order.
+      simpanKoordinatCustomerJikaBeda(d.customer_id, d.koordinat); // tidak di-await, tidak menunda flow
       updOvl('Mengirim notifikasi WhatsApp…');
       let waError = null;
       try {
