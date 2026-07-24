@@ -1853,17 +1853,15 @@ function renderJadwal(){
     });
 
     const dates = Object.keys(groups).sort(); // format yyyy-MM-dd -> urut string = urut tanggal
-    const besokStr = new Date(now.getTime()+86400000).toISOString().slice(0,10);
     w.innerHTML = dates.map(dt => {
       const rows = groups[dt].slice().sort((a,b) => (a.jam_sampai||'99:99').localeCompare(b.jam_sampai||'99:99'));
       const totalQty = rows.reduce((s,o) => s + (Number(o.qty)||0), 0);
       const rowsHtml = rows.map(o => {
-        const mepet = dt <= besokStr; // hari ini atau besok
         const bisaAssign = CURRENT_USER && isFullAccessRole(CURRENT_USER.role);
         const klikAttr = bisaAssign ? ` onclick="openAssignDriverModal('${o.no_order}', event)" style="cursor:pointer;"` : '';
         const driverBadge = o.driver
           ? `<span${klikAttr} style="font-size:9px;color:var(--grn);${bisaAssign?'cursor:pointer;text-decoration:underline;':''}">🚗 ${o.driver}</span>`
-          : (mepet ? `<span${klikAttr} style="font-size:9px;color:var(--red);font-weight:700;${bisaAssign?'cursor:pointer;text-decoration:underline;':''}">⚠️ Belum ada driver</span>` : '');
+          : `<span${klikAttr} style="font-size:9px;color:var(--red);font-weight:700;${bisaAssign?'cursor:pointer;text-decoration:underline;':''}">⚠️ Belum ada driver</span>`;
         return `
         <div class="jw-row">
           <div class="jw-jam">${o.jam_sampai||'—'}</div>
