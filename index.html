@@ -414,7 +414,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       <h2>📲 Kirim Notifikasi?</h2>
       <button class="modal-close" onclick="batalkanSimpanOrder()">×</button>
     </div>
-    <p style="font-size:13px;color:var(--inkm);line-height:1.6;margin-bottom:18px;">
+    <p id="notif-modal-text" style="font-size:13px;color:var(--inkm);line-height:1.6;margin-bottom:18px;">
       Order akan tetap disimpan. Notifikasi ke <strong>Sales</strong> akan selalu terkirim.<br><br>
       Kirim juga notifikasi WA konfirmasi order ke <strong>Customer</strong>?
     </p>
@@ -431,6 +431,23 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       <button class="modal-close" onclick="closeOrderDetail()">×</button>
     </div>
     <div id="od-body"><!-- diisi JS --></div>
+  </div>
+</div>
+
+<!-- MODAL QUICK ASSIGN DRIVER (dari tab Jadwal) -->
+<div class="modal-bg hide" id="assign-driver-modal">
+  <div class="modal" style="max-width:360px;">
+    <div class="modal-head">
+      <h2>🚗 Tentukan Driver</h2>
+      <button class="modal-close" onclick="closeAssignDriverModal()">×</button>
+    </div>
+    <p style="font-size:12px;color:var(--inks);margin-bottom:12px;">Order <strong id="ad-no-order"></strong></p>
+    <input id="ad-no-order-val" type="hidden">
+    <div class="fld">
+      <label>Driver</label>
+      <select id="ad-driver"><option value="">— Belum ditentukan —</option></select>
+    </div>
+    <button class="bsub" onclick="simpanAssignDriverModal()" style="margin-top:8px;">💾 Simpan</button>
   </div>
 </div>
 </div><!-- /app-content -->
@@ -1697,10 +1714,13 @@ async function submitOrder(){
     if(!d.jam_sampai){toast('Isi jam sampai.','err');btn.disabled=false;return;}
 
     if (isEdit) {
-      // Mode edit langsung disimpan, tidak perlu modal "kirim ke customer?"
-      // (revisi hanya diberi tahu ke grup WA internal, bukan blast ulang ke customer).
-      await prosesSimpanRevisi(d);
-      return;
+      document.getElementById('notif-modal-text').innerHTML =
+        `Revisi order <strong>${no}</strong> akan tetap disimpan. Ringkasan perubahan akan selalu terkirim ke grup WA internal.<br><br>` +
+        `Kirim juga notifikasi WA ke <strong>Customer</strong> bahwa ordernya direvisi?`;
+    } else {
+      document.getElementById('notif-modal-text').innerHTML =
+        `Order akan tetap disimpan. Notifikasi ke <strong>Sales</strong> akan selalu terkirim.<br><br>` +
+        `Kirim juga notifikasi WA konfirmasi order ke <strong>Customer</strong>?`;
     }
 
     // Validasi lolos — simpan data, tampilkan modal konfirmasi notifikasi.
@@ -1722,7 +1742,7 @@ function batalkanSimpanOrder(){
   if(btn) btn.disabled=false;
 }
 
-async function prosesSimpanRevisi(d){
+async function prosesSimpanRevisi(d, kirimKeCustomer){
   const btn = document.getElementById('btn-sub');
   showOvl('Menyimpan revisi…');
   try{
@@ -1733,26 +1753,27 @@ async function prosesSimpanRevisi(d){
     simpanKoordinatCustomerJikaBeda(d.customer_id, d.koordinat);
     gasFetch(APP.GAS_URL + '?' + new URLSearchParams({action:'assignDriver', no:d.no_order, driver:d.driver||''}).toString() + '&t=' + Date.now()).catch(()=>{});
 
+    updOvl('Mengirim notifikasi WhatsApp…');
     let waError = null;
-    if (!APP.FONNTE_TOKEN.includes('GANTI')) {
-      try {
-        const perubahan = bangunDaftarPerubahan_(EDIT_MODE_ORIGINAL_DATA||{}, d);
-        const daftarStr = perubahan.length ? perubahan.map(p=>'• '+p).join('\n') : '(tidak ada perubahan terdeteksi)';
-        const msg = `✏️ *REVISI ORDER — ${d.no_order}*\n\n${daftarStr}`;
-        await fPost(APP.WA_NOTIF, msg);
-      } catch(waErr) {
-        waError = waErr;
-        console.error('Gagal kirim notifikasi WA revisi (revisi tetap tersimpan):', waErr);
-      }
+    try {
+      const perubahan = bangunDaftarPerubahan_(EDIT_MODE_ORIGINAL_DATA||{}, d);
+      const daftarStr = perubahan.length ? perubahan.map(p=>'• '+p).join('\n') : '(tidak ada perubahan terdeteksi)';
+      const msg = `✏️ *REVISI ORDER — ${d.no_order}*\n\n${daftarStr}`;
+      await fPost(APP.WA_NOTIF, msg); // selalu ke grup internal
+      if (kirimKeCustomer && d.hp_penerima && d.hp_penerima.length>8) await sendWAKlien(d);
+    } catch(waErr) {
+      waError = waErr;
+      console.error('Gagal kirim notifikasi WA revisi (revisi tetap tersimpan):', waErr);
     }
     hideOvl();
     if (waError) {
       toast(`Revisi ${d.no_order} TERSIMPAN ✓, tapi WA gagal terkirim (${waError.message}).`,'err');
     } else {
-      toast(`Revisi ${d.no_order} tersimpan! ✓`,'ok');
+      toast(`Revisi ${d.no_order} tersimpan! ✓${kirimKeCustomer?' Notifikasi ke customer terkirim.':''}`,'ok');
     }
     const idx = allOrders.findIndex(o => String(o.no_order)===String(d.no_order));
     if (idx>=0) allOrders[idx] = {...allOrders[idx], ...d};
+    PENDING_ORDER_DATA = null;
     batalEditOrder(); // keluar dari mode edit, form kembali ke kondisi "order baru"
   }catch(e){
     hideOvl();toast('Gagal menyimpan revisi: '+e.message,'err');console.error(e);
@@ -1765,6 +1786,10 @@ async function prosesSimpanOrder(kirimKeCustomer){
   const btn = document.getElementById('btn-sub');
   document.getElementById('notif-confirm-modal').classList.add('hide');
   if(!d){ if(btn) btn.disabled=false; return; }
+
+  if (d.status === 'Revisi') {
+    return prosesSimpanRevisi(d, kirimKeCustomer);
+  }
 
   showOvl('Menyimpan ke Google Sheets…');
   try{
@@ -1833,11 +1858,12 @@ function renderJadwal(){
       const rows = groups[dt].slice().sort((a,b) => (a.jam_sampai||'99:99').localeCompare(b.jam_sampai||'99:99'));
       const totalQty = rows.reduce((s,o) => s + (Number(o.qty)||0), 0);
       const rowsHtml = rows.map(o => {
-        const belumAdaDriver = !o.driver;
         const mepet = dt <= besokStr; // hari ini atau besok
+        const bisaAssign = CURRENT_USER && isFullAccessRole(CURRENT_USER.role);
+        const klikAttr = bisaAssign ? ` onclick="openAssignDriverModal('${o.no_order}', event)" style="cursor:pointer;"` : '';
         const driverBadge = o.driver
-          ? `<span style="font-size:9px;color:var(--grn);">🚗 ${o.driver}</span>`
-          : (mepet ? `<span style="font-size:9px;color:var(--red);font-weight:700;">⚠️ Belum ada driver</span>` : '');
+          ? `<span${klikAttr} style="font-size:9px;color:var(--grn);${bisaAssign?'cursor:pointer;text-decoration:underline;':''}">🚗 ${o.driver}</span>`
+          : (mepet ? `<span${klikAttr} style="font-size:9px;color:var(--red);font-weight:700;${bisaAssign?'cursor:pointer;text-decoration:underline;':''}">⚠️ Belum ada driver</span>` : '');
         return `
         <div class="jw-row">
           <div class="jw-jam">${o.jam_sampai||'—'}</div>
@@ -2324,6 +2350,42 @@ function openOrderDetail(no){
 }
 function closeOrderDetail(){
   document.getElementById('order-detail-modal').classList.add('hide');
+}
+
+// ══ QUICK ASSIGN DRIVER (dari tab Jadwal) — khusus role admin/sales ══
+function openAssignDriverModal(noOrder, ev){
+  if (ev) ev.stopPropagation();
+  if (!CURRENT_USER || !isFullAccessRole(CURRENT_USER.role)) return;
+
+  const o = allOrders.find(x => String(x.no_order) === String(noOrder));
+  document.getElementById('ad-no-order').textContent = noOrder;
+  document.getElementById('ad-no-order-val').value = noOrder;
+
+  const sel = document.getElementById('ad-driver');
+  sel.innerHTML = '<option value="">— Belum ditentukan —</option>' +
+    DRIVERS_LIST.map(d => `<option value="${d.nama}">${d.nama}</option>`).join('');
+  sel.value = (o && o.driver) || '';
+
+  document.getElementById('assign-driver-modal').classList.remove('hide');
+}
+function closeAssignDriverModal(){
+  document.getElementById('assign-driver-modal').classList.add('hide');
+}
+async function simpanAssignDriverModal(){
+  const no = document.getElementById('ad-no-order-val').value;
+  const driver = document.getElementById('ad-driver').value;
+  try{
+    const qs = new URLSearchParams({action:'assignDriver', no, driver}).toString();
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message || 'Gagal menyimpan driver.');
+    const o = allOrders.find(x => String(x.no_order) === String(no));
+    if(o) o.driver = driver;
+    closeAssignDriverModal();
+    renderJadwal();
+    toast(driver ? `Driver ${driver} ditentukan untuk order ${no} ✓` : `Driver order ${no} dikosongkan.`,'ok');
+  }catch(e){
+    toast('Gagal: '+e.message,'err');
+  }
 }
 
 async function updStatus(no,st){
