@@ -136,8 +136,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   </div>
 </header>
 <div class="tabs">
-  <button class="tbtn on" id="tab-form" onclick="goTab('form',this)">➕ Order Baru</button>
-  <button class="tbtn" id="tab-revisi" onclick="goTab('revisi',this)">✏️ Revisi</button>
+  <button class="tbtn on" id="tab-form" onclick="goTab('form',this)">📝 Order</button>
   <button class="tbtn" id="tab-jadwal" onclick="goTab('jadwal',this)">📅 Jadwal</button>
   <button class="tbtn" id="tab-masak" onclick="goTab('masak',this)">🍳 Masak</button>
   <button class="tbtn" id="tab-grafik" onclick="goTab('grafik',this)">📊 Grafik</button>
@@ -149,6 +148,24 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 
 <!-- ═══ FORM ═══ -->
 <div class="panel on" id="panel-form">
+
+  <!-- Cari & Edit Order -->
+  <div class="sec">
+    <div class="stitle">🔍 Edit Order Lama (opsional)</div>
+    <div style="display:flex;gap:8px;align-items:flex-end;">
+      <div class="fld" style="flex:1;margin:0;">
+        <label>Nomor Order</label>
+        <input id="edit-search-no" type="text" placeholder="Contoh: 010401" onkeydown="if(event.key==='Enter'){event.preventDefault();cariOrderUntukEdit();}">
+      </div>
+      <button onclick="cariOrderUntukEdit()" class="bico" style="height:40px;padding:0 16px;">🔍 Cari</button>
+    </div>
+    <div id="edit-search-status" style="margin-top:10px;font-size:12px;color:var(--inks);"></div>
+  </div>
+
+  <div id="edit-mode-badge" style="display:none;background:var(--orl);border:1px solid #f7d4bc;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--ord);font-weight:600;">
+    ✏️ Mode edit order <strong id="edit-mode-no"></strong> — perubahan akan menimpa order ini, bukan bikin order baru
+    <button type="button" onclick="batalEditOrder()" style="float:right;background:none;border:none;color:var(--ord);text-decoration:underline;cursor:pointer;font-size:11px;">Batal, buat order baru</button>
+  </div>
 
   <!-- Identitas -->
   <div class="sec">
@@ -280,27 +297,14 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       </div>
       <button class="gps-btn" type="button" onclick="getGPS()">📍 Gunakan Lokasi Saya</button>
     </div>
-  </div>
-
-  <button class="bsub" id="btn-sub" onclick="submitOrder()">💾 Simpan Order &amp; Kirim Notifikasi WA</button>
-</div>
-
-<!-- ═══ REVISI ═══ -->
-<div class="panel" id="panel-revisi">
-  <div class="sec">
-    <div class="stitle">✏️ Revisi Order</div>
-    <div style="display:flex;gap:8px;align-items:flex-end;">
-      <div class="fld" style="flex:1;margin:0;">
-        <label>Nomor Order</label>
-        <input id="rev-no" type="text" placeholder="Contoh: 010401" style="text-transform:uppercase;">
-      </div>
-      <button onclick="loadOrderForRevisi()" class="bico" style="height:40px;padding:0 16px;">🔍 Cari</button>
+    <div class="fld">
+      <label>Driver</label>
+      <select id="f-driver" onchange="cekWarningDriver()"><option value="">— Belum ditentukan —</option></select>
+      <div id="driver-warning" style="font-size:11px;color:var(--red);margin-top:4px;display:none;">⚠️ Tanggal kirim kurang dari H-1, driver sebaiknya segera ditentukan.</div>
     </div>
-    <div id="rev-status" style="margin-top:10px;font-size:12px;color:var(--inks);"></div>
   </div>
-  <div id="rev-form" style="display:none;">
-    <!-- Form revisi diisi JS -->
-  </div>
+
+  <button class="bsub" id="btn-sub" onclick="submitOrder()">💾 Simpan Order Baru &amp; Kirim Notifikasi WA</button>
 </div>
 
 <!-- ═══ JADWAL ═══ -->
@@ -575,31 +579,7 @@ function setSelectValueCocok_(sel, val){
   }
 }
 
-async function cloneOrder() {
-  const no   = document.getElementById('f-mirip').value.trim();
-  const stat = document.getElementById('mirip-status');
-  if (!no) { toast('Isi nomor order dulu.','err'); return; }
-
-  stat.textContent = '⏳ Mencari…';
-
-  // Cari di allOrders dulu (instant) — baru fetch GAS kalau tidak ada
-  let d = allOrders.find(o => String(o.no_order||'').trim() === no);
-
-  if (!d) {
-    try {
-      const j = await gasFetch(APP.GAS_URL + '?action=getOrderByNo&no=' + encodeURIComponent(no) + '&t=' + Date.now());
-      if (!j.success) throw new Error(j.message || 'Tidak ditemukan');
-      d = j.data;
-    } catch(e) {
-      stat.innerHTML = `❌ ${e.message}`;
-      toast(e.message,'err');
-      return;
-    }
-  }
-
-    // ── Fill identitas ──
-    // bulan dihitung otomatis dari tanggal kirim
-
+async function muatDataKeForm(d) {
     // Customer — cari di CUSTOMERS lalu set search
     const custId = d.customer_id||'';
     const cust   = CUSTOMERS.find(c => c.no_hp === custId);
@@ -611,16 +591,18 @@ async function cloneOrder() {
       info.style.display='block';
       info.innerHTML=`<strong>${cust.nama}</strong>${cust.nama_instansi?' · '+cust.nama_instansi:''}<br>📱 ${cust.no_hp||'—'} · ${cust.instansi||'—'}<br>📍 ${cust.alamat||'—'}`;
     } else if (custId) {
-      // Data customer belum ter-load di cache lokal (mis. Order Mirip dipakai sebelum daftar
-      // customer selesai fetch) — tetap isi ID mentahnya supaya tidak hilang begitu saja.
+      // Data customer belum ter-load di cache lokal — tetap isi ID mentahnya supaya tidak hilang begitu saja.
       document.getElementById('f-cid').value = custId;
       document.getElementById('f-cid-search').value = custId;
       toast('Data customer belum lengkap ter-load, cek ulang field Customer.','err');
     }
 
-    // Sales & Tim
+    // Sales
     if (d.nama_sales||d.sales) document.getElementById('f-sales').value = d.nama_sales||d.sales||'';
-    if (d.tim_eksekusi||d.tim) { /* tim dihapus */ }
+
+    // Driver
+    const fdriver = document.getElementById('f-driver');
+    if (fdriver) fdriver.value = d.driver||'';
 
     // ── Produk & Paket ──
     // Produk tidak lagi disimpan di sheet (hanya alat bantu UI) — cari kategori produk
@@ -674,9 +656,34 @@ async function cloneOrder() {
       setSelectValueCocok_(sel, val);
     });
     syncPilihanSearchLabels();
+}
 
-    stat.innerHTML = `✅ Data dari order <strong>${no}</strong> berhasil disalin. Edit kolom yang berbeda lalu simpan.`;
-    toast('Order disalin! ✓','ok');
+async function cloneOrder() {
+  const no   = document.getElementById('f-mirip').value.trim();
+  const stat = document.getElementById('mirip-status');
+  if (!no) { toast('Isi nomor order dulu.','err'); return; }
+
+  stat.textContent = '⏳ Mencari…';
+
+  // Cari di allOrders dulu (instant) — baru fetch GAS kalau tidak ada
+  let d = allOrders.find(o => String(o.no_order||'').trim() === no);
+
+  if (!d) {
+    try {
+      const j = await gasFetch(APP.GAS_URL + '?action=getOrderByNo&no=' + encodeURIComponent(no) + '&t=' + Date.now());
+      if (!j.success) throw new Error(j.message || 'Tidak ditemukan');
+      d = j.data;
+    } catch(e) {
+      stat.innerHTML = `❌ ${e.message}`;
+      toast(e.message,'err');
+      return;
+    }
+  }
+
+  await muatDataKeForm(d);
+
+  stat.innerHTML = `✅ Data dari order <strong>${no}</strong> berhasil disalin. Edit kolom yang berbeda lalu simpan.`;
+  toast('Order disalin! ✓','ok');
 }
 
 function waitForEl(id, timeout=2000) {
@@ -690,115 +697,6 @@ function waitForEl(id, timeout=2000) {
     };
     check();
   });
-}
-let revisiData = null; // data order yang sedang direvisi
-
-async function loadOrderForRevisi() {
-  const no    = document.getElementById('rev-no').value.trim();
-  const stat  = document.getElementById('rev-status');
-  const form  = document.getElementById('rev-form');
-  if (!no) { toast('Isi nomor order dulu.','err'); return; }
-
-  stat.innerHTML = '⏳ Mencari order…';
-  form.style.display = 'none';
-
-  try {
-    const j = await gasFetch(APP.GAS_URL + '?action=getOrderByNo&no=' + encodeURIComponent(no) + '&t=' + Date.now());
-    if (!j.success) throw new Error(j.message || 'Tidak ditemukan');
-    revisiData = j.data;
-    stat.innerHTML = `✅ Order ditemukan: <strong>${no}</strong> · ${revisiData.produk||''} ${revisiData.paket||''} · ${revisiData.qty||''} pax`;
-    renderRevisiForm(revisiData);
-    form.style.display = 'block';
-  } catch(e) {
-    stat.innerHTML = `❌ ${e.message}`;
-    form.style.display = 'none';
-  }
-}
-
-function renderRevisiForm(d) {
-  const form = document.getElementById('rev-form');
-  // Ambil nilai menu dari data
-  const menuFields = [
-    ['nasi','Nasi',d.nasi],['lauk_utama','Lauk Utama',d.lauk_utama],
-    ['tambahan','Tambahan',d.tambahan],['sayur','Sayur',d.sayur],
-    ['sambal','Sambal',d.sambal],['kerupuk','Kerupuk',d.kerupuk],
-    ['buah','Buah',d.buah],['air_mineral','Air Mineral',d.air_mineral],
-    ['kemasan','Kemasan',d.kemasan],['lain1','Pilihan 1',d.pilihan_lain_1],
-    ['lain2','Pilihan 2',d.pilihan_lain_2],['lain3','Pilihan 3',d.pilihan_lain_3],
-    ['lain4','Pilihan 4',d.pilihan_lain_4],['lain5','Pilihan 5',d.pilihan_lain_5],
-    ['puding','Puding',d.puding],['minuman','Minuman',d.minuman],['snack','Snack',d.snack]
-  ];
-
-  const menuHTML = menuFields.map(([fk, lbl, val]) => {
-    const opts = (MENU_DATA||EMBEDDED_MENU)[Object.keys(MENU_KEY_MAP).find(k=>MENU_KEY_MAP[k]===fk)] || [];
-    const optsHTML = ['—',...opts].map(o =>
-      `<option value="${o==='—'?'':o}" ${(val||'')===(o==='—'?'':o)?'selected':''}>${o}</option>`
-    ).join('');
-    return `<div class="fld"><label>${lbl}</label><select id="rv-${fk}">${optsHTML}</select></div>`;
-  }).join('');
-
-  form.innerHTML = `
-    <div class="sec">
-      <div class="stitle">📋 Data Order</div>
-      <div class="g2">
-        <div class="fld"><label>Tanggal Kirim</label>
-          <input id="rv-tgl" type="date" value="${d.tanggal_kirim||d.tgl_kirim||''}"></div>
-        <div class="fld"><label>Jam Sampai</label>
-          <input id="rv-jam" type="time" value="${d.jam_sampai||''}"></div>
-      </div>
-      <div class="g3">
-        <div class="fld"><label>Qty (pax)</label>
-          <input id="rv-qty" type="number" value="${d.qty||''}" oninput="recalcRev()"></div>
-        <div class="fld"><label>Harga Jual (rb)</label>
-          <input id="rv-hjual" type="number" value="${d.harga_jual_dlm_ribuan||d.harga_jual||''}" oninput="recalcRev()"></div>
-        <div class="fld"><label>Fee Broker (rb)</label>
-          <input id="rv-fee" type="number" value="${d.fee_jasa_broker||d.fee_broker||0}" oninput="recalcRev()"></div>
-      </div>
-      <div class="g2">
-        <div class="fld"><label>Delivery Charge (Rp)</label>
-          <input id="rv-del" type="number" value="${d.delivery_charge||d.delivery||0}" oninput="recalcRev()"></div>
-        <div class="fld"><label>Harga untuk KSM (rb)</label>
-          <input id="rv-hksm" type="number" readonly value="${d.harga_untuk_ksm||d.harga_ksm||''}"></div>
-      </div>
-      <div class="pstrip" id="rv-strip">
-        <div class="prow"><span>Jumlah Total</span><span id="rv-tot">Rp ${Number(d.jumlah_total||0).toLocaleString('id-ID')}</span></div>
-      </div>
-    </div>
-    <div class="sec">
-      <div class="stitle">🚚 Pengiriman</div>
-      <div class="g2">
-        <div class="fld"><label>Nama Penerima</label>
-          <input id="rv-pen" type="text" value="${d.nama_penerima||d.penerima||''}"></div>
-        <div class="fld"><label>No. HP Penerima</label>
-          <input id="rv-hp" type="tel" value="${d.no_hp_penerima||d.hp_penerima||''}"></div>
-      </div>
-      <div class="fld"><label>Alamat</label>
-        <textarea id="rv-adr" style="min-height:52px;">${d.alamat_pengiriman||d.alamat||''}</textarea></div>
-    </div>
-    <div class="sec">
-      <div class="stitle">🥘 Komposisi Menu</div>
-      <div class="mgrid">${menuHTML}</div>
-      <div class="fld" style="margin-top:10px;"><label>Keterangan</label>
-        <textarea id="rv-ket" style="min-height:52px;">${d.keterangan||''}</textarea></div>
-    </div>
-    <div style="display:flex;gap:10px;margin-top:4px;">
-      <button class="bsub" id="btn-sub-rev" onclick="submitRevisi()" style="flex:1;">💾 Simpan Revisi</button>
-      <button onclick="document.getElementById('rev-form').style.display='none';revisiData=null;"
-        style="background:var(--redl);color:var(--red);border:1.5px solid var(--red);border-radius:var(--r);padding:14px 16px;font-weight:600;cursor:pointer;">Batal</button>
-    </div>`;
-}
-
-function recalcRev() {
-  const qty  = parseFloat(document.getElementById('rv-qty')?.value)||0;
-  const hjl  = parseFloat(document.getElementById('rv-hjual')?.value)||0;
-  const fee  = parseFloat(document.getElementById('rv-fee')?.value)||0;
-  const del  = parseFloat(document.getElementById('rv-del')?.value)||0;
-  const hksm = Math.max(0, hjl-fee);
-  const tot  = qty*hksm*1000 + del;
-  const hksmEl = document.getElementById('rv-hksm');
-  const totEl  = document.getElementById('rv-tot');
-  if (hksmEl) hksmEl.value = hksm||'';
-  if (totEl)  totEl.textContent = 'Rp '+tot.toLocaleString('id-ID');
 }
 
 // Bandingkan data order sebelum & sesudah revisi, hasilkan daftar field yang berubah saja.
@@ -835,75 +733,6 @@ function bangunDaftarPerubahan_(lama, baru) {
   return perubahan;
 }
 
-async function submitRevisi() {
-  if (!revisiData) return;
-  const btn = document.getElementById('btn-sub-rev');
-  if (btn && btn.disabled) return; // cegah submit dobel (double-tap)
-  if (btn) btn.disabled = true;
-  try {
-  const qty   = parseFloat(document.getElementById('rv-qty')?.value)||0;
-  const hjl   = parseFloat(document.getElementById('rv-hjual')?.value)||0;
-  const fee   = parseFloat(document.getElementById('rv-fee')?.value)||0;
-  const del   = parseFloat(document.getElementById('rv-del')?.value)||0;
-  const hksm  = Math.max(0,hjl-fee);
-  const jml   = qty*hksm*1000;
-  const tot   = jml+del;
-
-  const menuKeys = ['nasi','lauk_utama','tambahan','sayur','sambal','kerupuk','buah',
-    'air_mineral','kemasan','lain1','lain2','lain3','lain4','lain5','puding','minuman','snack'];
-  const menuVals = {};
-  menuKeys.forEach(k => { menuVals[k] = document.getElementById('rv-'+k)?.value||''; });
-
-  const d = {
-    ...revisiData,
-    tgl_kirim:  document.getElementById('rv-tgl')?.value||'',
-    jam_sampai: document.getElementById('rv-jam')?.value||'',
-    qty, harga_jual:hjl, fee_broker:fee, harga_ksm:hksm,
-    jumlah:jml, delivery:del, jumlah_total:tot,
-    penerima:   document.getElementById('rv-pen')?.value||'',
-    hp_penerima:document.getElementById('rv-hp')?.value||'',
-    alamat:     document.getElementById('rv-adr')?.value||'',
-    keterangan: document.getElementById('rv-ket')?.value||'',
-    ...menuVals,
-    status: 'Revisi'
-  };
-
-  showOvl('Menyimpan revisi…');
-  try {
-    const qs = new URLSearchParams({action:'updateOrder', ...d}).toString();
-    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
-    if (!j.success) { hideOvl(); toast(j.message || 'Revisi ditolak server.', 'err'); return; }
-    // Revisi sudah tersimpan di titik ini. Kegagalan kirim WA di bawah TIDAK membatalkan revisi.
-    let waError = null;
-    if (!APP.FONNTE_TOKEN.includes('GANTI')) {
-      try {
-        const perubahan = bangunDaftarPerubahan_(revisiData, d);
-        const daftarStr = perubahan.length ? perubahan.map(p=>'• '+p).join('\n') : '(tidak ada perubahan terdeteksi)';
-        const msg = `✏️ *REVISI ORDER — ${d.no_order}*\n\n${daftarStr}`;
-        await fPost(APP.WA_NOTIF, msg);
-      } catch(waErr) {
-        waError = waErr;
-        console.error('Gagal kirim notifikasi WA revisi (revisi tetap tersimpan):', waErr);
-      }
-    }
-    hideOvl();
-    if (waError) {
-      toast(`Revisi ${d.no_order} TERSIMPAN ✓, tapi WA gagal terkirim (${waError.message}).`,'err');
-    } else {
-      toast(`Revisi ${d.no_order} tersimpan! ✓`,'ok');
-    }
-    document.getElementById('rev-form').style.display='none';
-    document.getElementById('rev-status').innerHTML='';
-    document.getElementById('rev-no').value='';
-    revisiData=null;
-  } catch(e) {
-    hideOvl();
-    toast('Gagal menyimpan revisi: '+e.message,'err');
-  }
-  } finally {
-    if (btn) btn.disabled = false;
-  }
-}
 // ══ CACHE (in-memory) ═════════════════
 const MEM = {};
 function cSet(k,v){ MEM[k]=v; }
@@ -935,6 +764,7 @@ function initAppContent(){
   loadCustomers();
   loadSalesData();
   loadMasterFromGAS();
+  loadDrivers();
   checkConn();
 }
 
@@ -1019,7 +849,6 @@ function retryLogin(){
 // Karyawan hanya boleh lihat tab Jadwal — tab lain disembunyikan total.
 function applyKaryawanAccess(){
   document.getElementById('tab-form').classList.add('hide');
-  document.getElementById('tab-revisi').classList.add('hide');
   document.getElementById('tab-grafik').classList.add('hide');
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('on'));
@@ -1032,7 +861,6 @@ function applyKaryawanAccess(){
 // Isi Jadwal-nya sendiri otomatis difilter cuma order dengan produk kategori "snack" (lihat renderJadwal).
 function applySnackAccess(){
   document.getElementById('tab-form').classList.add('hide');
-  document.getElementById('tab-revisi').classList.add('hide');
   document.getElementById('tab-masak').classList.add('hide');
   document.getElementById('tab-grafik').classList.add('hide');
   document.getElementById('tab-absensi').classList.add('hide');
@@ -1072,7 +900,47 @@ function getBulanFromTgl(){
   const d=new Date(tgl+'T00:00:00');
   return BULAN_NAMA[d.getMonth()]+' '+d.getFullYear();
 }
-function onTglChange(){loadMenuInfo();}
+function onTglChange(){loadMenuInfo();cekWarningDriver();}
+
+// ══ DRIVER ════════════════════════════
+let DRIVERS_LIST = [];
+async function loadDrivers(){
+  const cached = cGet('alima_drivers');
+  if(cached){ DRIVERS_LIST = cached; renderDriverDropdown(); }
+  try{
+    const j = await jsonp(APP.GAS_URL, { action:'list_drivers' });
+    if(j && j.ok && j.drivers){ DRIVERS_LIST = j.drivers; cSet('alima_drivers', j.drivers); renderDriverDropdown(); }
+  }catch(e){ /* pakai cache/kosong kalau gagal, tidak fatal */ }
+}
+function renderDriverDropdown(){
+  const sel = document.getElementById('f-driver');
+  if(!sel) return;
+  const current = sel.value;
+  sel.innerHTML = '<option value="">— Belum ditentukan —</option>' +
+    DRIVERS_LIST.map(d => `<option value="${d.nama}">${d.nama}</option>`).join('');
+  if(current) sel.value = current;
+}
+// JSONP helper (dipakai khusus utk action list_drivers yang tidak lewat gerbang id_token)
+function jsonp(url, params){
+  return new Promise((resolve) => {
+    const cb = 'jsonp_cb_' + Date.now() + Math.floor(Math.random()*10000);
+    window[cb] = (data) => { resolve(data); delete window[cb]; document.body.removeChild(script); };
+    const qs = new URLSearchParams({...params, callback: cb}).toString();
+    const script = document.createElement('script');
+    script.src = url + '?' + qs;
+    document.body.appendChild(script);
+  });
+}
+function cekWarningDriver(){
+  const warnEl = document.getElementById('driver-warning');
+  if(!warnEl) return;
+  const tglVal = document.getElementById('f-tgl')?.value;
+  const driverVal = document.getElementById('f-driver')?.value;
+  if(!tglVal || driverVal){ warnEl.style.display = 'none'; return; }
+  const tgl = new Date(tglVal+'T00:00:00');
+  const besok = new Date(); besok.setHours(0,0,0,0); besok.setDate(besok.getDate()+1);
+  warnEl.style.display = (tgl <= besok) ? 'block' : 'none';
+}
 function setDefaults(){
   const d=new Date();d.setDate(d.getDate()+1);
   document.getElementById('f-tgl').value=d.toISOString().split('T')[0];
@@ -1715,6 +1583,59 @@ async function simpanKoordinatCustomerJikaBeda(customerId, koordinatBaru){
 // ══ SUBMIT ════════════════════════════
 let PENDING_ORDER_DATA = null;
 
+// ══ MODE EDIT ORDER (gabungan dgn fitur Order, gantikan tab Revisi lama) ══
+let EDIT_MODE_NO_ORDER = null;
+let EDIT_MODE_ORIGINAL_DATA = null;
+
+async function cariOrderUntukEdit(){
+  const no = document.getElementById('edit-search-no').value.trim();
+  const stat = document.getElementById('edit-search-status');
+  if(!no) return toast('Isi nomor order dulu.','err');
+  stat.textContent = '⏳ Mencari…';
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=getOrderByNo&no=' + encodeURIComponent(no) + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message || 'Tidak ditemukan');
+
+    await muatDataKeForm(j.data);
+
+    EDIT_MODE_NO_ORDER = j.data.no_order || no;
+    EDIT_MODE_ORIGINAL_DATA = j.data;
+
+    const fno = document.getElementById('f-no');
+    fno.value = EDIT_MODE_NO_ORDER;
+    fno.readOnly = true;
+
+    document.getElementById('edit-mode-badge').style.display = 'block';
+    document.getElementById('edit-mode-no').textContent = EDIT_MODE_NO_ORDER;
+    updateSubmitButtonLabel();
+
+    stat.innerHTML = `✅ Order <strong>${EDIT_MODE_NO_ORDER}</strong> dimuat untuk diedit.`;
+    document.getElementById('edit-search-no').value = '';
+    toast('Order dimuat, silakan edit lalu simpan ✓','ok');
+  }catch(e){
+    stat.innerHTML = `❌ ${e.message}`;
+    toast(e.message,'err');
+  }
+}
+
+function batalEditOrder(){
+  EDIT_MODE_NO_ORDER = null;
+  EDIT_MODE_ORIGINAL_DATA = null;
+  document.getElementById('edit-mode-badge').style.display = 'none';
+  const fno = document.getElementById('f-no');
+  if(fno) fno.readOnly = true; // tetap readonly (auto-generate), field ini memang selalu auto
+  updateSubmitButtonLabel();
+  resetForm();
+}
+
+function updateSubmitButtonLabel(){
+  const btn = document.getElementById('btn-sub');
+  if(!btn) return;
+  btn.textContent = EDIT_MODE_NO_ORDER
+    ? '💾 Simpan Order Revisi & Kirim Notifikasi WA'
+    : '💾 Simpan Order Baru & Kirim Notifikasi WA';
+}
+
 async function submitOrder(){
   const btn=document.getElementById('btn-sub');
   if(btn.disabled) return; // cegah submit dobel (double-tap / klik cepat berulang)
@@ -1722,20 +1643,24 @@ async function submitOrder(){
   try{
     const{jml,tot,hksm}=recalc();
     const menu=collectMenuValues();
+    const isEdit = !!EDIT_MODE_NO_ORDER;
 
-    // Generate nomor order saat submit (bukan saat form dibuka)
-    let no = '';
-    try {
-      const j = await gasFetch(APP.GAS_URL + '?action=getNextNo&t=' + Date.now());
-      if (j.success && j.no) {
-        no = j.no;
-        localStorage.setItem('alima_last_no_v2', String(parseInt(j.no)));
-      } else throw new Error('GAS no error');
-    } catch(e) {
-      no = genNoLocal() + '-L'; // suffix -L = Local fallback, perlu dicek manual
-      console.warn('Nomor order dari fallback lokal:', no);
+    // Nomor order: pakai yang sudah ada kalau mode edit, generate baru kalau order baru
+    let no = isEdit ? EDIT_MODE_NO_ORDER : '';
+    if (!isEdit) {
+      try {
+        const j = await gasFetch(APP.GAS_URL + '?action=getNextNo&t=' + Date.now());
+        if (j.success && j.no) {
+          no = j.no;
+          localStorage.setItem('alima_last_no_v2', String(parseInt(j.no)));
+        } else throw new Error('GAS no error');
+      } catch(e) {
+        no = genNoLocal() + '-L'; // suffix -L = Local fallback, perlu dicek manual
+        console.warn('Nomor order dari fallback lokal:', no);
+      }
+      document.getElementById('f-no').value = no;
     }
-    document.getElementById('f-no').value = no;
+
     const d={
       no_order:no,
       customer_id:document.getElementById('f-cid').value,
@@ -1759,7 +1684,8 @@ async function submitOrder(){
       penerima:document.getElementById('f-pen').value.trim(),
       hp_penerima:normalizeWA(document.getElementById('f-hp').value.trim()),
       alamat:document.getElementById('f-adr').value.trim(),koordinat:document.getElementById('f-krd').value.trim(),
-      status:'Baru'
+      driver:document.getElementById('f-driver')?.value||'',
+      status: isEdit ? 'Revisi' : 'Baru'
     };
     if(!d.customer_id){toast('Pilih customer terlebih dahulu.','err');btn.disabled=false;return;}
     if(!d.sales){toast('Isi nama sales.','err');btn.disabled=false;return;}
@@ -1769,6 +1695,13 @@ async function submitOrder(){
     if(!d.harga_jual){toast('Isi harga jual.','err');btn.disabled=false;return;}
     if(!d.tgl_kirim){toast('Isi tanggal kirim.','err');btn.disabled=false;return;}
     if(!d.jam_sampai){toast('Isi jam sampai.','err');btn.disabled=false;return;}
+
+    if (isEdit) {
+      // Mode edit langsung disimpan, tidak perlu modal "kirim ke customer?"
+      // (revisi hanya diberi tahu ke grup WA internal, bukan blast ulang ke customer).
+      await prosesSimpanRevisi(d);
+      return;
+    }
 
     // Validasi lolos — simpan data, tampilkan modal konfirmasi notifikasi.
     // Tombol TETAP disabled sampai modal ini selesai diproses (Ya/Tidak/Batal),
@@ -1789,6 +1722,44 @@ function batalkanSimpanOrder(){
   if(btn) btn.disabled=false;
 }
 
+async function prosesSimpanRevisi(d){
+  const btn = document.getElementById('btn-sub');
+  showOvl('Menyimpan revisi…');
+  try{
+    const qs = new URLSearchParams({action:'updateOrder', ...d}).toString();
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if (!j.success) { hideOvl(); toast(j.message || 'Revisi ditolak server.', 'err'); if(btn) btn.disabled=false; return; }
+
+    simpanKoordinatCustomerJikaBeda(d.customer_id, d.koordinat);
+    gasFetch(APP.GAS_URL + '?' + new URLSearchParams({action:'assignDriver', no:d.no_order, driver:d.driver||''}).toString() + '&t=' + Date.now()).catch(()=>{});
+
+    let waError = null;
+    if (!APP.FONNTE_TOKEN.includes('GANTI')) {
+      try {
+        const perubahan = bangunDaftarPerubahan_(EDIT_MODE_ORIGINAL_DATA||{}, d);
+        const daftarStr = perubahan.length ? perubahan.map(p=>'• '+p).join('\n') : '(tidak ada perubahan terdeteksi)';
+        const msg = `✏️ *REVISI ORDER — ${d.no_order}*\n\n${daftarStr}`;
+        await fPost(APP.WA_NOTIF, msg);
+      } catch(waErr) {
+        waError = waErr;
+        console.error('Gagal kirim notifikasi WA revisi (revisi tetap tersimpan):', waErr);
+      }
+    }
+    hideOvl();
+    if (waError) {
+      toast(`Revisi ${d.no_order} TERSIMPAN ✓, tapi WA gagal terkirim (${waError.message}).`,'err');
+    } else {
+      toast(`Revisi ${d.no_order} tersimpan! ✓`,'ok');
+    }
+    const idx = allOrders.findIndex(o => String(o.no_order)===String(d.no_order));
+    if (idx>=0) allOrders[idx] = {...allOrders[idx], ...d};
+    batalEditOrder(); // keluar dari mode edit, form kembali ke kondisi "order baru"
+  }catch(e){
+    hideOvl();toast('Gagal menyimpan revisi: '+e.message,'err');console.error(e);
+    if(btn) btn.disabled=false;
+  }
+}
+
 async function prosesSimpanOrder(kirimKeCustomer){
   const d = PENDING_ORDER_DATA;
   const btn = document.getElementById('btn-sub');
@@ -1802,6 +1773,9 @@ async function prosesSimpanOrder(kirimKeCustomer){
     if (!j.success) { hideOvl(); toast(j.message || 'Order ditolak server.', 'err'); if(btn) btn.disabled=false; return; }
     // Order sudah tersimpan di titik ini. Kegagalan kirim WA di bawah TIDAK membatalkan order.
     simpanKoordinatCustomerJikaBeda(d.customer_id, d.koordinat); // tidak di-await, tidak menunda flow
+    if(d.driver){
+      gasFetch(APP.GAS_URL + '?' + new URLSearchParams({action:'assignDriver', no:d.no_order, driver:d.driver}).toString() + '&t=' + Date.now()).catch(()=>{});
+    }
     updOvl('Mengirim notifikasi WhatsApp…');
     let waError = null;
     try {
@@ -1854,16 +1828,24 @@ function renderJadwal(){
     });
 
     const dates = Object.keys(groups).sort(); // format yyyy-MM-dd -> urut string = urut tanggal
+    const besokStr = new Date(now.getTime()+86400000).toISOString().slice(0,10);
     w.innerHTML = dates.map(dt => {
       const rows = groups[dt].slice().sort((a,b) => (a.jam_sampai||'99:99').localeCompare(b.jam_sampai||'99:99'));
       const totalQty = rows.reduce((s,o) => s + (Number(o.qty)||0), 0);
-      const rowsHtml = rows.map(o => `
+      const rowsHtml = rows.map(o => {
+        const belumAdaDriver = !o.driver;
+        const mepet = dt <= besokStr; // hari ini atau besok
+        const driverBadge = o.driver
+          ? `<span style="font-size:9px;color:var(--grn);">🚗 ${o.driver}</span>`
+          : (mepet ? `<span style="font-size:9px;color:var(--red);font-weight:700;">⚠️ Belum ada driver</span>` : '');
+        return `
         <div class="jw-row">
           <div class="jw-jam">${o.jam_sampai||'—'}</div>
           <div class="jw-paket" onclick="openOrderDetail('${o.no_order}')">${o.paket||'—'}</div>
           <div class="jw-qty">${o.qty||0}</div>
-          <div class="jw-nama">${o.nama_penerima||o.customer_id||'—'}</div>
-        </div>`).join('');
+          <div class="jw-nama">${o.nama_penerima||o.customer_id||'—'}${driverBadge?'<br>'+driverBadge:''}</div>
+        </div>`;
+      }).join('');
       return `
         <div class="jw-daygroup">
           <div class="jw-dayhead">
@@ -2444,7 +2426,10 @@ function goTab(id,btn){
   if(id==='absensi'){ initAbsensiTab(); if(CURRENT_USER && isFullAccessRole(CURRENT_USER.role)) loadStatusTim(); }
 }
 function resetForm(){
-  ['f-cid','f-gol','f-produk','f-qty','f-hjual','f-fee','f-hksm','f-hmin','f-del','f-ket','f-pen','f-hp','f-adr','f-krd','f-inv-bayar','f-mirip','f-jam'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  ['f-cid','f-gol','f-produk','f-qty','f-hjual','f-fee','f-hksm','f-hmin','f-del','f-ket','f-pen','f-hp','f-adr','f-krd','f-inv-bayar','f-mirip','f-jam','f-driver','edit-search-no'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  const dw=document.getElementById('driver-warning');if(dw)dw.style.display='none';
+  const es=document.getElementById('edit-search-status');if(es)es.textContent='';
+  updateSubmitButtonLabel();
   const cs=document.getElementById('f-cid-search');if(cs)cs.value='';
   const ms=document.getElementById('mirip-status');if(ms)ms.textContent='';
   const invs=document.getElementById('f-inv-status');if(invs)invs.value='DP';
