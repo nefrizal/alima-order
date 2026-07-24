@@ -1715,7 +1715,7 @@ async function submitOrder(){
 
     if (isEdit) {
       document.getElementById('notif-modal-text').innerHTML =
-        `Revisi order <strong>${no}</strong> akan tetap disimpan. Ringkasan perubahan akan selalu terkirim ke grup WA internal.<br><br>` +
+        `Revisi order <strong>${no}</strong> akan tetap disimpan. Ringkasan perubahan akan selalu terkirim ke grup WA internal & Sales.<br><br>` +
         `Kirim juga notifikasi WA ke <strong>Customer</strong> bahwa ordernya direvisi?`;
     } else {
       document.getElementById('notif-modal-text').innerHTML =
@@ -1757,10 +1757,13 @@ async function prosesSimpanRevisi(d, kirimKeCustomer){
     let waError = null;
     try {
       const perubahan = bangunDaftarPerubahan_(EDIT_MODE_ORIGINAL_DATA||{}, d);
-      const daftarStr = perubahan.length ? perubahan.map(p=>'• '+p).join('\n') : '(tidak ada perubahan terdeteksi)';
-      const msg = `✏️ *REVISI ORDER — ${d.no_order}*\n\n${daftarStr}`;
-      await fPost(APP.WA_NOTIF, msg); // selalu ke grup internal
-      if (kirimKeCustomer && d.hp_penerima && d.hp_penerima.length>8) await sendWAKlien(d);
+      const daftarStr = perubahan.length ? perubahan.map(p=>'• '+p).join('\n') : '(tidak ada perubahan)';
+      const msg = `No order ${d.no_order} di revisi untuk item sbb :\n\n${daftarStr}\n\nTerima kasih 🙏`;
+
+      await fPost(APP.WA_NOTIF, msg); // grup internal
+      const salesHP = getSalesHP();
+      if (salesHP && salesHP !== APP.WA_NOTIF) await fPost(salesHP, msg); // ke sales
+      if (kirimKeCustomer && d.hp_penerima && d.hp_penerima.length>8) await fPost(d.hp_penerima, msg); // ke customer
     } catch(waErr) {
       waError = waErr;
       console.error('Gagal kirim notifikasi WA revisi (revisi tetap tersimpan):', waErr);
