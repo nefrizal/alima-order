@@ -297,11 +297,6 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       </div>
       <button class="gps-btn" type="button" onclick="getGPS()">📍 Gunakan Lokasi Saya</button>
     </div>
-    <div class="fld">
-      <label>Driver</label>
-      <select id="f-driver" onchange="cekWarningDriver()"><option value="">— Belum ditentukan —</option></select>
-      <div id="driver-warning" style="font-size:11px;color:var(--red);margin-top:4px;display:none;">⚠️ Tanggal kirim kurang dari H-1, driver sebaiknya segera ditentukan.</div>
-    </div>
   </div>
 
   <button class="bsub" id="btn-sub" onclick="submitOrder()">💾 Simpan Order Baru &amp; Kirim Notifikasi WA</button>
@@ -617,10 +612,6 @@ async function muatDataKeForm(d) {
     // Sales
     if (d.nama_sales||d.sales) document.getElementById('f-sales').value = d.nama_sales||d.sales||'';
 
-    // Driver
-    const fdriver = document.getElementById('f-driver');
-    if (fdriver) fdriver.value = d.driver||'';
-
     // ── Produk & Paket ──
     // Produk tidak lagi disimpan di sheet (hanya alat bantu UI) — cari kategori produk
     // berdasarkan nama paket yang tersimpan, bukan dari field d.produk (sudah tidak ada).
@@ -917,25 +908,17 @@ function getBulanFromTgl(){
   const d=new Date(tgl+'T00:00:00');
   return BULAN_NAMA[d.getMonth()]+' '+d.getFullYear();
 }
-function onTglChange(){loadMenuInfo();cekWarningDriver();}
+function onTglChange(){loadMenuInfo();}
 
-// ══ DRIVER ════════════════════════════
+// ══ DRIVER (dipakai di tab Jadwal utk quick-assign, sudah tidak ada di form Order) ══
 let DRIVERS_LIST = [];
 async function loadDrivers(){
   const cached = cGet('alima_drivers');
-  if(cached){ DRIVERS_LIST = cached; renderDriverDropdown(); }
+  if(cached){ DRIVERS_LIST = cached; }
   try{
     const j = await jsonp(APP.GAS_URL, { action:'list_drivers' });
-    if(j && j.ok && j.drivers){ DRIVERS_LIST = j.drivers; cSet('alima_drivers', j.drivers); renderDriverDropdown(); }
+    if(j && j.ok && j.drivers){ DRIVERS_LIST = j.drivers; cSet('alima_drivers', j.drivers); }
   }catch(e){ /* pakai cache/kosong kalau gagal, tidak fatal */ }
-}
-function renderDriverDropdown(){
-  const sel = document.getElementById('f-driver');
-  if(!sel) return;
-  const current = sel.value;
-  sel.innerHTML = '<option value="">— Belum ditentukan —</option>' +
-    DRIVERS_LIST.map(d => `<option value="${d.nama}">${d.nama}</option>`).join('');
-  if(current) sel.value = current;
 }
 // JSONP helper (dipakai khusus utk action list_drivers yang tidak lewat gerbang id_token)
 function jsonp(url, params){
@@ -947,16 +930,6 @@ function jsonp(url, params){
     script.src = url + '?' + qs;
     document.body.appendChild(script);
   });
-}
-function cekWarningDriver(){
-  const warnEl = document.getElementById('driver-warning');
-  if(!warnEl) return;
-  const tglVal = document.getElementById('f-tgl')?.value;
-  const driverVal = document.getElementById('f-driver')?.value;
-  if(!tglVal || driverVal){ warnEl.style.display = 'none'; return; }
-  const tgl = new Date(tglVal+'T00:00:00');
-  const besok = new Date(); besok.setHours(0,0,0,0); besok.setDate(besok.getDate()+1);
-  warnEl.style.display = (tgl <= besok) ? 'block' : 'none';
 }
 function setDefaults(){
   const d=new Date();d.setDate(d.getDate()+1);
@@ -1701,7 +1674,6 @@ async function submitOrder(){
       penerima:document.getElementById('f-pen').value.trim(),
       hp_penerima:normalizeWA(document.getElementById('f-hp').value.trim()),
       alamat:document.getElementById('f-adr').value.trim(),koordinat:document.getElementById('f-krd').value.trim(),
-      driver:document.getElementById('f-driver')?.value||'',
       status: isEdit ? 'Revisi' : 'Baru'
     };
     if(!d.customer_id){toast('Pilih customer terlebih dahulu.','err');btn.disabled=false;return;}
@@ -1751,7 +1723,9 @@ async function prosesSimpanRevisi(d, kirimKeCustomer){
     if (!j.success) { hideOvl(); toast(j.message || 'Revisi ditolak server.', 'err'); if(btn) btn.disabled=false; return; }
 
     simpanKoordinatCustomerJikaBeda(d.customer_id, d.koordinat);
-    gasFetch(APP.GAS_URL + '?' + new URLSearchParams({action:'assignDriver', no:d.no_order, driver:d.driver||''}).toString() + '&t=' + Date.now()).catch(()=>{});
+    // Catatan: kolom Driver (AO) sengaja TIDAK ditulis ulang di sini — updateOrder tidak
+    // menyentuh kolom itu sama sekali (di luar skema HEADERS), jadi driver yang sudah
+    // di-assign lewat tab Jadwal otomatis tetap aman meski order-nya direvisi di sini.
 
     updOvl('Mengirim notifikasi WhatsApp…');
     let waError = null;
@@ -1778,6 +1752,7 @@ async function prosesSimpanRevisi(d, kirimKeCustomer){
     if (idx>=0) allOrders[idx] = {...allOrders[idx], ...d};
     PENDING_ORDER_DATA = null;
     batalEditOrder(); // keluar dari mode edit, form kembali ke kondisi "order baru"
+    if(btn) btn.disabled=false;
   }catch(e){
     hideOvl();toast('Gagal menyimpan revisi: '+e.message,'err');console.error(e);
     if(btn) btn.disabled=false;
@@ -1801,9 +1776,7 @@ async function prosesSimpanOrder(kirimKeCustomer){
     if (!j.success) { hideOvl(); toast(j.message || 'Order ditolak server.', 'err'); if(btn) btn.disabled=false; return; }
     // Order sudah tersimpan di titik ini. Kegagalan kirim WA di bawah TIDAK membatalkan order.
     simpanKoordinatCustomerJikaBeda(d.customer_id, d.koordinat); // tidak di-await, tidak menunda flow
-    if(d.driver){
-      gasFetch(APP.GAS_URL + '?' + new URLSearchParams({action:'assignDriver', no:d.no_order, driver:d.driver}).toString() + '&t=' + Date.now()).catch(()=>{});
-    }
+    // Driver ditentukan belakangan lewat tab Jadwal (bukan di form Order lagi).
     updOvl('Mengirim notifikasi WhatsApp…');
     let waError = null;
     try {
@@ -1823,6 +1796,7 @@ async function prosesSimpanOrder(kirimKeCustomer){
     allOrders.unshift(d);
     PENDING_ORDER_DATA = null;
     resetForm();
+    if(btn) btn.disabled=false;
   }catch(e){
     hideOvl();toast('Gagal menyimpan order: '+e.message,'err');console.error(e);
     if(btn) btn.disabled=false;
@@ -2489,8 +2463,7 @@ function goTab(id,btn){
   if(id==='absensi'){ initAbsensiTab(); if(CURRENT_USER && isFullAccessRole(CURRENT_USER.role)) loadStatusTim(); }
 }
 function resetForm(){
-  ['f-cid','f-gol','f-produk','f-qty','f-hjual','f-fee','f-hksm','f-hmin','f-del','f-ket','f-pen','f-hp','f-adr','f-krd','f-inv-bayar','f-mirip','f-jam','f-driver','edit-search-no'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
-  const dw=document.getElementById('driver-warning');if(dw)dw.style.display='none';
+  ['f-cid','f-gol','f-produk','f-qty','f-hjual','f-fee','f-hksm','f-hmin','f-del','f-ket','f-pen','f-hp','f-adr','f-krd','f-inv-bayar','f-mirip','f-jam','edit-search-no'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   const es=document.getElementById('edit-search-status');if(es)es.textContent='';
   updateSubmitButtonLabel();
   const cs=document.getElementById('f-cid-search');if(cs)cs.value='';
