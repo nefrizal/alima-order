@@ -141,6 +141,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   <button class="tbtn" id="tab-masak" onclick="goTab('masak',this)">🍳 Masak</button>
   <button class="tbtn" id="tab-grafik" onclick="goTab('grafik',this)">📊 Grafik</button>
   <button class="tbtn" id="tab-absensi" onclick="goTab('absensi',this)">🕐 Absensi</button>
+  <button class="tbtn" id="tab-laporan" onclick="goTab('laporan',this)">📋 Laporan Keluhan</button>
 </div>
 <div class="ovl hide" id="ovl"><div class="sp"></div><span id="ovl-msg">Memproses…</span></div>
 <div class="toast" id="toast"></div>
@@ -353,6 +354,15 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   </div>
 </div>
 
+<!-- ═══ LAPORAN KELUHAN ═══ -->
+<div class="panel" id="panel-laporan">
+  <div class="lbar">
+    <button class="bico" onclick="openLaporanModal()" style="flex:1;background:var(--or);">➕ Buat Laporan Baru</button>
+    <button class="bico" onclick="loadLaporanList()">↻</button>
+  </div>
+  <div id="laporan-list"><div class="empty"><div class="eico">📋</div><p>Klik ↻ untuk memuat daftar laporan.</p></div></div>
+</div>
+
 </main>
 
 <!-- MODAL CUSTOMER (gabungan Tambah Baru + Edit/Revisi) -->
@@ -389,6 +399,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       <div class="fld"><label>No. HP <span class="req">*</span></label><input id="nc-hp" type="tel" placeholder="08xxxxxxxxxx"></div>
       <div class="fld"><label>Nama Sales</label><input id="nc-sales" type="text" placeholder="Nama sales"></div>
     </div>
+    <div class="fld"><label>Email (opsional)</label><input id="nc-email" type="email" placeholder="customer@email.com"></div>
     <div class="fld"><label>Alamat</label><textarea id="nc-alamat" placeholder="Alamat lengkap…" style="min-height:52px;"></textarea></div>
     <div class="fld">
       <label>Koordinat (opsional)</label>
@@ -443,6 +454,109 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       <select id="ad-driver"><option value="">— Belum ditentukan —</option></select>
     </div>
     <button class="bsub" onclick="simpanAssignDriverModal()" style="margin-top:8px;">💾 Simpan</button>
+  </div>
+</div>
+
+<!-- MODAL LAPORAN KELUHAN PELANGGAN -->
+<div class="modal-bg hide" id="laporan-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="lap-modal-title">📋 Buat Laporan Keluhan</h2>
+      <button class="modal-close" onclick="closeLaporanModal()">×</button>
+    </div>
+    <input id="lap-no-laporan" type="hidden">
+
+    <div class="sec" style="margin-bottom:14px;">
+      <div class="stitle" style="font-size:13px;">🔎 Order Terkait</div>
+      <div style="display:flex;gap:8px;align-items:flex-end;">
+        <div class="fld" style="flex:1;margin:0;">
+          <label>Nomor Order</label>
+          <input id="lap-cari-no" type="text" placeholder="Contoh: 010401">
+        </div>
+        <button onclick="cariOrderUntukLaporan()" class="bico" style="height:40px;padding:0 16px;">🔍 Cari</button>
+      </div>
+      <div id="lap-cari-status" style="margin-top:8px;font-size:12px;color:var(--inks);"></div>
+    </div>
+
+    <div class="g2">
+      <div class="fld"><label>No. Order</label><input id="lap-no-order" type="text" readonly style="background:#f5f0ea;"></div>
+      <div class="fld"><label>Nama Pelanggan</label><input id="lap-nama-customer" type="text" readonly style="background:#f5f0ea;"></div>
+    </div>
+    <div class="g2">
+      <div class="fld"><label>No. HP Pelanggan</label><input id="lap-customer-id" type="text" readonly style="background:#f5f0ea;"></div>
+      <div class="fld"><label>Email Pelanggan</label><input id="lap-email-customer" type="email" placeholder="Isi manual kalau belum ada di data Pelanggan"></div>
+    </div>
+    <div class="fld"><label>Dibuat Oleh (Sales)</label><input id="lap-dibuat-oleh" type="text" placeholder="Nama sales"></div>
+
+    <div class="stitle" style="margin-top:16px;">1️⃣ Keluhan Pelanggan</div>
+    <div class="fld"><label>Apa keluhannya?</label><textarea id="lap-apa" style="min-height:52px;" placeholder="Uraikan keluhan yang disampaikan pelanggan…"></textarea></div>
+    <div class="g2">
+      <div class="fld"><label>Kapan kejadiannya?</label><input id="lap-kapan" type="text" placeholder="Mis. Selasa, 22 Jul 2026 sekitar jam 12.30"></div>
+      <div class="fld"><label>Dimana kejadiannya?</label><input id="lap-dimana" type="text" placeholder="Lokasi kejadian"></div>
+    </div>
+    <div class="g2">
+      <div class="fld"><label>Siapa yang menemukan masalah?</label><input id="lap-siapa" type="text" placeholder="Nama/pihak yang menemukan"></div>
+      <div class="fld"><label>Bagaimana masalah ditemukan?</label><input id="lap-bagaimana" type="text" placeholder="Cara masalah terungkap"></div>
+    </div>
+
+    <div class="stitle" style="margin-top:16px;">2️⃣ Investigasi Masalah</div>
+    <div class="fld"><textarea id="lap-investigasi" style="min-height:70px;" placeholder="Hasil penelusuran/investigasi penyebab masalah…"></textarea></div>
+
+    <div class="stitle" style="margin-top:16px;">3️⃣ Kesimpulan</div>
+    <div class="fld"><textarea id="lap-kesimpulan" style="min-height:52px;" placeholder="Kesimpulan dari investigasi…"></textarea></div>
+
+    <div class="stitle" style="margin-top:16px;">4️⃣ Solusi Perbaikan &amp; Pencegahan</div>
+    <div class="fld"><textarea id="lap-solusi" style="min-height:70px;" placeholder="Tindakan perbaikan & pencegahan (jika diperlukan)…"></textarea></div>
+
+    <button class="bsub" id="btn-simpan-laporan" onclick="simpanLaporanKeluhan()" style="margin-top:10px;">💾 Simpan Laporan</button>
+
+    <div id="lap-hasil-box" style="display:none;background:var(--grnl);border:1px solid #b7dfc9;border-radius:10px;padding:14px;margin-top:14px;">
+      <p style="font-size:13px;color:var(--grn);font-weight:700;margin-bottom:8px;">✅ Laporan tersimpan!</p>
+      <a id="lap-doc-link" href="#" target="_blank" style="font-size:12px;color:var(--blu);word-break:break-all;">📄 Buka/Edit Dokumen di Google Docs</a>
+
+      <div class="g2" style="margin-top:14px;">
+        <div class="fld" style="margin:0;">
+          <label style="font-size:10px;">Email Pengirim</label>
+          <input id="lap-email-from" type="email" placeholder="pengirim@domain.com" style="font-size:12px;padding:7px 9px;">
+        </div>
+        <div class="fld" style="margin:0;">
+          <label style="font-size:10px;">Nama Pengirim</label>
+          <input id="lap-nama-pengirim" type="text" placeholder="Alima Boga Batam" style="font-size:12px;padding:7px 9px;">
+        </div>
+      </div>
+      <div style="font-size:10px;color:var(--inks);margin-top:4px;">⚠️ Email pengirim harus sudah terdaftar sbg alias "Send As" di Gmail akun ini (Settings → Accounts → Send mail as), kalau belum email akan gagal terkirim.</div>
+
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button class="bico" onclick="kirimLaporanViaWA()" style="flex:1;background:#1B7A4A;">📲 Kirim WA</button>
+        <button class="bico" onclick="kirimLaporanViaEmail()" style="flex:1;background:#1565C0;">📧 Kirim Email</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PRINT PREVIEW (printer thermal Bluetooth 58mm) -->
+<div class="modal-bg hide" id="print-preview-modal">
+  <div class="modal" style="max-width:400px;background:#f0f0f0;">
+    <div class="modal-head">
+      <h2>🖨️ Preview Cetak</h2>
+      <button class="modal-close" onclick="tutupPrintPreview()">×</button>
+    </div>
+
+    <div id="print-status" style="font-size:12px;color:var(--inks);margin-bottom:10px;text-align:center;"></div>
+
+    <!-- Simulasi kertas 58mm: lebar tetap, font besar & jelas utk mata minus -->
+    <div id="print-paper" style="background:#fff;border:1px solid #ddd;box-shadow:0 2px 8px rgba(0,0,0,.15);
+      width:280px;margin:0 auto;padding:14px 10px;font-family:'Courier New',monospace;
+      font-size:15px;line-height:1.55;color:#000;white-space:pre-wrap;word-break:break-word;">
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:16px;">
+      <button class="bico" onclick="pilihPrinterBluetooth()" style="flex:1;background:var(--or);font-size:13px;padding:12px;">🔵 Hubungkan Printer</button>
+    </div>
+    <button class="bsub" id="btn-cetak-sekarang" onclick="cetakKePrinter()" disabled style="margin-top:8px;background:var(--inks);">🖨️ Cetak Sekarang</button>
+    <div style="font-size:10px;color:var(--inks);margin-top:8px;text-align:center;">
+      Printer thermal Bluetooth 58mm · font diperbesar supaya mudah dibaca
+    </div>
   </div>
 </div>
 </div><!-- /app-content -->
@@ -858,6 +972,7 @@ function retryLogin(){
 function applyKaryawanAccess(){
   document.getElementById('tab-form').classList.add('hide');
   document.getElementById('tab-grafik').classList.add('hide');
+  document.getElementById('tab-laporan').classList.add('hide');
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('on'));
   document.getElementById('panel-absensi').classList.add('on');
@@ -872,6 +987,7 @@ function applySnackAccess(){
   document.getElementById('tab-masak').classList.add('hide');
   document.getElementById('tab-grafik').classList.add('hide');
   document.getElementById('tab-absensi').classList.add('hide');
+  document.getElementById('tab-laporan').classList.add('hide');
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('on'));
   document.getElementById('panel-jadwal').classList.add('on');
@@ -1371,7 +1487,7 @@ function closeCustModal(){
   resetCustModalToAdd();
 }
 function resetCustModalToAdd(){
-  ['nc-nama','nc-instansi','nc-hp','nc-sales','nc-alamat','nc-koordinat','nc-maplink','nc-search','nc-id'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  ['nc-nama','nc-instansi','nc-hp','nc-sales','nc-email','nc-alamat','nc-koordinat','nc-maplink','nc-search','nc-id'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   document.getElementById('nc-gender').value='';document.getElementById('nc-tipe').value='';
   document.getElementById('nc-hp').readOnly=false;
   document.getElementById('nc-edit-badge').style.display='none';
@@ -1415,6 +1531,7 @@ function pilihCustUntukEdit(id){
   document.getElementById('nc-hp').value = c.no_hp||'';
   document.getElementById('nc-hp').readOnly = true; // no. HP jadi ID, tidak diubah lewat sini
   document.getElementById('nc-sales').value = c.sales||'';
+  document.getElementById('nc-email').value = c.email||'';
   document.getElementById('nc-alamat').value = c.alamat||'';
   document.getElementById('nc-koordinat').value = c.koordinat||'';
   document.getElementById('nc-edit-badge').style.display='block';
@@ -1484,6 +1601,7 @@ async function saveCustomerModal(){
       instansi: document.getElementById('nc-tipe').value,
       alamat: document.getElementById('nc-alamat').value.trim(),
       koordinat: document.getElementById('nc-koordinat').value.trim(),
+      email: document.getElementById('nc-email').value.trim(),
     };
     try{
       const qs = new URLSearchParams({action:'updateCustomer', ...data}).toString();
@@ -1510,7 +1628,7 @@ async function saveCustomerModal(){
   if (dup) { btn.disabled=false;btn.textContent='💾 Simpan Customer'; return toast(`No. HP sudah terdaftar atas nama ${dup.nama}${dup.nama_instansi?' — '+dup.nama_instansi:''}.`,'err'); }
 
   const newId = waHp;
-  const data={id:newId,sales:document.getElementById('nc-sales').value.trim(),gender:document.getElementById('nc-gender').value,nama,nama_instansi:document.getElementById('nc-instansi').value.trim(),no_hp:waHp,instansi:document.getElementById('nc-tipe').value,alamat:document.getElementById('nc-alamat').value.trim(),koordinat:document.getElementById('nc-koordinat').value.trim()};
+  const data={id:newId,sales:document.getElementById('nc-sales').value.trim(),gender:document.getElementById('nc-gender').value,nama,nama_instansi:document.getElementById('nc-instansi').value.trim(),no_hp:waHp,instansi:document.getElementById('nc-tipe').value,alamat:document.getElementById('nc-alamat').value.trim(),koordinat:document.getElementById('nc-koordinat').value.trim(),email:document.getElementById('nc-email').value.trim()};
   try{
     const qs = new URLSearchParams({action:'addCustomer', ...data}).toString();
     const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
@@ -2320,6 +2438,7 @@ function openOrderDetail(no){
         ${['Baru','Proses','Selesai','Batal'].map(s=>`<option ${o.status===s?'selected':''}>${s}</option>`).join('')}
       </select>
     </div>
+    <button class="bico" onclick="bukaPrintPreview('${o.no_order}')" style="width:100%;margin-top:12px;background:var(--inkm);">🖨️ Print Menu</button>
   `;
   document.getElementById('order-detail-modal').classList.remove('hide');
 }
@@ -2461,6 +2580,7 @@ function goTab(id,btn){
   if(id==='masak'){ if(allOrders.length===0) loadOrders().then(renderJadwalMasak); else renderJadwalMasak(); }
   if(id==='grafik'){ loadGrafik(); loadGrafikHarian(); }
   if(id==='absensi'){ initAbsensiTab(); if(CURRENT_USER && isFullAccessRole(CURRENT_USER.role)) loadStatusTim(); }
+  if(id==='laporan'){ loadLaporanList(); }
 }
 function resetForm(){
   ['f-cid','f-gol','f-produk','f-qty','f-hjual','f-fee','f-hksm','f-hmin','f-del','f-ket','f-pen','f-hp','f-adr','f-krd','f-inv-bayar','f-mirip','f-jam','edit-search-no'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
@@ -2474,6 +2594,405 @@ function resetForm(){
   document.getElementById('cust-info').style.display='none';
   resetMenuSelects();recalc();initNoDisplay();setDefaults();loadSalesLocal();
   applyDefaultProduk();}
+// ══ LAPORAN KELUHAN PELANGGAN ═══════════════════
+let LAP_ORDER_DATA = null; // data order terkait, disimpan sementara utk isi ulang kalau perlu
+
+function isiUlangEmailPengirim_(){
+  const ef = document.getElementById('lap-email-from');
+  const np = document.getElementById('lap-nama-pengirim');
+  if(ef && !ef.value) ef.value = localStorage.getItem('alima_lap_email_from') || '';
+  if(np && !np.value) np.value = localStorage.getItem('alima_lap_nama_pengirim') || 'Alima Boga Batam';
+}
+
+function openLaporanModal(){
+  resetLaporanModal();
+  document.getElementById('lap-dibuat-oleh').value = CURRENT_USER?.nama || '';
+  document.getElementById('lap-modal-title').textContent = '📋 Buat Laporan Keluhan';
+  document.getElementById('laporan-modal').classList.remove('hide');
+}
+function closeLaporanModal(){
+  document.getElementById('laporan-modal').classList.add('hide');
+}
+function resetLaporanModal(){
+  ['lap-no-laporan','lap-cari-no','lap-no-order','lap-nama-customer','lap-customer-id','lap-email-customer',
+   'lap-dibuat-oleh','lap-apa','lap-kapan','lap-dimana','lap-siapa','lap-bagaimana',
+   'lap-investigasi','lap-kesimpulan','lap-solusi','lap-email-from','lap-nama-pengirim'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  const st=document.getElementById('lap-cari-status');if(st)st.textContent='';
+  document.getElementById('lap-hasil-box').style.display='none';
+  const btn=document.getElementById('btn-simpan-laporan');
+  if(btn){btn.disabled=false;btn.textContent='💾 Simpan Laporan';}
+  LAP_ORDER_DATA = null;
+}
+
+async function cariOrderUntukLaporan(){
+  const no = document.getElementById('lap-cari-no').value.trim();
+  const stat = document.getElementById('lap-cari-status');
+  if(!no) return toast('Isi nomor order dulu.','err');
+  stat.textContent = '⏳ Mencari…';
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=getOrderByNo&no=' + encodeURIComponent(no) + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message || 'Order tidak ditemukan');
+    const o = j.data;
+    LAP_ORDER_DATA = o;
+
+    const custId = o.customer_id || '';
+    const cust = CUSTOMERS.find(c => c.no_hp === custId);
+
+    document.getElementById('lap-no-order').value = o.no_order || no;
+    document.getElementById('lap-nama-customer').value = (cust && cust.nama) || o.nama_penerima || '';
+    document.getElementById('lap-customer-id').value = custId;
+    document.getElementById('lap-email-customer').value = (cust && cust.email) || '';
+
+    stat.innerHTML = `✅ Order <strong>${o.no_order||no}</strong> ditemukan.`;
+    toast('Data order dimuat ✓','ok');
+  }catch(e){
+    stat.innerHTML = `❌ ${e.message}`;
+    toast(e.message,'err');
+  }
+}
+
+async function simpanLaporanKeluhan(){
+  const noOrder = document.getElementById('lap-no-order').value.trim();
+  const apa = document.getElementById('lap-apa').value.trim();
+  if(!noOrder) return toast('Cari & pilih order terkait dulu.','err');
+  if(!apa) return toast('Isi keluhan pelanggan dulu.','err');
+
+  const btn = document.getElementById('btn-simpan-laporan');
+  btn.disabled = true; btn.textContent = 'Menyimpan…';
+
+  const data = {
+    no_laporan: document.getElementById('lap-no-laporan').value.trim(),
+    no_order: noOrder,
+    customer_id: document.getElementById('lap-customer-id').value.trim(),
+    nama_customer: document.getElementById('lap-nama-customer').value.trim(),
+    email_customer: document.getElementById('lap-email-customer').value.trim(),
+    dibuat_oleh: document.getElementById('lap-dibuat-oleh').value.trim(),
+    keluhan_apa: apa,
+    keluhan_kapan: document.getElementById('lap-kapan').value.trim(),
+    keluhan_dimana: document.getElementById('lap-dimana').value.trim(),
+    keluhan_siapa: document.getElementById('lap-siapa').value.trim(),
+    keluhan_bagaimana: document.getElementById('lap-bagaimana').value.trim(),
+    investigasi: document.getElementById('lap-investigasi').value.trim(),
+    kesimpulan: document.getElementById('lap-kesimpulan').value.trim(),
+    solusi: document.getElementById('lap-solusi').value.trim(),
+  };
+
+  try{
+    const qs = new URLSearchParams({action:'saveLaporanKeluhan', ...data}).toString();
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message || 'Gagal menyimpan laporan.');
+
+    document.getElementById('lap-no-laporan').value = j.no_laporan;
+    document.getElementById('lap-modal-title').textContent = '✏️ Edit Laporan — ' + j.no_laporan;
+    document.getElementById('lap-doc-link').href = j.doc_url;
+    document.getElementById('lap-hasil-box').style.display = 'block';
+    isiUlangEmailPengirim_();
+    toast(`Laporan ${j.no_laporan} tersimpan ✓`,'ok');
+  }catch(e){
+    toast('Gagal: '+e.message,'err');
+  }finally{
+    btn.disabled = false; btn.textContent = '💾 Simpan Laporan';
+  }
+}
+
+async function kirimLaporanViaEmail(){
+  const noLaporan = document.getElementById('lap-no-laporan').value.trim();
+  if(!noLaporan) return toast('Simpan laporan dulu sebelum kirim.','err');
+
+  const emailFrom = document.getElementById('lap-email-from').value.trim();
+  const namaPengirim = document.getElementById('lap-nama-pengirim').value.trim();
+  if(emailFrom) localStorage.setItem('alima_lap_email_from', emailFrom);
+  if(namaPengirim) localStorage.setItem('alima_lap_nama_pengirim', namaPengirim);
+
+  toast('Mengirim email…','ok');
+  try{
+    const qs = new URLSearchParams({action:'kirimLaporanEmail', id:noLaporan, email_from:emailFrom, nama_pengirim:namaPengirim}).toString();
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message || 'Gagal mengirim email.');
+    toast(j.message || 'Email terkirim ✓','ok');
+  }catch(e){
+    toast('Gagal: '+e.message,'err');
+  }
+}
+
+async function kirimLaporanViaWA(){
+  const noLaporan = document.getElementById('lap-no-laporan').value.trim();
+  if(!noLaporan) return toast('Simpan laporan dulu sebelum kirim.','err');
+  const custId = document.getElementById('lap-customer-id').value.trim();
+  if(!custId) return toast('Nomor WA pelanggan tidak tersedia.','err');
+
+  toast('Menyiapkan PDF…','ok');
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?' + new URLSearchParams({action:'getLaporanPdfUrl', id:noLaporan}).toString() + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message || 'Gagal menyiapkan PDF.');
+
+    const nama = document.getElementById('lap-nama-customer').value.trim() || 'Bapak/Ibu';
+    const caption = `Yth. ${nama},\n\nBerikut kami sampaikan laporan tindak lanjut atas keluhan yang disampaikan. Mohon dapat menjadi perhatian bersama.\n\nTerima kasih atas kepercayaan Bapak/Ibu kepada kami.`;
+
+    await fPostFile(custId, j.pdf_url, caption);
+    toast('Laporan terkirim via WA ✓','ok');
+  }catch(e){
+    toast('Gagal kirim WA: '+e.message,'err');
+  }
+}
+
+// Kirim file (bukan cuma teks) via Fonnte — dipakai khusus utk kirim PDF laporan.
+async function fPostFile(target, fileUrl, caption){
+  const res = await fetch('https://api.fonnte.com/send', {
+    method: 'POST',
+    headers: { 'Authorization': APP.FONNTE_TOKEN, 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ target: normalizeWA(target), url: fileUrl, message: caption })
+  });
+  const j = await res.json();
+  if(!j.status) throw new Error('Fonnte: ' + (j.reason || 'Gagal kirim file'));
+}
+
+async function loadLaporanList(){
+  const wrap = document.getElementById('laporan-list');
+  wrap.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat daftar laporan…</div>';
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=listLaporanKeluhan&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+    if(!j.data || !j.data.length){
+      wrap.innerHTML = '<div class="empty"><div class="eico">📋</div><p>Belum ada laporan keluhan.</p></div>';
+      return;
+    }
+    wrap.innerHTML = j.data.map(r => `
+      <div class="ocard" onclick="bukaLaporanUntukEdit('${r.No_Laporan}')" style="cursor:pointer;">
+        <div class="och">
+          <div>
+            <div class="ono" style="font-size:14px;">${r.No_Laporan}</div>
+            <div class="odt">${fd(String(r.Tanggal_Dibuat).slice(0,10))} · Order ${r.No_Order||'—'}</div>
+          </div>
+          <span class="badge bb">${r.Dibuat_Oleh||'—'}</span>
+        </div>
+        <div class="obody">
+          <strong>${r.Nama_Customer||'—'}</strong><br>
+          ${(r.Keluhan_Apa||'').slice(0,90)}${(r.Keluhan_Apa||'').length>90?'…':''}
+        </div>
+      </div>
+    `).join('');
+  }catch(e){
+    wrap.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>Gagal memuat: ${e.message}</p></div>`;
+  }
+}
+
+async function bukaLaporanUntukEdit(noLaporan){
+  resetLaporanModal();
+  document.getElementById('laporan-modal').classList.remove('hide');
+  document.getElementById('lap-modal-title').textContent = '⏳ Memuat laporan…';
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?' + new URLSearchParams({action:'getLaporanKeluhan', id:noLaporan}).toString() + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+    const d = j.data;
+
+    document.getElementById('lap-no-laporan').value = d.No_Laporan||'';
+    document.getElementById('lap-no-order').value = d.No_Order||'';
+    document.getElementById('lap-nama-customer').value = d.Nama_Customer||'';
+    document.getElementById('lap-customer-id').value = d.Customer_ID||'';
+    document.getElementById('lap-email-customer').value = d.Email_Customer||'';
+    document.getElementById('lap-dibuat-oleh').value = d.Dibuat_Oleh||'';
+    document.getElementById('lap-apa').value = d.Keluhan_Apa||'';
+    document.getElementById('lap-kapan').value = d.Keluhan_Kapan||'';
+    document.getElementById('lap-dimana').value = d.Keluhan_Dimana||'';
+    document.getElementById('lap-siapa').value = d.Keluhan_Siapa||'';
+    document.getElementById('lap-bagaimana').value = d.Keluhan_Bagaimana||'';
+    document.getElementById('lap-investigasi').value = d.Investigasi||'';
+    document.getElementById('lap-kesimpulan').value = d.Kesimpulan||'';
+    document.getElementById('lap-solusi').value = d.Solusi||'';
+
+    document.getElementById('lap-modal-title').textContent = '✏️ Edit Laporan — ' + d.No_Laporan;
+    if(d.Doc_URL){
+      document.getElementById('lap-doc-link').href = d.Doc_URL;
+      document.getElementById('lap-hasil-box').style.display = 'block';
+      isiUlangEmailPengirim_();
+    }
+  }catch(e){
+    toast('Gagal memuat laporan: '+e.message,'err');
+    closeLaporanModal();
+  }
+}
+
+// ══ PRINT MENU KE PRINTER BLUETOOTH 58MM (font diperbesar) ══
+const PRINT_STATE = { order:null, characteristic:null, device:null };
+
+// Bungkus teks panjang jadi beberapa baris supaya pas di kertas 58mm
+function wrapTeksPrint_(str, maxChars){
+  str = String(str||'-');
+  const words = str.split(' ');
+  const lines = [];
+  let cur = '';
+  words.forEach(w=>{
+    if((cur+' '+w).trim().length > maxChars){
+      if(cur) lines.push(cur.trim());
+      cur = w;
+    } else {
+      cur = (cur+' '+w).trim();
+    }
+  });
+  if(cur) lines.push(cur.trim());
+  return lines.length ? lines : [''];
+}
+
+// Susun daftar baris struk: {text, big, bold, center}
+// big = double-height (semua teks minimal ini, biar mudah dibaca)
+// big+lebar penuh dipakai utk judul/paket (lebih menonjol)
+function bangunBarisStruk_(o){
+  const menuFields = [
+    ['Nasi',o.nasi],['Lauk',o.lauk_utama],['Tambahan',o.tambahan],['Sayur',o.sayur],
+    ['Sambal',o.sambal],['Kerupuk',o.kerupuk],['Buah',o.buah],['Air',o.air_mineral],
+    ['Kemasan',o.kemasan],['Puding',o.puding],['Snack',o.snack],['Minuman',o.minuman]
+  ].filter(([,v]) => v && v!=='—');
+
+  const L = [];
+  L.push({text:'KSM KATERING', big:true, wide:true, bold:true, center:true});
+  L.push({text:'-'.repeat(16), big:false});
+  L.push({text:'No: '+(o.no_order||'-'), big:true});
+  L.push({text:fd(o.tanggal_kirim)+' '+(o.jam_sampai||''), big:true});
+  L.push({text:'-'.repeat(16), big:false});
+  wrapTeksPrint_(o.paket||'-', 14).forEach(t=>L.push({text:t, big:true, wide:true, bold:true}));
+  L.push({text:'Qty: '+(o.qty||0)+' pax', big:true, bold:true});
+  L.push({text:'-'.repeat(16), big:false});
+
+  menuFields.forEach(([k,v])=>{
+    L.push({text:k+':', big:true, bold:true});
+    wrapTeksPrint_(v, 16).forEach(t=>L.push({text:t, big:true}));
+  });
+
+  L.push({text:'-'.repeat(16), big:false});
+  L.push({text:'Penerima:', big:true, bold:true});
+  wrapTeksPrint_(o.nama_penerima||'-', 16).forEach(t=>L.push({text:t, big:true}));
+
+  if(o.alamat_pengiriman){
+    L.push({text:'Alamat:', big:true, bold:true});
+    wrapTeksPrint_(o.alamat_pengiriman, 16).forEach(t=>L.push({text:t, big:true}));
+  }
+  if(o.keterangan){
+    L.push({text:'Ket:', big:true, bold:true});
+    wrapTeksPrint_(o.keterangan, 16).forEach(t=>L.push({text:t, big:true}));
+  }
+  return L;
+}
+
+function bukaPrintPreview(noOrder){
+  const o = allOrders.find(x => String(x.no_order) === String(noOrder));
+  if(!o){ toast('Data order tidak ditemukan.','err'); return; }
+
+  PRINT_STATE.order = o;
+  const baris = bangunBarisStruk_(o);
+  const kertas = document.getElementById('print-paper');
+  kertas.innerHTML = baris.map(b => {
+    const size = b.wide ? '22px' : (b.big ? '17px' : '13px');
+    const weight = b.bold ? '700' : '400';
+    const align = b.center ? 'center' : 'left';
+    return `<div style="font-size:${size};font-weight:${weight};text-align:${align};margin:1px 0;">${b.text||' '}</div>`;
+  }).join('');
+
+  document.getElementById('print-status').textContent = PRINT_STATE.characteristic
+    ? '🔵 Printer sudah terhubung — siap cetak'
+    : 'Belum terhubung ke printer. Tap "Hubungkan Printer" dulu.';
+  document.getElementById('btn-cetak-sekarang').disabled = !PRINT_STATE.characteristic;
+  document.getElementById('btn-cetak-sekarang').style.background = PRINT_STATE.characteristic ? 'var(--or)' : 'var(--inks)';
+
+  closeOrderDetail();
+  document.getElementById('print-preview-modal').classList.remove('hide');
+}
+function tutupPrintPreview(){
+  document.getElementById('print-preview-modal').classList.add('hide');
+}
+
+// Koneksi ke printer thermal Bluetooth (BLE). UUID di bawah cocok utk kebanyakan
+// printer thermal mini generik (mis. seri "Goojprt/Zjiang" 58mm). Kalau printer
+// Bapak tidak konek, cek UUID service/characteristic yang benar (pakai app BLE
+// scanner) dan ganti PRINTER_SERVICE_UUID / PRINTER_CHAR_UUID di bawah ini.
+const PRINTER_SERVICE_UUID = '000018f0-0000-1000-8000-00805f9b34fb';
+const PRINTER_CHAR_UUID    = '00002af1-0000-1000-8000-00805f9b34fb';
+
+async function pilihPrinterBluetooth(){
+  const stat = document.getElementById('print-status');
+  if(!navigator.bluetooth){
+    toast('Browser ini tidak mendukung Web Bluetooth. Pakai Chrome di Android.','err');
+    return;
+  }
+  try{
+    stat.textContent = '🔍 Mencari printer…';
+    const device = await navigator.bluetooth.requestDevice({
+      acceptAllDevices: true,
+      optionalServices: [PRINTER_SERVICE_UUID]
+    });
+    stat.textContent = '🔗 Menghubungkan ke ' + (device.name||'printer') + '…';
+    const server = await device.gatt.connect();
+    const service = await server.getPrimaryService(PRINTER_SERVICE_UUID);
+    const characteristic = await service.getCharacteristic(PRINTER_CHAR_UUID);
+
+    PRINT_STATE.device = device;
+    PRINT_STATE.characteristic = characteristic;
+
+    stat.textContent = '✅ Terhubung ke ' + (device.name||'printer') + ' — siap cetak';
+    document.getElementById('btn-cetak-sekarang').disabled = false;
+    document.getElementById('btn-cetak-sekarang').style.background = 'var(--or)';
+    toast('Printer terhubung ✓','ok');
+  }catch(e){
+    stat.textContent = '❌ Gagal konek: ' + e.message;
+    toast('Gagal menghubungkan printer: '+e.message,'err');
+  }
+}
+
+// Susun perintah ESC/POS mentah dari baris-baris struk (font diperbesar pakai GS !)
+function bangunByteESCPOS_(baris){
+  const bytes = [];
+  const push = (...arr) => arr.forEach(b => bytes.push(b));
+  const pushText = (str) => { for(let i=0;i<str.length;i++) bytes.push(str.charCodeAt(i) & 0xFF); };
+
+  push(0x1B,0x40); // ESC @ — reset printer
+
+  baris.forEach(b=>{
+    push(0x1B,0x61, b.center ? 0x01 : 0x00); // align
+    push(0x1B,0x45, b.bold ? 0x01 : 0x00);   // bold on/off
+    const sizeByte = b.wide ? 0x11 : (b.big ? 0x01 : 0x00); // GS ! : double H+W / double H / normal
+    push(0x1D,0x21, sizeByte);
+    pushText(b.text || ' ');
+    push(0x0A); // line feed
+  });
+
+  push(0x1D,0x21,0x00); // reset ukuran font
+  push(0x0A,0x0A,0x0A); // feed sebelum potong
+  push(0x1D,0x56,0x01); // partial cut
+
+  return new Uint8Array(bytes);
+}
+
+async function cetakKePrinter(){
+  if(!PRINT_STATE.characteristic){ toast('Hubungkan printer dulu.','err'); return; }
+  if(!PRINT_STATE.order){ toast('Data order tidak ada.','err'); return; }
+
+  const stat = document.getElementById('print-status');
+  const btn = document.getElementById('btn-cetak-sekarang');
+  btn.disabled = true; btn.textContent = 'Mencetak…';
+  stat.textContent = '🖨️ Mengirim data ke printer…';
+
+  try{
+    const baris = bangunBarisStruk_(PRINT_STATE.order);
+    const data = bangunByteESCPOS_(baris);
+
+    // Kirim per-chunk kecil (kebanyakan printer BLE murah cuma terima ±100-180 byte per write)
+    const CHUNK = 100;
+    for(let i=0; i<data.length; i+=CHUNK){
+      const chunk = data.slice(i, i+CHUNK);
+      await PRINT_STATE.characteristic.writeValue(chunk);
+      await new Promise(r=>setTimeout(r, 40)); // jeda kecil biar printer tidak overflow buffer
+    }
+
+    stat.textContent = '✅ Selesai dicetak!';
+    toast('Menu berhasil dicetak ✓','ok');
+  }catch(e){
+    stat.textContent = '❌ Gagal cetak: ' + e.message;
+    toast('Gagal mencetak: '+e.message,'err');
+  }finally{
+    btn.disabled = false; btn.textContent = '🖨️ Cetak Sekarang';
+  }
+}
+
 async function checkConn(){
   const el=document.getElementById('cst');
   try{const j=await gasFetch(APP.GAS_URL+'?action=ping&t='+Date.now());el.textContent=j.success?'🟢':'🔴';}
