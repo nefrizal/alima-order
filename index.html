@@ -2834,9 +2834,8 @@ function wrapTeksPrint_(str, maxChars){
   return lines.length ? lines : [''];
 }
 
-// Susun daftar baris struk: {text, big, bold, center}
-// big = double-height (semua teks minimal ini, biar mudah dibaca)
-// big+lebar penuh dipakai utk judul/paket (lebih menonjol)
+// Susun daftar baris struk: {text, bold, center} — SEMUA baris pakai font
+// double-height+width (sama besar dengan header) supaya mudah dibaca semua.
 function bangunBarisStruk_(o){
   const menuFields = [
     ['Nasi',o.nasi],['Lauk',o.lauk_utama],['Tambahan',o.tambahan],['Sayur',o.sayur],
@@ -2844,32 +2843,35 @@ function bangunBarisStruk_(o){
     ['Kemasan',o.kemasan],['Puding',o.puding],['Snack',o.snack],['Minuman',o.minuman]
   ].filter(([,v]) => v && v!=='—');
 
+  const W = 14; // lebar maks per baris (karakter) — dipotong pendek krn font double-width
+
   const L = [];
-  L.push({text:'KSM KATERING', big:true, wide:true, bold:true, center:true});
-  L.push({text:'-'.repeat(16), big:false});
-  L.push({text:'No: '+(o.no_order||'-'), big:true});
-  L.push({text:fd(o.tanggal_kirim)+' '+(o.jam_sampai||''), big:true});
-  L.push({text:'-'.repeat(16), big:false});
-  wrapTeksPrint_(o.paket||'-', 14).forEach(t=>L.push({text:t, big:true, wide:true, bold:true}));
-  L.push({text:'Qty: '+(o.qty||0)+' pax', big:true, bold:true});
-  L.push({text:'-'.repeat(16), big:false});
+  L.push({text:'KSM KATERING', bold:true, center:true});
+  L.push({text:'-'.repeat(W), center:true});
+  L.push({text:'No: '+(o.no_order||'-')});
+  L.push({text:fd(o.tanggal_kirim)});
+  L.push({text:o.jam_sampai||''});
+  L.push({text:'-'.repeat(W), center:true});
+  wrapTeksPrint_(o.paket||'-', W).forEach(t=>L.push({text:t, bold:true}));
+  L.push({text:'Qty: '+(o.qty||0)+' pax', bold:true});
+  L.push({text:'-'.repeat(W), center:true});
 
   menuFields.forEach(([k,v])=>{
-    L.push({text:k+':', big:true, bold:true});
-    wrapTeksPrint_(v, 16).forEach(t=>L.push({text:t, big:true}));
+    L.push({text:k+':', bold:true});
+    wrapTeksPrint_(v, W).forEach(t=>L.push({text:t}));
   });
 
-  L.push({text:'-'.repeat(16), big:false});
-  L.push({text:'Penerima:', big:true, bold:true});
-  wrapTeksPrint_(o.nama_penerima||'-', 16).forEach(t=>L.push({text:t, big:true}));
+  L.push({text:'-'.repeat(W), center:true});
+  L.push({text:'Penerima:', bold:true});
+  wrapTeksPrint_(o.nama_penerima||'-', W).forEach(t=>L.push({text:t}));
 
   if(o.alamat_pengiriman){
-    L.push({text:'Alamat:', big:true, bold:true});
-    wrapTeksPrint_(o.alamat_pengiriman, 16).forEach(t=>L.push({text:t, big:true}));
+    L.push({text:'Alamat:', bold:true});
+    wrapTeksPrint_(o.alamat_pengiriman, W).forEach(t=>L.push({text:t}));
   }
   if(o.keterangan){
-    L.push({text:'Ket:', big:true, bold:true});
-    wrapTeksPrint_(o.keterangan, 16).forEach(t=>L.push({text:t, big:true}));
+    L.push({text:'Ket:', bold:true});
+    wrapTeksPrint_(o.keterangan, W).forEach(t=>L.push({text:t}));
   }
   return L;
 }
@@ -2882,10 +2884,9 @@ function bukaPrintPreview(noOrder){
   const baris = bangunBarisStruk_(o);
   const kertas = document.getElementById('print-paper');
   kertas.innerHTML = baris.map(b => {
-    const size = b.wide ? '22px' : (b.big ? '17px' : '13px');
     const weight = b.bold ? '700' : '400';
     const align = b.center ? 'center' : 'left';
-    return `<div style="font-size:${size};font-weight:${weight};text-align:${align};margin:1px 0;">${b.text||' '}</div>`;
+    return `<div style="font-size:21px;font-weight:${weight};text-align:${align};margin:1px 0;">${b.text||' '}</div>`;
   }).join('');
 
   document.getElementById('print-status').textContent = PRINT_STATE.characteristic
@@ -2949,8 +2950,7 @@ function bangunByteESCPOS_(baris){
   baris.forEach(b=>{
     push(0x1B,0x61, b.center ? 0x01 : 0x00); // align
     push(0x1B,0x45, b.bold ? 0x01 : 0x00);   // bold on/off
-    const sizeByte = b.wide ? 0x11 : (b.big ? 0x01 : 0x00); // GS ! : double H+W / double H / normal
-    push(0x1D,0x21, sizeByte);
+    push(0x1D,0x21, 0x11); // GS ! — double-height + double-width utk SEMUA baris
     pushText(b.text || ' ');
     push(0x0A); // line feed
   });
