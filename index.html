@@ -2840,7 +2840,9 @@ function bangunBarisStruk_(o){
   const menuFields = [
     ['Nasi',o.nasi],['Lauk',o.lauk_utama],['Tambahan',o.tambahan],['Sayur',o.sayur],
     ['Sambal',o.sambal],['Kerupuk',o.kerupuk],['Buah',o.buah],['Air',o.air_mineral],
-    ['Kemasan',o.kemasan],['Puding',o.puding],['Snack',o.snack],['Minuman',o.minuman]
+    ['Kemasan',o.kemasan],['Pilihan 1',o.pilihan_lain_1],['Pilihan 2',o.pilihan_lain_2],
+    ['Pilihan 3',o.pilihan_lain_3],['Pilihan 4',o.pilihan_lain_4],['Pilihan 5',o.pilihan_lain_5],
+    ['Puding',o.puding],['Snack',o.snack],['Minuman',o.minuman]
   ].filter(([,v]) => v && v!=='—');
 
   const W = 14; // lebar maks per baris (karakter) — dipotong pendek krn font double-width
@@ -2860,9 +2862,11 @@ function bangunBarisStruk_(o){
   L.push({text:'Qty: '+(o.qty||0)+' pax', bold:true});
   L.push({text:'-'.repeat(W), center:true});
 
+  L.push({cmd:'tight'});
   menuFields.forEach(([k,v])=>{
     wrapTeksPrint_(v, W-2).forEach((t,i)=>L.push({text:(i===0?'- ':'  ')+t}));
   });
+  L.push({cmd:'normal'});
 
   L.push({text:'-'.repeat(W), center:true});
   L.push({text:'Penerima:', bold:true});
@@ -2886,10 +2890,10 @@ function bukaPrintPreview(noOrder){
   PRINT_STATE.order = o;
   const baris = bangunBarisStruk_(o);
   const kertas = document.getElementById('print-paper');
-  kertas.innerHTML = baris.map(b => {
+  kertas.innerHTML = baris.filter(b=>!b.cmd).map(b => {
     const weight = b.bold ? '700' : '400';
     const align = b.center ? 'center' : 'left';
-    return `<div style="font-size:21px;font-weight:${weight};text-align:${align};margin:1px 0;">${b.text||' '}</div>`;
+    return `<div style="font-size:21px;font-weight:${weight};line-height:1.15;text-align:${align};margin:0;">${b.text||' '}</div>`;
   }).join('');
 
   document.getElementById('print-status').textContent = PRINT_STATE.characteristic
@@ -2951,6 +2955,8 @@ function bangunByteESCPOS_(baris){
   push(0x1B,0x40); // ESC @ — reset printer
 
   baris.forEach(b=>{
+    if (b.cmd === 'tight') { push(0x1B,0x33, 24); return; } // ESC 3 n — perkecil jarak antar baris
+    if (b.cmd === 'normal') { push(0x1B,0x32); return; }    // ESC 2 — kembali ke jarak baris default
     push(0x1B,0x61, b.center ? 0x01 : 0x00); // align
     push(0x1B,0x45, b.bold ? 0x01 : 0x00);   // bold on/off
     push(0x1D,0x21, 0x11); // GS ! — double-height + double-width utk SEMUA baris
