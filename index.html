@@ -2849,16 +2849,19 @@ function bangunBarisStruk_(o){
   L.push({text:'KSM KATERING', bold:true, center:true});
   L.push({text:'-'.repeat(W), center:true});
   L.push({text:'No: '+(o.no_order||'-')});
-  L.push({text:fd(o.tanggal_kirim)});
-  L.push({text:o.jam_sampai||''});
+  const tglObj = o.tanggal_kirim ? new Date(o.tanggal_kirim+'T00:00:00') : null;
+  if (tglObj) {
+    L.push({text: tglObj.toLocaleDateString('id-ID', {weekday:'long'})}); // Hari
+    L.push({text: tglObj.toLocaleDateString('id-ID', {day:'numeric',month:'long',year:'numeric'})}); // Tanggal
+  }
+  L.push({text: o.jam_sampai||''}); // Jam
   L.push({text:'-'.repeat(W), center:true});
   wrapTeksPrint_(o.paket||'-', W).forEach(t=>L.push({text:t, bold:true}));
   L.push({text:'Qty: '+(o.qty||0)+' pax', bold:true});
   L.push({text:'-'.repeat(W), center:true});
 
   menuFields.forEach(([k,v])=>{
-    L.push({text:k+':', bold:true});
-    wrapTeksPrint_(v, W).forEach(t=>L.push({text:t}));
+    wrapTeksPrint_(v, W-2).forEach((t,i)=>L.push({text:(i===0?'- ':'  ')+t}));
   });
 
   L.push({text:'-'.repeat(W), center:true});
