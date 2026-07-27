@@ -1,0 +1,153 @@
+<!-- ═══════════════════════════════════════════════════════════════
+     SNIPPET POPUP INVOICE — tempel 3 bagian di bawah ini ke index.html
+     yang sudah ada di alima-order. Tidak perlu tab baru, cuma tombol
+     kecil 🧾 di header (dipakai sesekali, sesuai permintaan).
+     ═══════════════════════════════════════════════════════════════ -->
+
+
+<!-- ══ BAGIAN 1 — TOMBOL DI HEADER ══════════════════════════════
+     Tempel PERSIS SEBELUM <div id="cst">⏳</div> di dalam <header>,
+     jadi baris "who-badge" sekitar ini:
+
+       <div style="display:flex;align-items:center;gap:8px;">
+         <span id="who-badge" ...></span>
+         <div id="cst">⏳</div>       <-- tambahkan tombol SEBELUM baris ini
+       </div>
+-->
+<button onclick="openInvoiceModal()" title="Buat Invoice"
+  style="background:rgba(255,255,255,.18);border:none;color:#fff;border-radius:6px;
+         padding:5px 9px;font-size:14px;cursor:pointer;line-height:1;">🧾</button>
+
+
+<!-- ══ BAGIAN 2 — MODAL HTML ════════════════════════════════════
+     Tempel di manapun di antara modal-modal lain, misal PERSIS
+     SETELAH penutup </div> dari <div class="modal-bg hide" id="assign-driver-modal">...</div>
+-->
+<div class="modal-bg hide" id="invoice-modal">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-head">
+      <h2>🧾 Buat Invoice</h2>
+      <button class="modal-close" onclick="closeInvoiceModal()">×</button>
+    </div>
+
+    <div class="fld">
+      <label>No Order <span class="req">*</span> (pisahkan dengan koma kalau lebih dari 1)</label>
+      <input id="inv-no-orders" placeholder="10528, 10529, 10530">
+    </div>
+    <button class="bico" style="width:100%;margin-bottom:12px;" onclick="muatDraftInvoice()">🔍 Muat Data Order</button>
+
+    <div id="inv-draft-box" class="hide">
+      <div class="pstrip" style="margin-bottom:12px;">
+        <div id="inv-preview-body" style="font-size:12px;"></div>
+      </div>
+
+      <div class="g2">
+        <div class="fld"><label>Nomor Invoice</label><input id="inv-no-invoice"></div>
+        <div class="fld"><label>Tanggal Invoice</label><input id="inv-tgl" type="date"></div>
+      </div>
+      <div class="g2">
+        <div class="fld"><label>Jatuh Tempo</label><input id="inv-jatuh-tempo" type="date"></div>
+        <div class="fld"><label>Diterima Oleh</label><input id="inv-diterima"></div>
+      </div>
+      <div class="g2">
+        <div class="fld"><label>Ditandatangani Oleh</label><input id="inv-signer-nama"></div>
+        <div class="fld"><label>Jabatan</label><input id="inv-signer-jabatan"></div>
+      </div>
+      <div class="fld"><label>Catatan (opsional)</label><textarea id="inv-catatan" style="min-height:40px;"></textarea></div>
+
+      <button class="bsub" onclick="buatInvoicePdf()">📄 Buat &amp; Buka PDF</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══ BAGIAN 3 — JAVASCRIPT ════════════════════════════════════
+     Tempel di dalam <script> yang sudah ada, misal PERSIS SETELAH
+     fungsi gasFetch() (sekitar baris 1124: "return JSON.parse(text); }")
+-->
+<script>
+let INV_DRAFT = null;
+
+function openInvoiceModal(){
+  document.getElementById('inv-no-orders').value = '';
+  document.getElementById('inv-draft-box').classList.add('hide');
+  document.getElementById('invoice-modal').classList.remove('hide');
+}
+function closeInvoiceModal(){
+  document.getElementById('invoice-modal').classList.add('hide');
+}
+
+async function muatDraftInvoice(){
+  const csv = document.getElementById('inv-no-orders').value.trim();
+  if(!csv){ toast('Isi No Order dulu.','err'); return; }
+
+  showOvl('Memuat data order…');
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=getInvoiceDraft&no_orders=' + encodeURIComponent(csv) + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+    INV_DRAFT = j;
+
+    const itemsHtml = j.items.map(it =>
+      `<div class="prow"><span>${it.no_order} · ${it.deskripsi} (${it.qty}x)</span><span>Rp${it.total.toLocaleString('en-US')}</span></div>`
+    ).join('');
+
+    document.getElementById('inv-preview-body').innerHTML =
+      `<strong>${j.customer.nama || '—'}</strong>${j.customer.nama_instansi ? ' · ' + j.customer.nama_instansi : ''}<br>` +
+      itemsHtml +
+      `<div class="prow tot"><span>Total</span><span>Rp${j.grand_total.toLocaleString('en-US')}</span></div>` +
+      (j.customer_beda ? '<div style="color:var(--red);font-size:11px;margin-top:6px;">⚠️ No Order yang dipilih berasal dari customer berbeda — invoice akan pakai data customer dari order pertama.</div>' : '');
+
+    document.getElementById('inv-no-invoice').value    = j.suggested_no_invoice || '';
+    document.getElementById('inv-tgl').value           = j.suggested_tanggal || '';
+    document.getElementById('inv-jatuh-tempo').value   = j.suggested_jatuh_tempo || '';
+    document.getElementById('inv-diterima').value      = j.customer.nama || '';
+    document.getElementById('inv-signer-nama').value   = j.suggested_signer || '';
+    document.getElementById('inv-signer-jabatan').value= j.suggested_jabatan || '';
+    document.getElementById('inv-catatan').value       = '';
+
+    document.getElementById('inv-draft-box').classList.remove('hide');
+  }catch(e){
+    toast('Gagal: ' + e.message, 'err');
+  }finally{ hideOvl(); }
+}
+
+async function buatInvoicePdf(){
+  if(!INV_DRAFT){ toast('Muat data order dulu.','err'); return; }
+  const noInvoice = document.getElementById('inv-no-invoice').value.trim();
+  if(!noInvoice){ toast('Nomor invoice wajib diisi.','err'); return; }
+
+  // Buka tab kosong DULU (sinkron, sebelum await) supaya tidak diblokir popup-blocker browser/HP.
+  const newTab = window.open('', '_blank');
+
+  const qs = new URLSearchParams({
+    action: 'generateInvoicePdf',
+    no_orders: document.getElementById('inv-no-orders').value.trim(),
+    no_invoice: noInvoice,
+    tanggal_invoice: document.getElementById('inv-tgl').value,
+    jatuh_tempo: document.getElementById('inv-jatuh-tempo').value,
+    diterima_oleh: document.getElementById('inv-diterima').value,
+    signer_nama: document.getElementById('inv-signer-nama').value,
+    signer_jabatan: document.getElementById('inv-signer-jabatan').value,
+    catatan: document.getElementById('inv-catatan').value
+  }).toString();
+
+  showOvl('Membuat PDF invoice…');
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+
+    const byteChars = atob(j.base64);
+    const byteNumbers = new Array(byteChars.length);
+    for(let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
+    const blob = new Blob([new Uint8Array(byteNumbers)], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+
+    if(newTab) newTab.location.href = url; else window.open(url, '_blank');
+    toast('Invoice berhasil dibuat ✓', 'ok');
+    closeInvoiceModal();
+  }catch(e){
+    if(newTab) newTab.close();
+    toast('Gagal buat invoice: ' + e.message, 'err');
+  }finally{ hideOvl(); }
+}
+</script>
