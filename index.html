@@ -494,6 +494,10 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       <div class="fld"><label>Catatan (opsional)</label><textarea id="inv-catatan" style="min-height:40px;"></textarea></div>
 
       <button class="bsub" onclick="buatInvoicePdf()">📄 Buat &amp; Buka PDF</button>
+      <div id="inv-drive-link-box" class="hide" style="background:var(--grnl);border:1px solid #b7dfc9;border-radius:8px;padding:10px 12px;margin-top:10px;font-size:12px;">
+        ✅ Tersimpan permanen di Drive:<br>
+        <a id="inv-drive-link" href="#" target="_blank" style="color:var(--blu);word-break:break-all;"></a>
+      </div>
     </div>
   </div>
 </div>
@@ -1170,6 +1174,7 @@ let INV_DRAFT = null;
 function openInvoiceModal(){
   document.getElementById('inv-no-orders').value = '';
   document.getElementById('inv-draft-box').classList.add('hide');
+  document.getElementById('inv-drive-link-box').classList.add('hide');
   document.getElementById('invoice-modal').classList.remove('hide');
 }
 function closeInvoiceModal(){
@@ -1242,8 +1247,13 @@ async function buatInvoicePdf(){
     const url = URL.createObjectURL(blob);
 
     if(newTab) newTab.location.href = url; else window.open(url, '_blank');
+
+    if(j.drive_url){
+      document.getElementById('inv-drive-link').href = j.drive_url;
+      document.getElementById('inv-drive-link').textContent = j.drive_url;
+      document.getElementById('inv-drive-link-box').classList.remove('hide');
+    }
     toast('Invoice berhasil dibuat ✓', 'ok');
-    closeInvoiceModal();
   }catch(e){
     if(newTab) newTab.close();
     toast('Gagal buat invoice: ' + e.message, 'err');
