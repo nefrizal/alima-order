@@ -132,16 +132,19 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   <div class="brand">Alima Boga Batam<small>Sales Order App</small></div>
   <div style="display:flex;align-items:center;gap:8px;">
     <span id="who-badge" style="font-size:10px;background:rgba(255,255,255,.2);padding:3px 8px;border-radius:20px;"></span>
+    <button onclick="openInvoiceModal()" title="Buat Invoice"
+      style="background:rgba(255,255,255,.18);border:none;color:#fff;border-radius:6px;
+             padding:5px 9px;font-size:14px;cursor:pointer;line-height:1;">🧾</button>
     <div id="cst">⏳</div>
   </div>
 </header>
 <div class="tabs">
-  <button class="tbtn on" id="tab-form" onclick="goTab('form',this)">➕ Order Baru</button>
-  <button class="tbtn" id="tab-revisi" onclick="goTab('revisi',this)">✏️ Revisi</button>
+  <button class="tbtn on" id="tab-form" onclick="goTab('form',this)">📝 Order</button>
   <button class="tbtn" id="tab-jadwal" onclick="goTab('jadwal',this)">📅 Jadwal</button>
   <button class="tbtn" id="tab-masak" onclick="goTab('masak',this)">🍳 Masak</button>
   <button class="tbtn" id="tab-grafik" onclick="goTab('grafik',this)">📊 Grafik</button>
   <button class="tbtn" id="tab-absensi" onclick="goTab('absensi',this)">🕐 Absensi</button>
+  <button class="tbtn" id="tab-laporan" onclick="goTab('laporan',this)">📋 Laporan Keluhan</button>
 </div>
 <div class="ovl hide" id="ovl"><div class="sp"></div><span id="ovl-msg">Memproses…</span></div>
 <div class="toast" id="toast"></div>
@@ -149,6 +152,24 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 
 <!-- ═══ FORM ═══ -->
 <div class="panel on" id="panel-form">
+
+  <!-- Cari & Edit Order -->
+  <div class="sec">
+    <div class="stitle">🔍 Edit Order Lama (opsional)</div>
+    <div style="display:flex;gap:8px;align-items:flex-end;">
+      <div class="fld" style="flex:1;margin:0;">
+        <label>Nomor Order</label>
+        <input id="edit-search-no" type="text" placeholder="Contoh: 010401" onkeydown="if(event.key==='Enter'){event.preventDefault();cariOrderUntukEdit();}">
+      </div>
+      <button onclick="cariOrderUntukEdit()" class="bico" style="height:40px;padding:0 16px;">🔍 Cari</button>
+    </div>
+    <div id="edit-search-status" style="margin-top:10px;font-size:12px;color:var(--inks);"></div>
+  </div>
+
+  <div id="edit-mode-badge" style="display:none;background:var(--orl);border:1px solid #f7d4bc;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--ord);font-weight:600;">
+    ✏️ Mode edit order <strong id="edit-mode-no"></strong> — perubahan akan menimpa order ini, bukan bikin order baru
+    <button type="button" onclick="batalEditOrder()" style="float:right;background:none;border:none;color:var(--ord);text-decoration:underline;cursor:pointer;font-size:11px;">Batal, buat order baru</button>
+  </div>
 
   <!-- Identitas -->
   <div class="sec">
@@ -274,29 +295,15 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     <div class="fld">
       <label>Koordinat (opsional)</label>
       <input id="f-krd" type="text" placeholder="1.123456,104.567890">
+      <div style="display:flex;gap:6px;margin-top:6px;">
+        <input id="f-maplink" type="text" placeholder="Tempel link share-loc Google Maps di sini…" style="flex:1;">
+        <button class="gps-btn" type="button" onclick="ambilDariLinkOrder()" style="white-space:nowrap;">🔗 Ambil</button>
+      </div>
       <button class="gps-btn" type="button" onclick="getGPS()">📍 Gunakan Lokasi Saya</button>
     </div>
   </div>
 
-  <button class="bsub" id="btn-sub" onclick="submitOrder()">💾 Simpan Order &amp; Kirim Notifikasi WA</button>
-</div>
-
-<!-- ═══ REVISI ═══ -->
-<div class="panel" id="panel-revisi">
-  <div class="sec">
-    <div class="stitle">✏️ Revisi Order</div>
-    <div style="display:flex;gap:8px;align-items:flex-end;">
-      <div class="fld" style="flex:1;margin:0;">
-        <label>Nomor Order</label>
-        <input id="rev-no" type="text" placeholder="Contoh: 010401" style="text-transform:uppercase;">
-      </div>
-      <button onclick="loadOrderForRevisi()" class="bico" style="height:40px;padding:0 16px;">🔍 Cari</button>
-    </div>
-    <div id="rev-status" style="margin-top:10px;font-size:12px;color:var(--inks);"></div>
-  </div>
-  <div id="rev-form" style="display:none;">
-    <!-- Form revisi diisi JS -->
-  </div>
+  <button class="bsub" id="btn-sub" onclick="submitOrder()">💾 Simpan Order Baru &amp; Kirim Notifikasi WA</button>
 </div>
 
 <!-- ═══ JADWAL ═══ -->
@@ -322,6 +329,10 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   </div>
   <div id="gf-updated" style="font-size:11px;color:var(--inks);text-align:center;margin-bottom:10px;"></div>
   <div id="gf-chart"><div class="empty"><div class="eico">📊</div><p>Klik Refresh untuk memuat grafik.</p></div></div>
+
+  <div class="stitle" style="margin-top:20px;">📅 Grafik Harian (15 Hari ke Depan)</div>
+  <div id="gf-harian-updated" style="font-size:11px;color:var(--inks);text-align:center;margin-bottom:10px;"></div>
+  <div id="gf-harian-chart"><div class="empty"><div class="eico">📅</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
 </div>
 
 <!-- ═══ ABSENSI ═══ -->
@@ -346,15 +357,35 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   </div>
 </div>
 
+<!-- ═══ LAPORAN KELUHAN ═══ -->
+<div class="panel" id="panel-laporan">
+  <div class="lbar">
+    <button class="bico" onclick="openLaporanModal()" style="flex:1;background:var(--or);">➕ Buat Laporan Baru</button>
+    <button class="bico" onclick="loadLaporanList()">↻</button>
+  </div>
+  <div id="laporan-list"><div class="empty"><div class="eico">📋</div><p>Klik ↻ untuk memuat daftar laporan.</p></div></div>
+</div>
+
 </main>
 
-<!-- MODAL CUSTOMER -->
+<!-- MODAL CUSTOMER (gabungan Tambah Baru + Edit/Revisi) -->
 <div class="modal-bg hide" id="cust-modal">
   <div class="modal">
     <div class="modal-head">
-      <h2>👤 Tambah Customer Baru</h2>
+      <h2 id="cust-modal-title">👤 Tambah / Edit Customer</h2>
       <button class="modal-close" onclick="closeCustModal()">×</button>
     </div>
+    <div class="fld" style="position:relative;">
+      <label>Cari Customer Lama (utk edit) — kosongkan untuk tambah baru</label>
+      <input id="nc-search" type="text" placeholder="Ketik nama / no. HP customer yang mau diedit…" autocomplete="off"
+        oninput="filterCustModal()" onfocus="filterCustModal()" onblur="setTimeout(hideCustModalDD,200)">
+      <div id="nc-search-dd" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--or);border-radius:0 0 8px 8px;max-height:180px;overflow-y:auto;z-index:100;box-shadow:var(--sh);"></div>
+    </div>
+    <div id="nc-edit-badge" style="display:none;background:var(--orl);border:1px solid #f7d4bc;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:var(--ord);font-weight:600;">
+      ✏️ Mode edit — perubahan akan menimpa data customer ini
+      <button type="button" onclick="resetCustModalToAdd()" style="float:right;background:none;border:none;color:var(--ord);text-decoration:underline;cursor:pointer;font-size:11px;">Batal edit, tambah baru</button>
+    </div>
+    <input id="nc-id" type="hidden" value="">
     <div class="g2">
       <div class="fld"><label>Nama <span class="req">*</span></label><input id="nc-nama" type="text" placeholder="Nama lengkap"></div>
       <div class="fld"><label>Gender</label>
@@ -371,8 +402,17 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       <div class="fld"><label>No. HP <span class="req">*</span></label><input id="nc-hp" type="tel" placeholder="08xxxxxxxxxx"></div>
       <div class="fld"><label>Nama Sales</label><input id="nc-sales" type="text" placeholder="Nama sales"></div>
     </div>
+    <div class="fld"><label>Email (opsional)</label><input id="nc-email" type="email" placeholder="customer@email.com"></div>
     <div class="fld"><label>Alamat</label><textarea id="nc-alamat" placeholder="Alamat lengkap…" style="min-height:52px;"></textarea></div>
-    <button class="bsub" id="btn-save-cust" onclick="saveNewCustomer()" style="margin-top:8px;">💾 Simpan Customer</button>
+    <div class="fld">
+      <label>Koordinat (opsional)</label>
+      <input id="nc-koordinat" type="text" placeholder="1.123456,104.567890">
+      <div style="display:flex;gap:6px;margin-top:6px;">
+        <input id="nc-maplink" type="text" placeholder="Tempel link share-loc Google Maps di sini…" style="flex:1;">
+        <button class="gps-btn" type="button" onclick="ambilDariLinkModal()" style="white-space:nowrap;">🔗 Ambil</button>
+      </div>
+    </div>
+    <button class="bsub" id="btn-save-cust" onclick="saveCustomerModal()" style="margin-top:8px;">💾 Simpan Customer</button>
   </div>
 </div>
 
@@ -383,7 +423,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       <h2>📲 Kirim Notifikasi?</h2>
       <button class="modal-close" onclick="batalkanSimpanOrder()">×</button>
     </div>
-    <p style="font-size:13px;color:var(--inkm);line-height:1.6;margin-bottom:18px;">
+    <p id="notif-modal-text" style="font-size:13px;color:var(--inkm);line-height:1.6;margin-bottom:18px;">
       Order akan tetap disimpan. Notifikasi ke <strong>Sales</strong> akan selalu terkirim.<br><br>
       Kirim juga notifikasi WA konfirmasi order ke <strong>Customer</strong>?
     </p>
@@ -400,6 +440,168 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       <button class="modal-close" onclick="closeOrderDetail()">×</button>
     </div>
     <div id="od-body"><!-- diisi JS --></div>
+  </div>
+</div>
+
+<!-- MODAL QUICK ASSIGN DRIVER (dari tab Jadwal) -->
+<div class="modal-bg hide" id="assign-driver-modal">
+  <div class="modal" style="max-width:360px;">
+    <div class="modal-head">
+      <h2>🚗 Tentukan Driver</h2>
+      <button class="modal-close" onclick="closeAssignDriverModal()">×</button>
+    </div>
+    <p style="font-size:12px;color:var(--inks);margin-bottom:12px;">Order <strong id="ad-no-order"></strong></p>
+    <input id="ad-no-order-val" type="hidden">
+    <div class="fld">
+      <label>Driver</label>
+      <select id="ad-driver"><option value="">— Belum ditentukan —</option></select>
+    </div>
+    <button class="bsub" onclick="simpanAssignDriverModal()" style="margin-top:8px;">💾 Simpan</button>
+  </div>
+</div>
+
+<!-- MODAL BUAT INVOICE -->
+<div class="modal-bg hide" id="invoice-modal">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-head">
+      <h2>🧾 Buat Invoice</h2>
+      <button class="modal-close" onclick="closeInvoiceModal()">×</button>
+    </div>
+
+    <div class="fld">
+      <label>No Order <span class="req">*</span> (pisahkan dengan koma kalau lebih dari 1)</label>
+      <input id="inv-no-orders" placeholder="10528, 10529, 10530">
+    </div>
+    <button class="bico" style="width:100%;margin-bottom:12px;" onclick="muatDraftInvoice()">🔍 Muat Data Order</button>
+
+    <div id="inv-draft-box" class="hide">
+      <div class="pstrip" style="margin-bottom:12px;">
+        <div id="inv-preview-body" style="font-size:12px;"></div>
+      </div>
+
+      <div class="g2">
+        <div class="fld"><label>Nomor Invoice</label><input id="inv-no-invoice"></div>
+        <div class="fld"><label>Tanggal Invoice</label><input id="inv-tgl" type="date"></div>
+      </div>
+      <div class="g2">
+        <div class="fld"><label>Jatuh Tempo</label><input id="inv-jatuh-tempo" type="date"></div>
+        <div class="fld"><label>Diterima Oleh</label><input id="inv-diterima"></div>
+      </div>
+      <div class="g2">
+        <div class="fld"><label>Ditandatangani Oleh</label><input id="inv-signer-nama"></div>
+        <div class="fld"><label>Jabatan</label><input id="inv-signer-jabatan"></div>
+      </div>
+      <div class="fld"><label>Catatan (opsional)</label><textarea id="inv-catatan" style="min-height:40px;"></textarea></div>
+
+      <button class="bsub" onclick="buatInvoicePdf()">📄 Buat &amp; Buka PDF</button>
+      <div id="inv-drive-link-box" class="hide" style="background:var(--grnl);border:1px solid #b7dfc9;border-radius:8px;padding:10px 12px;margin-top:10px;font-size:12px;">
+        ✅ Tersimpan permanen di Drive:<br>
+        <a id="inv-drive-link" href="#" target="_blank" style="color:var(--blu);word-break:break-all;"></a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL LAPORAN KELUHAN PELANGGAN -->
+<div class="modal-bg hide" id="laporan-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="lap-modal-title">📋 Buat Laporan Keluhan</h2>
+      <button class="modal-close" onclick="closeLaporanModal()">×</button>
+    </div>
+    <input id="lap-no-laporan" type="hidden">
+
+    <div class="sec" style="margin-bottom:14px;">
+      <div class="stitle" style="font-size:13px;">🔎 Order Terkait</div>
+      <div style="display:flex;gap:8px;align-items:flex-end;">
+        <div class="fld" style="flex:1;margin:0;">
+          <label>Nomor Order</label>
+          <input id="lap-cari-no" type="text" placeholder="Contoh: 010401">
+        </div>
+        <button onclick="cariOrderUntukLaporan()" class="bico" style="height:40px;padding:0 16px;">🔍 Cari</button>
+      </div>
+      <div id="lap-cari-status" style="margin-top:8px;font-size:12px;color:var(--inks);"></div>
+    </div>
+
+    <div class="g2">
+      <div class="fld"><label>No. Order</label><input id="lap-no-order" type="text" readonly style="background:#f5f0ea;"></div>
+      <div class="fld"><label>Nama Pelanggan</label><input id="lap-nama-customer" type="text" readonly style="background:#f5f0ea;"></div>
+    </div>
+    <div class="g2">
+      <div class="fld"><label>No. HP Pelanggan</label><input id="lap-customer-id" type="text" readonly style="background:#f5f0ea;"></div>
+      <div class="fld"><label>Email Pelanggan</label><input id="lap-email-customer" type="email" placeholder="Isi manual kalau belum ada di data Pelanggan"></div>
+    </div>
+    <div class="fld"><label>Dibuat Oleh (Sales)</label><input id="lap-dibuat-oleh" type="text" placeholder="Nama sales"></div>
+
+    <div class="stitle" style="margin-top:16px;">1️⃣ Keluhan Pelanggan</div>
+    <div class="fld"><label>Apa keluhannya?</label><textarea id="lap-apa" style="min-height:52px;" placeholder="Uraikan keluhan yang disampaikan pelanggan…"></textarea></div>
+    <div class="g2">
+      <div class="fld"><label>Kapan kejadiannya?</label><input id="lap-kapan" type="text" placeholder="Mis. Selasa, 22 Jul 2026 sekitar jam 12.30"></div>
+      <div class="fld"><label>Dimana kejadiannya?</label><input id="lap-dimana" type="text" placeholder="Lokasi kejadian"></div>
+    </div>
+    <div class="g2">
+      <div class="fld"><label>Siapa yang menemukan masalah?</label><input id="lap-siapa" type="text" placeholder="Nama/pihak yang menemukan"></div>
+      <div class="fld"><label>Bagaimana masalah ditemukan?</label><input id="lap-bagaimana" type="text" placeholder="Cara masalah terungkap"></div>
+    </div>
+
+    <div class="stitle" style="margin-top:16px;">2️⃣ Investigasi Masalah</div>
+    <div class="fld"><textarea id="lap-investigasi" style="min-height:70px;" placeholder="Hasil penelusuran/investigasi penyebab masalah…"></textarea></div>
+
+    <div class="stitle" style="margin-top:16px;">3️⃣ Kesimpulan</div>
+    <div class="fld"><textarea id="lap-kesimpulan" style="min-height:52px;" placeholder="Kesimpulan dari investigasi…"></textarea></div>
+
+    <div class="stitle" style="margin-top:16px;">4️⃣ Solusi Perbaikan &amp; Pencegahan</div>
+    <div class="fld"><textarea id="lap-solusi" style="min-height:70px;" placeholder="Tindakan perbaikan & pencegahan (jika diperlukan)…"></textarea></div>
+
+    <button class="bsub" id="btn-simpan-laporan" onclick="simpanLaporanKeluhan()" style="margin-top:10px;">💾 Simpan Laporan</button>
+
+    <div id="lap-hasil-box" style="display:none;background:var(--grnl);border:1px solid #b7dfc9;border-radius:10px;padding:14px;margin-top:14px;">
+      <p style="font-size:13px;color:var(--grn);font-weight:700;margin-bottom:8px;">✅ Laporan tersimpan!</p>
+      <a id="lap-doc-link" href="#" target="_blank" style="font-size:12px;color:var(--blu);word-break:break-all;">📄 Buka/Edit Dokumen di Google Docs</a>
+
+      <div class="g2" style="margin-top:14px;">
+        <div class="fld" style="margin:0;">
+          <label style="font-size:10px;">Email Pengirim</label>
+          <input id="lap-email-from" type="email" placeholder="pengirim@domain.com" style="font-size:12px;padding:7px 9px;">
+        </div>
+        <div class="fld" style="margin:0;">
+          <label style="font-size:10px;">Nama Pengirim</label>
+          <input id="lap-nama-pengirim" type="text" placeholder="Alima Boga Batam" style="font-size:12px;padding:7px 9px;">
+        </div>
+      </div>
+      <div style="font-size:10px;color:var(--inks);margin-top:4px;">⚠️ Email pengirim harus sudah terdaftar sbg alias "Send As" di Gmail akun ini (Settings → Accounts → Send mail as), kalau belum email akan gagal terkirim.</div>
+
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button class="bico" onclick="kirimLaporanViaWA()" style="flex:1;background:#1B7A4A;">📲 Kirim WA</button>
+        <button class="bico" onclick="kirimLaporanViaEmail()" style="flex:1;background:#1565C0;">📧 Kirim Email</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PRINT PREVIEW (printer thermal Bluetooth 58mm) -->
+<div class="modal-bg hide" id="print-preview-modal">
+  <div class="modal" style="max-width:400px;background:#f0f0f0;">
+    <div class="modal-head">
+      <h2>🖨️ Preview Cetak</h2>
+      <button class="modal-close" onclick="tutupPrintPreview()">×</button>
+    </div>
+
+    <div id="print-status" style="font-size:12px;color:var(--inks);margin-bottom:10px;text-align:center;"></div>
+
+    <!-- Simulasi kertas 58mm: lebar tetap, font besar & jelas utk mata minus -->
+    <div id="print-paper" style="background:#fff;border:1px solid #ddd;box-shadow:0 2px 8px rgba(0,0,0,.15);
+      width:280px;margin:0 auto;padding:14px 10px;font-family:'Courier New',monospace;
+      font-size:15px;line-height:1.55;color:#000;white-space:pre-wrap;word-break:break-word;">
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:16px;">
+      <button class="bico" onclick="pilihPrinterBluetooth()" style="flex:1;background:var(--or);font-size:13px;padding:12px;">🔵 Hubungkan Printer</button>
+    </div>
+    <button class="bsub" id="btn-cetak-sekarang" onclick="cetakKePrinter()" disabled style="margin-top:8px;background:var(--inks);">🖨️ Cetak Sekarang</button>
+    <div style="font-size:10px;color:var(--inks);margin-top:8px;text-align:center;">
+      Printer thermal Bluetooth 58mm · font diperbesar supaya mudah dibaca
+    </div>
   </div>
 </div>
 </div><!-- /app-content -->
@@ -548,31 +750,7 @@ function setSelectValueCocok_(sel, val){
   }
 }
 
-async function cloneOrder() {
-  const no   = document.getElementById('f-mirip').value.trim();
-  const stat = document.getElementById('mirip-status');
-  if (!no) { toast('Isi nomor order dulu.','err'); return; }
-
-  stat.textContent = '⏳ Mencari…';
-
-  // Cari di allOrders dulu (instant) — baru fetch GAS kalau tidak ada
-  let d = allOrders.find(o => String(o.no_order||'').trim() === no);
-
-  if (!d) {
-    try {
-      const j = await gasFetch(APP.GAS_URL + '?action=getOrderByNo&no=' + encodeURIComponent(no) + '&t=' + Date.now());
-      if (!j.success) throw new Error(j.message || 'Tidak ditemukan');
-      d = j.data;
-    } catch(e) {
-      stat.innerHTML = `❌ ${e.message}`;
-      toast(e.message,'err');
-      return;
-    }
-  }
-
-    // ── Fill identitas ──
-    // bulan dihitung otomatis dari tanggal kirim
-
+async function muatDataKeForm(d) {
     // Customer — cari di CUSTOMERS lalu set search
     const custId = d.customer_id||'';
     const cust   = CUSTOMERS.find(c => c.no_hp === custId);
@@ -584,16 +762,14 @@ async function cloneOrder() {
       info.style.display='block';
       info.innerHTML=`<strong>${cust.nama}</strong>${cust.nama_instansi?' · '+cust.nama_instansi:''}<br>📱 ${cust.no_hp||'—'} · ${cust.instansi||'—'}<br>📍 ${cust.alamat||'—'}`;
     } else if (custId) {
-      // Data customer belum ter-load di cache lokal (mis. Order Mirip dipakai sebelum daftar
-      // customer selesai fetch) — tetap isi ID mentahnya supaya tidak hilang begitu saja.
+      // Data customer belum ter-load di cache lokal — tetap isi ID mentahnya supaya tidak hilang begitu saja.
       document.getElementById('f-cid').value = custId;
       document.getElementById('f-cid-search').value = custId;
       toast('Data customer belum lengkap ter-load, cek ulang field Customer.','err');
     }
 
-    // Sales & Tim
+    // Sales
     if (d.nama_sales||d.sales) document.getElementById('f-sales').value = d.nama_sales||d.sales||'';
-    if (d.tim_eksekusi||d.tim) { /* tim dihapus */ }
 
     // ── Produk & Paket ──
     // Produk tidak lagi disimpan di sheet (hanya alat bantu UI) — cari kategori produk
@@ -647,9 +823,34 @@ async function cloneOrder() {
       setSelectValueCocok_(sel, val);
     });
     syncPilihanSearchLabels();
+}
 
-    stat.innerHTML = `✅ Data dari order <strong>${no}</strong> berhasil disalin. Edit kolom yang berbeda lalu simpan.`;
-    toast('Order disalin! ✓','ok');
+async function cloneOrder() {
+  const no   = document.getElementById('f-mirip').value.trim();
+  const stat = document.getElementById('mirip-status');
+  if (!no) { toast('Isi nomor order dulu.','err'); return; }
+
+  stat.textContent = '⏳ Mencari…';
+
+  // Cari di allOrders dulu (instant) — baru fetch GAS kalau tidak ada
+  let d = allOrders.find(o => String(o.no_order||'').trim() === no);
+
+  if (!d) {
+    try {
+      const j = await gasFetch(APP.GAS_URL + '?action=getOrderByNo&no=' + encodeURIComponent(no) + '&t=' + Date.now());
+      if (!j.success) throw new Error(j.message || 'Tidak ditemukan');
+      d = j.data;
+    } catch(e) {
+      stat.innerHTML = `❌ ${e.message}`;
+      toast(e.message,'err');
+      return;
+    }
+  }
+
+  await muatDataKeForm(d);
+
+  stat.innerHTML = `✅ Data dari order <strong>${no}</strong> berhasil disalin. Edit kolom yang berbeda lalu simpan.`;
+  toast('Order disalin! ✓','ok');
 }
 
 function waitForEl(id, timeout=2000) {
@@ -663,115 +864,6 @@ function waitForEl(id, timeout=2000) {
     };
     check();
   });
-}
-let revisiData = null; // data order yang sedang direvisi
-
-async function loadOrderForRevisi() {
-  const no    = document.getElementById('rev-no').value.trim();
-  const stat  = document.getElementById('rev-status');
-  const form  = document.getElementById('rev-form');
-  if (!no) { toast('Isi nomor order dulu.','err'); return; }
-
-  stat.innerHTML = '⏳ Mencari order…';
-  form.style.display = 'none';
-
-  try {
-    const j = await gasFetch(APP.GAS_URL + '?action=getOrderByNo&no=' + encodeURIComponent(no) + '&t=' + Date.now());
-    if (!j.success) throw new Error(j.message || 'Tidak ditemukan');
-    revisiData = j.data;
-    stat.innerHTML = `✅ Order ditemukan: <strong>${no}</strong> · ${revisiData.produk||''} ${revisiData.paket||''} · ${revisiData.qty||''} pax`;
-    renderRevisiForm(revisiData);
-    form.style.display = 'block';
-  } catch(e) {
-    stat.innerHTML = `❌ ${e.message}`;
-    form.style.display = 'none';
-  }
-}
-
-function renderRevisiForm(d) {
-  const form = document.getElementById('rev-form');
-  // Ambil nilai menu dari data
-  const menuFields = [
-    ['nasi','Nasi',d.nasi],['lauk_utama','Lauk Utama',d.lauk_utama],
-    ['tambahan','Tambahan',d.tambahan],['sayur','Sayur',d.sayur],
-    ['sambal','Sambal',d.sambal],['kerupuk','Kerupuk',d.kerupuk],
-    ['buah','Buah',d.buah],['air_mineral','Air Mineral',d.air_mineral],
-    ['kemasan','Kemasan',d.kemasan],['lain1','Pilihan 1',d.pilihan_lain_1],
-    ['lain2','Pilihan 2',d.pilihan_lain_2],['lain3','Pilihan 3',d.pilihan_lain_3],
-    ['lain4','Pilihan 4',d.pilihan_lain_4],['lain5','Pilihan 5',d.pilihan_lain_5],
-    ['puding','Puding',d.puding],['minuman','Minuman',d.minuman],['snack','Snack',d.snack]
-  ];
-
-  const menuHTML = menuFields.map(([fk, lbl, val]) => {
-    const opts = (MENU_DATA||EMBEDDED_MENU)[Object.keys(MENU_KEY_MAP).find(k=>MENU_KEY_MAP[k]===fk)] || [];
-    const optsHTML = ['—',...opts].map(o =>
-      `<option value="${o==='—'?'':o}" ${(val||'')===(o==='—'?'':o)?'selected':''}>${o}</option>`
-    ).join('');
-    return `<div class="fld"><label>${lbl}</label><select id="rv-${fk}">${optsHTML}</select></div>`;
-  }).join('');
-
-  form.innerHTML = `
-    <div class="sec">
-      <div class="stitle">📋 Data Order</div>
-      <div class="g2">
-        <div class="fld"><label>Tanggal Kirim</label>
-          <input id="rv-tgl" type="date" value="${d.tanggal_kirim||d.tgl_kirim||''}"></div>
-        <div class="fld"><label>Jam Sampai</label>
-          <input id="rv-jam" type="time" value="${d.jam_sampai||''}"></div>
-      </div>
-      <div class="g3">
-        <div class="fld"><label>Qty (pax)</label>
-          <input id="rv-qty" type="number" value="${d.qty||''}" oninput="recalcRev()"></div>
-        <div class="fld"><label>Harga Jual (rb)</label>
-          <input id="rv-hjual" type="number" value="${d.harga_jual_dlm_ribuan||d.harga_jual||''}" oninput="recalcRev()"></div>
-        <div class="fld"><label>Fee Broker (rb)</label>
-          <input id="rv-fee" type="number" value="${d.fee_jasa_broker||d.fee_broker||0}" oninput="recalcRev()"></div>
-      </div>
-      <div class="g2">
-        <div class="fld"><label>Delivery Charge (Rp)</label>
-          <input id="rv-del" type="number" value="${d.delivery_charge||d.delivery||0}" oninput="recalcRev()"></div>
-        <div class="fld"><label>Harga untuk KSM (rb)</label>
-          <input id="rv-hksm" type="number" readonly value="${d.harga_untuk_ksm||d.harga_ksm||''}"></div>
-      </div>
-      <div class="pstrip" id="rv-strip">
-        <div class="prow"><span>Jumlah Total</span><span id="rv-tot">Rp ${Number(d.jumlah_total||0).toLocaleString('id-ID')}</span></div>
-      </div>
-    </div>
-    <div class="sec">
-      <div class="stitle">🚚 Pengiriman</div>
-      <div class="g2">
-        <div class="fld"><label>Nama Penerima</label>
-          <input id="rv-pen" type="text" value="${d.nama_penerima||d.penerima||''}"></div>
-        <div class="fld"><label>No. HP Penerima</label>
-          <input id="rv-hp" type="tel" value="${d.no_hp_penerima||d.hp_penerima||''}"></div>
-      </div>
-      <div class="fld"><label>Alamat</label>
-        <textarea id="rv-adr" style="min-height:52px;">${d.alamat_pengiriman||d.alamat||''}</textarea></div>
-    </div>
-    <div class="sec">
-      <div class="stitle">🥘 Komposisi Menu</div>
-      <div class="mgrid">${menuHTML}</div>
-      <div class="fld" style="margin-top:10px;"><label>Keterangan</label>
-        <textarea id="rv-ket" style="min-height:52px;">${d.keterangan||''}</textarea></div>
-    </div>
-    <div style="display:flex;gap:10px;margin-top:4px;">
-      <button class="bsub" id="btn-sub-rev" onclick="submitRevisi()" style="flex:1;">💾 Simpan Revisi</button>
-      <button onclick="document.getElementById('rev-form').style.display='none';revisiData=null;"
-        style="background:var(--redl);color:var(--red);border:1.5px solid var(--red);border-radius:var(--r);padding:14px 16px;font-weight:600;cursor:pointer;">Batal</button>
-    </div>`;
-}
-
-function recalcRev() {
-  const qty  = parseFloat(document.getElementById('rv-qty')?.value)||0;
-  const hjl  = parseFloat(document.getElementById('rv-hjual')?.value)||0;
-  const fee  = parseFloat(document.getElementById('rv-fee')?.value)||0;
-  const del  = parseFloat(document.getElementById('rv-del')?.value)||0;
-  const hksm = Math.max(0, hjl-fee);
-  const tot  = qty*hksm*1000 + del;
-  const hksmEl = document.getElementById('rv-hksm');
-  const totEl  = document.getElementById('rv-tot');
-  if (hksmEl) hksmEl.value = hksm||'';
-  if (totEl)  totEl.textContent = 'Rp '+tot.toLocaleString('id-ID');
 }
 
 // Bandingkan data order sebelum & sesudah revisi, hasilkan daftar field yang berubah saja.
@@ -808,75 +900,6 @@ function bangunDaftarPerubahan_(lama, baru) {
   return perubahan;
 }
 
-async function submitRevisi() {
-  if (!revisiData) return;
-  const btn = document.getElementById('btn-sub-rev');
-  if (btn && btn.disabled) return; // cegah submit dobel (double-tap)
-  if (btn) btn.disabled = true;
-  try {
-  const qty   = parseFloat(document.getElementById('rv-qty')?.value)||0;
-  const hjl   = parseFloat(document.getElementById('rv-hjual')?.value)||0;
-  const fee   = parseFloat(document.getElementById('rv-fee')?.value)||0;
-  const del   = parseFloat(document.getElementById('rv-del')?.value)||0;
-  const hksm  = Math.max(0,hjl-fee);
-  const jml   = qty*hksm*1000;
-  const tot   = jml+del;
-
-  const menuKeys = ['nasi','lauk_utama','tambahan','sayur','sambal','kerupuk','buah',
-    'air_mineral','kemasan','lain1','lain2','lain3','lain4','lain5','puding','minuman','snack'];
-  const menuVals = {};
-  menuKeys.forEach(k => { menuVals[k] = document.getElementById('rv-'+k)?.value||''; });
-
-  const d = {
-    ...revisiData,
-    tgl_kirim:  document.getElementById('rv-tgl')?.value||'',
-    jam_sampai: document.getElementById('rv-jam')?.value||'',
-    qty, harga_jual:hjl, fee_broker:fee, harga_ksm:hksm,
-    jumlah:jml, delivery:del, jumlah_total:tot,
-    penerima:   document.getElementById('rv-pen')?.value||'',
-    hp_penerima:document.getElementById('rv-hp')?.value||'',
-    alamat:     document.getElementById('rv-adr')?.value||'',
-    keterangan: document.getElementById('rv-ket')?.value||'',
-    ...menuVals,
-    status: 'Revisi'
-  };
-
-  showOvl('Menyimpan revisi…');
-  try {
-    const qs = new URLSearchParams({action:'updateOrder', ...d}).toString();
-    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
-    if (!j.success) { hideOvl(); toast(j.message || 'Revisi ditolak server.', 'err'); return; }
-    // Revisi sudah tersimpan di titik ini. Kegagalan kirim WA di bawah TIDAK membatalkan revisi.
-    let waError = null;
-    if (!APP.FONNTE_TOKEN.includes('GANTI')) {
-      try {
-        const perubahan = bangunDaftarPerubahan_(revisiData, d);
-        const daftarStr = perubahan.length ? perubahan.map(p=>'• '+p).join('\n') : '(tidak ada perubahan terdeteksi)';
-        const msg = `✏️ *REVISI ORDER — ${d.no_order}*\n\n${daftarStr}`;
-        await fPost(APP.WA_NOTIF, msg);
-      } catch(waErr) {
-        waError = waErr;
-        console.error('Gagal kirim notifikasi WA revisi (revisi tetap tersimpan):', waErr);
-      }
-    }
-    hideOvl();
-    if (waError) {
-      toast(`Revisi ${d.no_order} TERSIMPAN ✓, tapi WA gagal terkirim (${waError.message}).`,'err');
-    } else {
-      toast(`Revisi ${d.no_order} tersimpan! ✓`,'ok');
-    }
-    document.getElementById('rev-form').style.display='none';
-    document.getElementById('rev-status').innerHTML='';
-    document.getElementById('rev-no').value='';
-    revisiData=null;
-  } catch(e) {
-    hideOvl();
-    toast('Gagal menyimpan revisi: '+e.message,'err');
-  }
-  } finally {
-    if (btn) btn.disabled = false;
-  }
-}
 // ══ CACHE (in-memory) ═════════════════
 const MEM = {};
 function cSet(k,v){ MEM[k]=v; }
@@ -908,6 +931,7 @@ function initAppContent(){
   loadCustomers();
   loadSalesData();
   loadMasterFromGAS();
+  loadDrivers();
   checkConn();
 }
 
@@ -992,8 +1016,8 @@ function retryLogin(){
 // Karyawan hanya boleh lihat tab Jadwal — tab lain disembunyikan total.
 function applyKaryawanAccess(){
   document.getElementById('tab-form').classList.add('hide');
-  document.getElementById('tab-revisi').classList.add('hide');
   document.getElementById('tab-grafik').classList.add('hide');
+  document.getElementById('tab-laporan').classList.add('hide');
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('on'));
   document.getElementById('panel-absensi').classList.add('on');
@@ -1005,10 +1029,10 @@ function applyKaryawanAccess(){
 // Isi Jadwal-nya sendiri otomatis difilter cuma order dengan produk kategori "snack" (lihat renderJadwal).
 function applySnackAccess(){
   document.getElementById('tab-form').classList.add('hide');
-  document.getElementById('tab-revisi').classList.add('hide');
   document.getElementById('tab-masak').classList.add('hide');
   document.getElementById('tab-grafik').classList.add('hide');
   document.getElementById('tab-absensi').classList.add('hide');
+  document.getElementById('tab-laporan').classList.add('hide');
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('on'));
   document.getElementById('panel-jadwal').classList.add('on');
@@ -1046,6 +1070,28 @@ function getBulanFromTgl(){
   return BULAN_NAMA[d.getMonth()]+' '+d.getFullYear();
 }
 function onTglChange(){loadMenuInfo();}
+
+// ══ DRIVER (dipakai di tab Jadwal utk quick-assign, sudah tidak ada di form Order) ══
+let DRIVERS_LIST = [];
+async function loadDrivers(){
+  const cached = cGet('alima_drivers');
+  if(cached){ DRIVERS_LIST = cached; }
+  try{
+    const j = await jsonp(APP.GAS_URL, { action:'list_drivers' });
+    if(j && j.ok && j.drivers){ DRIVERS_LIST = j.drivers; cSet('alima_drivers', j.drivers); }
+  }catch(e){ /* pakai cache/kosong kalau gagal, tidak fatal */ }
+}
+// JSONP helper (dipakai khusus utk action list_drivers yang tidak lewat gerbang id_token)
+function jsonp(url, params){
+  return new Promise((resolve) => {
+    const cb = 'jsonp_cb_' + Date.now() + Math.floor(Math.random()*10000);
+    window[cb] = (data) => { resolve(data); delete window[cb]; document.body.removeChild(script); };
+    const qs = new URLSearchParams({...params, callback: cb}).toString();
+    const script = document.createElement('script');
+    script.src = url + '?' + qs;
+    document.body.appendChild(script);
+  });
+}
 function setDefaults(){
   const d=new Date();d.setDate(d.getDate()+1);
   document.getElementById('f-tgl').value=d.toISOString().split('T')[0];
@@ -1120,6 +1166,98 @@ async function gasFetch(url){
   const text=await res.text();
   if(text.trim().startsWith('<')) throw new Error('GAS return HTML');
   return JSON.parse(text);
+}
+
+// ══ INVOICE ═══════════════════════════
+let INV_DRAFT = null;
+
+function openInvoiceModal(){
+  document.getElementById('inv-no-orders').value = '';
+  document.getElementById('inv-draft-box').classList.add('hide');
+  document.getElementById('inv-drive-link-box').classList.add('hide');
+  document.getElementById('invoice-modal').classList.remove('hide');
+}
+function closeInvoiceModal(){
+  document.getElementById('invoice-modal').classList.add('hide');
+}
+
+async function muatDraftInvoice(){
+  const csv = document.getElementById('inv-no-orders').value.trim();
+  if(!csv){ toast('Isi No Order dulu.','err'); return; }
+
+  showOvl('Memuat data order…');
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=getInvoiceDraft&no_orders=' + encodeURIComponent(csv) + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+    INV_DRAFT = j;
+
+    const itemsHtml = j.items.map(it =>
+      `<div class="prow"><span>${it.no_order} · ${it.deskripsi} (${it.qty}x)</span><span>Rp${it.total.toLocaleString('en-US')}</span></div>`
+    ).join('');
+
+    document.getElementById('inv-preview-body').innerHTML =
+      `<strong>${j.customer.nama || '—'}</strong>${j.customer.nama_instansi ? ' · ' + j.customer.nama_instansi : ''}<br>` +
+      itemsHtml +
+      `<div class="prow tot"><span>Total</span><span>Rp${j.grand_total.toLocaleString('en-US')}</span></div>` +
+      (j.customer_beda ? '<div style="color:var(--red);font-size:11px;margin-top:6px;">⚠️ No Order yang dipilih berasal dari customer berbeda — invoice akan pakai data customer dari order pertama.</div>' : '');
+
+    document.getElementById('inv-no-invoice').value    = j.suggested_no_invoice || '';
+    document.getElementById('inv-tgl').value           = j.suggested_tanggal || '';
+    document.getElementById('inv-jatuh-tempo').value   = j.suggested_jatuh_tempo || '';
+    document.getElementById('inv-diterima').value      = j.customer.nama || '';
+    document.getElementById('inv-signer-nama').value   = j.suggested_signer || '';
+    document.getElementById('inv-signer-jabatan').value= j.suggested_jabatan || '';
+    document.getElementById('inv-catatan').value       = '';
+
+    document.getElementById('inv-draft-box').classList.remove('hide');
+  }catch(e){
+    toast('Gagal: ' + e.message, 'err');
+  }finally{ hideOvl(); }
+}
+
+async function buatInvoicePdf(){
+  if(!INV_DRAFT){ toast('Muat data order dulu.','err'); return; }
+  const noInvoice = document.getElementById('inv-no-invoice').value.trim();
+  if(!noInvoice){ toast('Nomor invoice wajib diisi.','err'); return; }
+
+  // Buka tab kosong DULU (sinkron, sebelum await) supaya tidak diblokir popup-blocker browser/HP.
+  const newTab = window.open('', '_blank');
+
+  const qs = new URLSearchParams({
+    action: 'generateInvoicePdf',
+    no_orders: document.getElementById('inv-no-orders').value.trim(),
+    no_invoice: noInvoice,
+    tanggal_invoice: document.getElementById('inv-tgl').value,
+    jatuh_tempo: document.getElementById('inv-jatuh-tempo').value,
+    diterima_oleh: document.getElementById('inv-diterima').value,
+    signer_nama: document.getElementById('inv-signer-nama').value,
+    signer_jabatan: document.getElementById('inv-signer-jabatan').value,
+    catatan: document.getElementById('inv-catatan').value
+  }).toString();
+
+  showOvl('Membuat PDF invoice…');
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+
+    const byteChars = atob(j.base64);
+    const byteNumbers = new Array(byteChars.length);
+    for(let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
+    const blob = new Blob([new Uint8Array(byteNumbers)], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+
+    if(newTab) newTab.location.href = url; else window.open(url, '_blank');
+
+    if(j.drive_url){
+      document.getElementById('inv-drive-link').href = j.drive_url;
+      document.getElementById('inv-drive-link').textContent = j.drive_url;
+      document.getElementById('inv-drive-link-box').classList.remove('hide');
+    }
+    toast('Invoice berhasil dibuat ✓', 'ok');
+  }catch(e){
+    if(newTab) newTab.close();
+    toast('Gagal buat invoice: ' + e.message, 'err');
+  }finally{ hideOvl(); }
 }
 
 // ══ MASTER (hanya Paket dari GAS) ═════
@@ -1467,6 +1605,8 @@ function selectCust(id){
   pen.value  = c.nama||'';
   fhp.value  = c.no_hp||'';
   fadr.value = c.alamat||'';
+  const fkrd = document.getElementById('f-krd');
+  if(fkrd) fkrd.value = c.koordinat||'';
   const info = document.getElementById('cust-info');
   info.style.display = 'block';
   info.innerHTML = `<strong>${c.nama}</strong>${c.nama_instansi?' · '+c.nama_instansi:''}<br>📱 ${c.no_hp||'—'} · ${c.instansi||'—'}<br>📍 ${c.alamat||'—'}`;
@@ -1475,33 +1615,157 @@ function selectCust(id){
 function onCustChange(){} // tidak dipakai lagi
 function openCustModal(){
   document.getElementById('cust-modal').classList.remove('hide');
+  resetCustModalToAdd();
   const s=document.getElementById('f-sales')?.value||'';
   if(s)document.getElementById('nc-sales').value=s;
 }
 function closeCustModal(){
   document.getElementById('cust-modal').classList.add('hide');
-  ['nc-nama','nc-instansi','nc-hp','nc-sales','nc-alamat'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
-  document.getElementById('nc-gender').value='';document.getElementById('nc-tipe').value='';
+  resetCustModalToAdd();
 }
-async function saveNewCustomer(){
-  const nama=document.getElementById('nc-nama').value.trim();
-  const hp=document.getElementById('nc-hp').value.trim();
-  if(!nama)return toast('Nama customer wajib.','err');
-  if(!hp)return toast('No. HP wajib.','err');
-  const waHp = normalizeWA(hp);
-  const btn=document.getElementById('btn-save-cust');btn.disabled=true;btn.textContent='Menyimpan…';
+function resetCustModalToAdd(){
+  ['nc-nama','nc-instansi','nc-hp','nc-sales','nc-email','nc-alamat','nc-koordinat','nc-maplink','nc-search','nc-id'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  document.getElementById('nc-gender').value='';document.getElementById('nc-tipe').value='';
+  document.getElementById('nc-hp').readOnly=false;
+  document.getElementById('nc-edit-badge').style.display='none';
+  document.getElementById('cust-modal-title').textContent='👤 Tambah Customer Baru';
+  const btn=document.getElementById('btn-save-cust');
+  if(btn) btn.textContent='💾 Simpan Customer';
+  document.getElementById('nc-search-dd').style.display='none';
+}
 
-  // Refresh dulu list customer supaya pengecekan duplikat tidak pakai data basi/kosong
+function filterCustModal(){
+  const q = document.getElementById('nc-search').value.toLowerCase().trim();
+  const dd = document.getElementById('nc-search-dd');
+  if(q.length<1){ dd.style.display='none'; return; }
+  const filtered = CUSTOMERS.filter(c =>
+    (c.nama||'').toLowerCase().includes(q) ||
+    (c.nama_instansi||'').toLowerCase().includes(q) ||
+    (c.no_hp||'').toLowerCase().includes(q)
+  ).slice(0,15);
+  if(!filtered.length){ dd.innerHTML='<div style="padding:10px 12px;font-size:12px;color:var(--inks);">Tidak ditemukan — isi form di bawah utk tambah baru</div>'; dd.style.display='block'; return; }
+  dd.innerHTML = filtered.map(c => `
+    <div onclick="pilihCustUntukEdit('${c.id}')"
+      style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--bdr);font-size:13px;"
+      onmouseover="this.style.background='var(--orl)'" onmouseout="this.style.background=''">
+      <strong>${c.nama||'—'}</strong>${c.nama_instansi?' — '+c.nama_instansi:''}<br>
+      <span style="color:var(--inks);font-size:11px;">📱 ${c.no_hp||'—'}${c.koordinat?' · 📍 ada koordinat':''}</span>
+    </div>`).join('');
+  dd.style.display='block';
+}
+function hideCustModalDD(){ document.getElementById('nc-search-dd').style.display='none'; }
+
+function pilihCustUntukEdit(id){
+  const c = CUSTOMERS.find(x => x.id === id);
+  if(!c) return;
+  document.getElementById('nc-id').value = c.id;
+  document.getElementById('nc-search').value = c.nama + (c.nama_instansi?' — '+c.nama_instansi:'');
+  document.getElementById('nc-search-dd').style.display='none';
+  document.getElementById('nc-nama').value = c.nama||'';
+  document.getElementById('nc-gender').value = c.gender||'';
+  document.getElementById('nc-instansi').value = c.nama_instansi||'';
+  document.getElementById('nc-tipe').value = c.instansi||'';
+  document.getElementById('nc-hp').value = c.no_hp||'';
+  document.getElementById('nc-hp').readOnly = true; // no. HP jadi ID, tidak diubah lewat sini
+  document.getElementById('nc-sales').value = c.sales||'';
+  document.getElementById('nc-email').value = c.email||'';
+  document.getElementById('nc-alamat').value = c.alamat||'';
+  document.getElementById('nc-koordinat').value = c.koordinat||'';
+  document.getElementById('nc-edit-badge').style.display='block';
+  document.getElementById('cust-modal-title').textContent='✏️ Edit Customer';
+  document.getElementById('btn-save-cust').textContent='💾 Simpan Perubahan';
+}
+
+// Ekstrak lat,lng dari link Google Maps — sama seperti di form order.
+function extractKoordinatDariLinkModal(url){
+  if(!url) return null;
+  let m = url.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+  if(m) return `${m[1]},${m[2]}`;
+  m = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if(m) return `${m[1]},${m[2]}`;
+  m = url.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if(m) return `${m[1]},${m[2]}`;
+  m = url.match(/^\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)\s*$/);
+  if(m) return `${m[1]},${m[2]}`;
+  return null;
+}
+async function ambilDariLinkModal(){
+  const link = document.getElementById('nc-maplink').value.trim();
+  if(!link) return toast('Tempel link Google Maps dulu.','err');
+
+  const koorLangsung = extractKoordinatDariLinkModal(link);
+  if(koorLangsung){
+    document.getElementById('nc-koordinat').value = koorLangsung;
+    return toast('Koordinat berhasil diambil ✓','ok');
+  }
+
+  if(/maps\.app\.goo\.gl|goo\.gl\/maps/.test(link)){
+    toast('Link pendek, membuka dulu di server…','ok');
+    try{
+      const qs = new URLSearchParams({action:'resolveMapsLink', url:link}).toString();
+      const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+      if(j.success && j.koordinat){
+        document.getElementById('nc-koordinat').value = j.koordinat;
+        return toast('Koordinat berhasil diambil ✓','ok');
+      }
+      return toast(j.message || 'Gagal membaca koordinat dari link pendek.','err');
+    }catch(e){
+      return toast('Gagal proses link pendek: '+e.message,'err');
+    }
+  }
+
+  return toast('Koordinat tidak ditemukan di link ini.','err');
+}
+
+async function saveCustomerModal(){
+  const editId = document.getElementById('nc-id').value;
+  const nama = document.getElementById('nc-nama').value.trim();
+  const hp   = document.getElementById('nc-hp').value.trim();
+  if(!nama) return toast('Nama customer wajib.','err');
+  if(!hp)   return toast('No. HP wajib.','err');
+  const btn = document.getElementById('btn-save-cust');
+  btn.disabled = true; btn.textContent = 'Menyimpan…';
+
+  if(editId){
+    // ── MODE EDIT ──
+    const data = {
+      id: editId,
+      sales: document.getElementById('nc-sales').value.trim(),
+      gender: document.getElementById('nc-gender').value,
+      nama,
+      nama_instansi: document.getElementById('nc-instansi').value.trim(),
+      no_hp: document.getElementById('nc-hp').value.trim(),
+      instansi: document.getElementById('nc-tipe').value,
+      alamat: document.getElementById('nc-alamat').value.trim(),
+      koordinat: document.getElementById('nc-koordinat').value.trim(),
+      email: document.getElementById('nc-email').value.trim(),
+    };
+    try{
+      const qs = new URLSearchParams({action:'updateCustomer', ...data}).toString();
+      const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+      if(!j.success) throw new Error(j.message || 'Gagal menyimpan perubahan.');
+      const idx = CUSTOMERS.findIndex(c => c.id === editId);
+      if(idx>=0) CUSTOMERS[idx] = {...CUSTOMERS[idx], ...data};
+      cSet('alima_custs', CUSTOMERS);
+      selectCust(editId);
+      toast(`Customer ${nama} diperbarui ✓`,'ok'); closeCustModal();
+    }catch(e){ toast('Gagal: '+e.message,'err'); }
+    finally{ btn.disabled=false; btn.textContent='💾 Simpan Perubahan'; }
+    return;
+  }
+
+  // ── MODE TAMBAH BARU ──
+  const waHp = normalizeWA(hp);
   try{
     const jc = await gasFetch(APP.GAS_URL+'?action=getCustomers&t='+Date.now());
     if(jc?.success&&jc.data){CUSTOMERS=jc.data;cSet('alima_custs',CUSTOMERS);renderCustDD();}
-  }catch(e){ /* kalau refresh gagal, lanjut pakai data lama sebagai fallback */ }
+  }catch(e){ /* fallback pakai data lama */ }
 
   const dup = CUSTOMERS.find(c => c.no_hp === waHp);
   if (dup) { btn.disabled=false;btn.textContent='💾 Simpan Customer'; return toast(`No. HP sudah terdaftar atas nama ${dup.nama}${dup.nama_instansi?' — '+dup.nama_instansi:''}.`,'err'); }
 
-  const newId = waHp; // ID = nomor HP (aman krn no. HP dijamin unik per customer)
-  const data={id:newId,sales:document.getElementById('nc-sales').value.trim(),gender:document.getElementById('nc-gender').value,nama,nama_instansi:document.getElementById('nc-instansi').value.trim(),no_hp:waHp,instansi:document.getElementById('nc-tipe').value,alamat:document.getElementById('nc-alamat').value.trim()};
+  const newId = waHp;
+  const data={id:newId,sales:document.getElementById('nc-sales').value.trim(),gender:document.getElementById('nc-gender').value,nama,nama_instansi:document.getElementById('nc-instansi').value.trim(),no_hp:waHp,instansi:document.getElementById('nc-tipe').value,alamat:document.getElementById('nc-alamat').value.trim(),koordinat:document.getElementById('nc-koordinat').value.trim(),email:document.getElementById('nc-email').value.trim()};
   try{
     const qs = new URLSearchParams({action:'addCustomer', ...data}).toString();
     const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
@@ -1519,8 +1783,103 @@ function getGPS(){
   navigator.geolocation.getCurrentPosition(p=>{document.getElementById('f-krd').value=`${p.coords.latitude.toFixed(6)},${p.coords.longitude.toFixed(6)}`;toast('Koordinat didapat ✓','ok');},()=>toast('Tidak bisa akses GPS.','err'));
 }
 
+async function ambilDariLinkOrder(){
+  const link = document.getElementById('f-maplink').value.trim();
+  if(!link) return toast('Tempel link Google Maps dulu.','err');
+
+  const koorLangsung = extractKoordinatDariLinkModal(link);
+  if(koorLangsung){
+    document.getElementById('f-krd').value = koorLangsung;
+    return toast('Koordinat berhasil diambil ✓','ok');
+  }
+
+  if(/maps\.app\.goo\.gl|goo\.gl\/maps/.test(link)){
+    toast('Link pendek, membuka dulu di server…','ok');
+    try{
+      const qs = new URLSearchParams({action:'resolveMapsLink', url:link}).toString();
+      const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+      if(j.success && j.koordinat){
+        document.getElementById('f-krd').value = j.koordinat;
+        return toast('Koordinat berhasil diambil ✓','ok');
+      }
+      return toast(j.message || 'Gagal membaca koordinat dari link pendek.','err');
+    }catch(e){
+      return toast('Gagal proses link pendek: '+e.message,'err');
+    }
+  }
+
+  return toast('Koordinat tidak ditemukan di link ini.','err');
+}
+
+// Simpan koordinat baru ke data customer (supaya kepakai lagi utk order berikutnya)
+async function simpanKoordinatCustomerJikaBeda(customerId, koordinatBaru){
+  if(!customerId || !koordinatBaru) return;
+  const cust = CUSTOMERS.find(c => c.id === customerId || c.no_hp === customerId);
+  if(!cust) return;
+  if(cust.koordinat === koordinatBaru) return;
+  try{
+    const qs = new URLSearchParams({action:'updateCustomerKoordinat', id:cust.id, koordinat:koordinatBaru}).toString();
+    await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    cust.koordinat = koordinatBaru;
+    cSet('alima_custs', CUSTOMERS);
+  }catch(e){ /* gagal simpan koordinat tidak menggagalkan submit order */ }
+}
+
 // ══ SUBMIT ════════════════════════════
 let PENDING_ORDER_DATA = null;
+
+// ══ MODE EDIT ORDER (gabungan dgn fitur Order, gantikan tab Revisi lama) ══
+let EDIT_MODE_NO_ORDER = null;
+let EDIT_MODE_ORIGINAL_DATA = null;
+
+async function cariOrderUntukEdit(){
+  const no = document.getElementById('edit-search-no').value.trim();
+  const stat = document.getElementById('edit-search-status');
+  if(!no) return toast('Isi nomor order dulu.','err');
+  stat.textContent = '⏳ Mencari…';
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=getOrderByNo&no=' + encodeURIComponent(no) + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message || 'Tidak ditemukan');
+
+    await muatDataKeForm(j.data);
+
+    EDIT_MODE_NO_ORDER = j.data.no_order || no;
+    EDIT_MODE_ORIGINAL_DATA = j.data;
+
+    const fno = document.getElementById('f-no');
+    fno.value = EDIT_MODE_NO_ORDER;
+    fno.readOnly = true;
+
+    document.getElementById('edit-mode-badge').style.display = 'block';
+    document.getElementById('edit-mode-no').textContent = EDIT_MODE_NO_ORDER;
+    updateSubmitButtonLabel();
+
+    stat.innerHTML = `✅ Order <strong>${EDIT_MODE_NO_ORDER}</strong> dimuat untuk diedit.`;
+    document.getElementById('edit-search-no').value = '';
+    toast('Order dimuat, silakan edit lalu simpan ✓','ok');
+  }catch(e){
+    stat.innerHTML = `❌ ${e.message}`;
+    toast(e.message,'err');
+  }
+}
+
+function batalEditOrder(){
+  EDIT_MODE_NO_ORDER = null;
+  EDIT_MODE_ORIGINAL_DATA = null;
+  document.getElementById('edit-mode-badge').style.display = 'none';
+  const fno = document.getElementById('f-no');
+  if(fno) fno.readOnly = true; // tetap readonly (auto-generate), field ini memang selalu auto
+  updateSubmitButtonLabel();
+  resetForm();
+}
+
+function updateSubmitButtonLabel(){
+  const btn = document.getElementById('btn-sub');
+  if(!btn) return;
+  btn.textContent = EDIT_MODE_NO_ORDER
+    ? '💾 Simpan Order Revisi & Kirim Notifikasi WA'
+    : '💾 Simpan Order Baru & Kirim Notifikasi WA';
+}
 
 async function submitOrder(){
   const btn=document.getElementById('btn-sub');
@@ -1529,20 +1888,24 @@ async function submitOrder(){
   try{
     const{jml,tot,hksm}=recalc();
     const menu=collectMenuValues();
+    const isEdit = !!EDIT_MODE_NO_ORDER;
 
-    // Generate nomor order saat submit (bukan saat form dibuka)
-    let no = '';
-    try {
-      const j = await gasFetch(APP.GAS_URL + '?action=getNextNo&t=' + Date.now());
-      if (j.success && j.no) {
-        no = j.no;
-        localStorage.setItem('alima_last_no_v2', String(parseInt(j.no)));
-      } else throw new Error('GAS no error');
-    } catch(e) {
-      no = genNoLocal() + '-L'; // suffix -L = Local fallback, perlu dicek manual
-      console.warn('Nomor order dari fallback lokal:', no);
+    // Nomor order: pakai yang sudah ada kalau mode edit, generate baru kalau order baru
+    let no = isEdit ? EDIT_MODE_NO_ORDER : '';
+    if (!isEdit) {
+      try {
+        const j = await gasFetch(APP.GAS_URL + '?action=getNextNo&t=' + Date.now());
+        if (j.success && j.no) {
+          no = j.no;
+          localStorage.setItem('alima_last_no_v2', String(parseInt(j.no)));
+        } else throw new Error('GAS no error');
+      } catch(e) {
+        no = genNoLocal() + '-L'; // suffix -L = Local fallback, perlu dicek manual
+        console.warn('Nomor order dari fallback lokal:', no);
+      }
+      document.getElementById('f-no').value = no;
     }
-    document.getElementById('f-no').value = no;
+
     const d={
       no_order:no,
       customer_id:document.getElementById('f-cid').value,
@@ -1566,7 +1929,7 @@ async function submitOrder(){
       penerima:document.getElementById('f-pen').value.trim(),
       hp_penerima:normalizeWA(document.getElementById('f-hp').value.trim()),
       alamat:document.getElementById('f-adr').value.trim(),koordinat:document.getElementById('f-krd').value.trim(),
-      status:'Baru'
+      status: isEdit ? 'Revisi' : 'Baru'
     };
     if(!d.customer_id){toast('Pilih customer terlebih dahulu.','err');btn.disabled=false;return;}
     if(!d.sales){toast('Isi nama sales.','err');btn.disabled=false;return;}
@@ -1576,6 +1939,16 @@ async function submitOrder(){
     if(!d.harga_jual){toast('Isi harga jual.','err');btn.disabled=false;return;}
     if(!d.tgl_kirim){toast('Isi tanggal kirim.','err');btn.disabled=false;return;}
     if(!d.jam_sampai){toast('Isi jam sampai.','err');btn.disabled=false;return;}
+
+    if (isEdit) {
+      document.getElementById('notif-modal-text').innerHTML =
+        `Revisi order <strong>${no}</strong> akan tetap disimpan. Ringkasan perubahan akan selalu terkirim ke grup WA internal & Sales.<br><br>` +
+        `Kirim juga notifikasi WA ke <strong>Customer</strong> bahwa ordernya direvisi?`;
+    } else {
+      document.getElementById('notif-modal-text').innerHTML =
+        `Order akan tetap disimpan. Notifikasi ke <strong>Sales</strong> akan selalu terkirim.<br><br>` +
+        `Kirim juga notifikasi WA konfirmasi order ke <strong>Customer</strong>?`;
+    }
 
     // Validasi lolos — simpan data, tampilkan modal konfirmasi notifikasi.
     // Tombol TETAP disabled sampai modal ini selesai diproses (Ya/Tidak/Batal),
@@ -1596,11 +1969,60 @@ function batalkanSimpanOrder(){
   if(btn) btn.disabled=false;
 }
 
+async function prosesSimpanRevisi(d, kirimKeCustomer){
+  const btn = document.getElementById('btn-sub');
+  showOvl('Menyimpan revisi…');
+  try{
+    const qs = new URLSearchParams({action:'updateOrder', ...d}).toString();
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if (!j.success) { hideOvl(); toast(j.message || 'Revisi ditolak server.', 'err'); if(btn) btn.disabled=false; return; }
+
+    simpanKoordinatCustomerJikaBeda(d.customer_id, d.koordinat);
+    // Catatan: kolom Driver (AO) sengaja TIDAK ditulis ulang di sini — updateOrder tidak
+    // menyentuh kolom itu sama sekali (di luar skema HEADERS), jadi driver yang sudah
+    // di-assign lewat tab Jadwal otomatis tetap aman meski order-nya direvisi di sini.
+
+    updOvl('Mengirim notifikasi WhatsApp…');
+    let waError = null;
+    try {
+      const perubahan = bangunDaftarPerubahan_(EDIT_MODE_ORIGINAL_DATA||{}, d);
+      const daftarStr = perubahan.length ? perubahan.map(p=>'• '+p).join('\n') : '(tidak ada perubahan)';
+      const msg = `No order ${d.no_order} di revisi untuk item sbb :\n\n${daftarStr}\n\nTerima kasih 🙏`;
+
+      await fPost(APP.WA_NOTIF, msg); // grup internal
+      const salesHP = getSalesHP();
+      if (salesHP && salesHP !== APP.WA_NOTIF) await fPost(salesHP, msg); // ke sales
+      if (kirimKeCustomer && d.hp_penerima && d.hp_penerima.length>8) await fPost(d.hp_penerima, msg); // ke customer
+    } catch(waErr) {
+      waError = waErr;
+      console.error('Gagal kirim notifikasi WA revisi (revisi tetap tersimpan):', waErr);
+    }
+    hideOvl();
+    if (waError) {
+      toast(`Revisi ${d.no_order} TERSIMPAN ✓, tapi WA gagal terkirim (${waError.message}).`,'err');
+    } else {
+      toast(`Revisi ${d.no_order} tersimpan! ✓${kirimKeCustomer?' Notifikasi ke customer terkirim.':''}`,'ok');
+    }
+    const idx = allOrders.findIndex(o => String(o.no_order)===String(d.no_order));
+    if (idx>=0) allOrders[idx] = {...allOrders[idx], ...d};
+    PENDING_ORDER_DATA = null;
+    batalEditOrder(); // keluar dari mode edit, form kembali ke kondisi "order baru"
+    if(btn) btn.disabled=false;
+  }catch(e){
+    hideOvl();toast('Gagal menyimpan revisi: '+e.message,'err');console.error(e);
+    if(btn) btn.disabled=false;
+  }
+}
+
 async function prosesSimpanOrder(kirimKeCustomer){
   const d = PENDING_ORDER_DATA;
   const btn = document.getElementById('btn-sub');
   document.getElementById('notif-confirm-modal').classList.add('hide');
   if(!d){ if(btn) btn.disabled=false; return; }
+
+  if (d.status === 'Revisi') {
+    return prosesSimpanRevisi(d, kirimKeCustomer);
+  }
 
   showOvl('Menyimpan ke Google Sheets…');
   try{
@@ -1608,17 +2030,27 @@ async function prosesSimpanOrder(kirimKeCustomer){
     const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
     if (!j.success) { hideOvl(); toast(j.message || 'Order ditolak server.', 'err'); if(btn) btn.disabled=false; return; }
     // Order sudah tersimpan di titik ini. Kegagalan kirim WA di bawah TIDAK membatalkan order.
+    simpanKoordinatCustomerJikaBeda(d.customer_id, d.koordinat); // tidak di-await, tidak menunda flow
+    // Driver ditentukan belakangan lewat tab Jadwal (bukan di form Order lagi).
     updOvl('Mengirim notifikasi WhatsApp…');
     let waError = null;
     try {
       const salesHP=getSalesHP();
       if(salesHP)await sendWASales(d,salesHP); // notifikasi ke sales SELALU dikirim
       if(kirimKeCustomer && d.hp_penerima && d.hp_penerima.length>8) await sendWAKlien(d);
-      await sendWABroadcastKaryawan(d); // broadcast ke karyawan role admin/sales/finance
     } catch(waErr) {
       waError = waErr;
       console.error('Gagal kirim notifikasi WA (order tetap tersimpan):', waErr);
     }
+    // Broadcast internal ke Admin/Sales/Finance (nomor dari tab Karyawan kolom E) — tidak menunda/menggagalkan flow
+    const pesanStaf = `🆕 *Order Baru Tersimpan*\n\n` +
+      `No Order: ${d.no_order}\n` +
+      `🏢 ${d.penerima||d.customer_id||'—'}\n` +
+      `📦 ${d.paket||'—'} · ${d.qty||0} pax\n` +
+      `📅 ${fd(d.tgl_kirim)}${d.jam_sampai?' · '+d.jam_sampai:''}\n` +
+      `💰 Rp ${Number(d.jumlah_total||0).toLocaleString('id-ID')}\n\n` +
+      `Sales: ${d.sales||'—'}`;
+    kirimNotifKeStaf(pesanStaf);
     hideOvl();
     if (waError) {
       toast(`Order ${d.no_order} TERSIMPAN ✓, tapi WA gagal terkirim (${waError.message}). Cek koneksi device Fonnte.`,'err');
@@ -1628,6 +2060,7 @@ async function prosesSimpanOrder(kirimKeCustomer){
     allOrders.unshift(d);
     PENDING_ORDER_DATA = null;
     resetForm();
+    if(btn) btn.disabled=false;
   }catch(e){
     hideOvl();toast('Gagal menyimpan order: '+e.message,'err');console.error(e);
     if(btn) btn.disabled=false;
@@ -1664,13 +2097,20 @@ function renderJadwal(){
     w.innerHTML = dates.map(dt => {
       const rows = groups[dt].slice().sort((a,b) => (a.jam_sampai||'99:99').localeCompare(b.jam_sampai||'99:99'));
       const totalQty = rows.reduce((s,o) => s + (Number(o.qty)||0), 0);
-      const rowsHtml = rows.map(o => `
+      const rowsHtml = rows.map(o => {
+        const bisaAssign = CURRENT_USER && isFullAccessRole(CURRENT_USER.role);
+        const klikAttr = bisaAssign ? ` onclick="openAssignDriverModal('${o.no_order}', event)" style="cursor:pointer;"` : '';
+        const driverBadge = o.driver
+          ? `<span${klikAttr} style="font-size:9px;color:var(--grn);${bisaAssign?'cursor:pointer;text-decoration:underline;':''}">🚗 ${o.driver}</span>`
+          : `<span${klikAttr} style="font-size:9px;color:var(--red);font-weight:700;${bisaAssign?'cursor:pointer;text-decoration:underline;':''}">⚠️ Belum ada driver</span>`;
+        return `
         <div class="jw-row">
           <div class="jw-jam">${o.jam_sampai||'—'}</div>
           <div class="jw-paket" onclick="openOrderDetail('${o.no_order}')">${o.paket||'—'}</div>
           <div class="jw-qty">${o.qty||0}</div>
-          <div class="jw-nama">${o.nama_penerima||o.customer_id||'—'}</div>
-        </div>`).join('');
+          <div class="jw-nama">${o.nama_penerima||o.customer_id||'—'}${driverBadge?'<br>'+driverBadge:''}</div>
+        </div>`;
+      }).join('');
       return `
         <div class="jw-daygroup">
           <div class="jw-dayhead">
@@ -1995,6 +2435,99 @@ function renderGrafikChart(j){
   `;
 }
 
+// ══ GRAFIK HARIAN (jumlah total per produk per hari, 15 hari ke depan, dari cache) ═══
+async function loadGrafikHarian(){
+  const chartEl = document.getElementById('gf-harian-chart');
+  const updEl = document.getElementById('gf-harian-updated');
+  chartEl.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat grafik harian…</div>';
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=getGrafikHarian&t=' + Date.now());
+    if(!j.success){ chartEl.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>${j.message}</p></div>`; return; }
+    if(j.lastUpdated){
+      const d = new Date(j.lastUpdated);
+      updEl.textContent = 'Data per: ' + d.toLocaleString('id-ID', {dateStyle:'medium', timeStyle:'short'}) + ' · update otomatis tiap jam 20:00';
+    }
+    renderGrafikHarianChart(j);
+  }catch(e){
+    chartEl.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>Gagal memuat: ${e.message}</p></div>`;
+  }
+}
+
+function renderGrafikHarianChart(j){
+  const chartEl = document.getElementById('gf-harian-chart');
+  const hariList = j.hariList||[], kategoriList = j.kategoriList||[], data = j.data||{};
+  if(!hariList.length){
+    chartEl.innerHTML = `<div class="empty"><div class="eico">📅</div><p>Tidak ada data.</p></div>`;
+    return;
+  }
+
+  let maxVal = 1;
+  hariList.forEach(h => {
+    const totalHari = kategoriList.reduce((s,k)=> s + ((data[h]&&data[h][k])||0), 0);
+    maxVal = Math.max(maxVal, totalHari);
+  });
+
+  let step = Math.ceil((maxVal/5) / 50000) * 50000;
+  if (step <= 0) step = 50000;
+  const topVal  = Math.ceil(maxVal/step) * step;
+  const numGrid = topVal/step;
+
+  const barMaxH = 160;
+  const leftM   = 54;
+  const barW    = 22;
+  const groupW  = 32;
+  const totalW  = groupW * hariList.length + leftM + 20;
+  const chartH  = barMaxH + 50;
+
+  let gridLines = '';
+  for(let g=0; g<=numGrid; g++){
+    const val = g*step;
+    const y = barMaxH - (val/topVal)*barMaxH + 20;
+    gridLines += `<line x1="${leftM}" y1="${y}" x2="${totalW-10}" y2="${y}" stroke="#EDE3D8" stroke-width="1"/>`;
+    gridLines += `<text x="${leftM-6}" y="${y+3}" font-size="9" fill="#9C8672" text-anchor="end">${formatRupiahSingkat_(val)}</text>`;
+  }
+
+  const todayStr = Utilities_formatTodayId_();
+  let bars = '';
+  hariList.forEach((h, hi) => {
+    const x = leftM + 6 + hi*groupW;
+    let stackedH = 0;
+    kategoriList.forEach((k, ki) => {
+      const val = (data[h]&&data[h][k]) || 0;
+      if (val <= 0) return;
+      const hgt = (val/topVal)*barMaxH;
+      const y = barMaxH - stackedH - hgt + 20;
+      const color = GRAFIK_COLORS[ki % GRAFIK_COLORS.length];
+      bars += `<rect x="${x}" y="${y}" width="${barW}" height="${hgt}" fill="${color}" rx="1"></rect>`;
+      stackedH += hgt;
+    });
+    const [, mm, dd] = h.split('-');
+    const isToday = h === todayStr;
+    const labelColor = isToday ? '#C8521A' : '#5C4A35';
+    bars += `<text x="${x + barW/2}" y="${barMaxH+38}" font-size="9" fill="${labelColor}" font-weight="${isToday?'700':'400'}" text-anchor="middle">${dd}/${mm}</text>`;
+  });
+
+  const legend = kategoriList.map((k,ki) => `
+    <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--inkm);margin:3px 10px 3px 0;">
+      <span style="width:10px;height:10px;border-radius:2px;background:${GRAFIK_COLORS[ki%GRAFIK_COLORS.length]};display:inline-block;flex-shrink:0;"></span>${k}
+    </div>`).join('');
+
+  chartEl.innerHTML = `
+    <div style="overflow-x:auto;background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:12px;box-shadow:var(--sh);">
+      <svg width="${totalW}" height="${chartH}" viewBox="0 0 ${totalW} ${chartH}">
+        ${gridLines}
+        ${bars}
+      </svg>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;margin-top:10px;padding:0 4px;">${legend}</div>
+  `;
+}
+
+function Utilities_formatTodayId_(){
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
 function openOrderDetail(no){
   const o = allOrders.find(x => String(x.no_order) === String(no));
   if(!o){ toast('Data order tidak ditemukan (coba refresh).','err'); return; }
@@ -2051,8 +2584,9 @@ function openOrderDetail(no){
         ${['Baru','Proses','Selesai','Batal'].map(s=>`<option ${o.status===s?'selected':''}>${s}</option>`).join('')}
       </select>
     </div>
-    ${CURRENT_USER.role === 'admin' ? `
-    <button class="bico" onclick="hapusOrderKlik('${o.no_order}')" style="width:100%;margin-top:14px;background:var(--redl);color:var(--red);border:1.5px solid var(--red);">🗑️ Hapus Order Ini</button>
+    <button class="bico" onclick="bukaPrintPreview('${o.no_order}')" style="width:100%;margin-top:12px;background:var(--inkm);">🖨️ Print Menu</button>
+    ${CURRENT_USER && CURRENT_USER.role === 'admin' && o.status === 'Batal' ? `
+    <button class="bico" onclick="hapusOrderPermanen('${o.no_order}')" style="width:100%;margin-top:8px;background:var(--red);">🗑️ Hapus Order Permanen</button>
     ` : ''}
   `;
   document.getElementById('order-detail-modal').classList.remove('hide');
@@ -2061,39 +2595,97 @@ function closeOrderDetail(){
   document.getElementById('order-detail-modal').classList.add('hide');
 }
 
-async function hapusOrderKlik(no){
-  const yakin = confirm(`Yakin mau HAPUS PERMANEN order ${no}?\n\nIni tidak bisa dibatalkan — data order ini akan hilang total dari sheet, bukan cuma diubah statusnya.`);
-  if(!yakin) return;
+// ══ HAPUS ORDER PERMANEN (khusus role admin) ══
+async function hapusOrderPermanen(no){
+  if(!CURRENT_USER || CURRENT_USER.role !== 'admin'){
+    toast('Hanya admin yang bisa menghapus order.','err');
+    return;
+  }
+  const o = allOrders.find(x => String(x.no_order) === String(no));
+  const konfirmasi = confirm(
+    `Yakin ingin menghapus order ${no} secara PERMANEN?\n\n` +
+    `${o ? (o.paket||'—') + ' · ' + (o.qty||0) + ' pax · ' + (o.nama_penerima||o.customer_id||'—') : ''}\n\n` +
+    `Tindakan ini TIDAK BISA dibatalkan — data akan hilang selamanya dari sheet Orders.`
+  );
+  if(!konfirmasi) return;
+
   showOvl('Menghapus order…');
   try{
-    const j = await gasFetch(APP.GAS_URL + '?action=hapusOrder&no=' + encodeURIComponent(no) + '&t=' + Date.now());
+    const qs = new URLSearchParams({ action:'deleteOrder', no }).toString();
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
     hideOvl();
-    if(!j.success){ toast(j.message || 'Gagal menghapus order.', 'err'); return; }
-    toast(`Order ${no} berhasil dihapus.`,'ok');
+    if(!j.success) throw new Error(j.message || 'Gagal menghapus order.');
+
+    allOrders = allOrders.filter(x => String(x.no_order) !== String(no));
     closeOrderDetail();
-    allOrders = allOrders.filter(o => String(o.no_order) !== String(no));
     renderJadwal();
-    sendWABroadcastHapus(no, j.data||{}); // notifikasi ke admin/sales/finance, tidak blocking UI
+    toast(`Order ${no} berhasil dihapus permanen.`,'ok');
+
+    // Notifikasi WA ke admin/sales/finance (nomor dari tab Karyawan kolom E)
+    const d = j.data || o || {};
+    const msg = `🗑️ *Order Dihapus Permanen*\n\n` +
+      `No Order: ${no}\n` +
+      `🏢 ${d.nama_penerima||d.customer_id||'—'}\n` +
+      `📦 ${d.paket||'—'} · ${d.qty||0} pax\n` +
+      `📅 ${fd(d.tanggal_kirim||d.tgl_kirim)}\n` +
+      `💰 Rp ${Number(d.jumlah_total||0).toLocaleString('id-ID')}\n\n` +
+      `Dihapus oleh: *${CURRENT_USER.nama}* (${CURRENT_USER.role})\n` +
+      `Waktu: ${new Date().toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'})}`;
+    kirimNotifKeStaf(msg);
   }catch(e){
     hideOvl();
     toast('Gagal menghapus: '+e.message,'err');
   }
 }
 
-// Broadcast notifikasi PENGHAPUSAN order ke karyawan role admin/sales/finance yang punya No. HP.
-async function sendWABroadcastHapus(no, o){
-  if(APP.FONNTE_TOKEN.includes('GANTI'))return;
+// Kirim WA broadcast ke semua staf (Admin/Sales/Finance aktif) berdasarkan No HP
+// di tab Karyawan kolom E. Dipakai utk notifikasi order baru & order dihapus.
+async function kirimNotifKeStaf(pesan){
   try{
-    const j = await gasFetch(APP.GAS_URL + '?action=getNomorNotifikasiOrder&t=' + Date.now());
-    if(!j.success || !j.data) return;
-    const msg=`🗑️ *ORDER DIHAPUS — ${no}*\n\n👤 Sales: ${o.nama_sales||'—'}\n🏢 ${o.nama_penerima||'—'}\n📦 ${o.paket||'—'}\n👥 ${o.qty||'—'} pax\n📅 ${o.tanggal_kirim?fd(o.tanggal_kirim):'—'}${o.jam_sampai?' · '+o.jam_sampai:''}\n💰 Total: Rp ${Number(o.jumlah_total||0).toLocaleString('id-ID')}\n\n_Dihapus oleh: ${CURRENT_USER.nama} (${CURRENT_USER.email})_`;
-    for(const k of j.data){
-      if(!k.no_hp) continue;
-      try{ await fPost(k.no_hp, msg); }
-      catch(e){ console.warn('Gagal broadcast hapus ke '+k.nama+' ('+k.no_hp+'):', e.message); }
+    const j = await gasFetch(APP.GAS_URL + '?action=getNotifRecipients&t=' + Date.now());
+    if(!j.success || !j.data || !j.data.length) return;
+    for(const hp of j.data){
+      try{ await fPost(hp, pesan); }
+      catch(e){ console.warn('Gagal kirim notif staf ke '+hp+':', e.message); }
     }
   }catch(e){
-    console.warn('Gagal ambil daftar nomor notifikasi:', e.message);
+    console.warn('Gagal ambil daftar penerima notifikasi staf:', e.message);
+  }
+}
+
+// ══ QUICK ASSIGN DRIVER (dari tab Jadwal) — khusus role admin/sales ══
+function openAssignDriverModal(noOrder, ev){
+  if (ev) ev.stopPropagation();
+  if (!CURRENT_USER || !isFullAccessRole(CURRENT_USER.role)) return;
+
+  const o = allOrders.find(x => String(x.no_order) === String(noOrder));
+  document.getElementById('ad-no-order').textContent = noOrder;
+  document.getElementById('ad-no-order-val').value = noOrder;
+
+  const sel = document.getElementById('ad-driver');
+  sel.innerHTML = '<option value="">— Belum ditentukan —</option>' +
+    DRIVERS_LIST.map(d => `<option value="${d.nama}">${d.nama}</option>`).join('');
+  sel.value = (o && o.driver) || '';
+
+  document.getElementById('assign-driver-modal').classList.remove('hide');
+}
+function closeAssignDriverModal(){
+  document.getElementById('assign-driver-modal').classList.add('hide');
+}
+async function simpanAssignDriverModal(){
+  const no = document.getElementById('ad-no-order-val').value;
+  const driver = document.getElementById('ad-driver').value;
+  try{
+    const qs = new URLSearchParams({action:'assignDriver', no, driver}).toString();
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message || 'Gagal menyimpan driver.');
+    const o = allOrders.find(x => String(x.no_order) === String(no));
+    if(o) o.driver = driver;
+    closeAssignDriverModal();
+    renderJadwal();
+    toast(driver ? `Driver ${driver} ditentukan untuk order ${no} ✓` : `Driver order ${no} dikosongkan.`,'ok');
+  }catch(e){
+    toast('Gagal: '+e.message,'err');
   }
 }
 
@@ -2110,24 +2702,6 @@ async function sendWASales(o,hp){
   const msg=`📋 *Order Baru untuk Anda — ${o.no_order}*\n\n🏢 ${o.penerima||'—'} ${o.customer_id?'('+o.customer_id+')':''}\n📦 ${o.produk||'—'}${o.paket?' · '+o.paket:''}\n👥 ${o.qty} pax\n📅 ${fd(o.tgl_kirim)}${o.jam_sampai?' · '+o.jam_sampai:''}\n📍 ${o.alamat||'—'}\n💰 *Total: Rp ${(o.jumlah_total||0).toLocaleString('id-ID')}*\n${o.keterangan?'\n📝 '+o.keterangan:''}\n_Segera konfirmasi ke customer._`;
   await fPost(hp,msg);
 }
-
-// Broadcast notifikasi order baru ke seluruh karyawan role admin/sales/finance yang punya No. HP.
-async function sendWABroadcastKaryawan(o){
-  if(APP.FONNTE_TOKEN.includes('GANTI'))return;
-  try{
-    const j = await gasFetch(APP.GAS_URL + '?action=getNomorNotifikasiOrder&t=' + Date.now());
-    if(!j.success || !j.data) return;
-    const msg=`🍽️ *ORDER BARU — ${o.no_order}*\n\n👤 Sales: ${o.sales||'—'}\n🏢 ${o.penerima||'—'}\n📦 ${o.produk||'—'}${o.paket?' · '+o.paket:''}\n👥 ${o.qty} pax\n📅 ${fd(o.tgl_kirim)}${o.jam_sampai?' · '+o.jam_sampai:''}\n📍 ${o.alamat||'—'}\n💰 *Total: Rp ${(o.jumlah_total||0).toLocaleString('id-ID')}*`;
-    for(const k of j.data){
-      if(!k.no_hp) continue;
-      try{ await fPost(k.no_hp, msg); }
-      catch(e){ console.warn('Gagal broadcast ke '+k.nama+' ('+k.no_hp+'):', e.message); }
-    }
-  }catch(e){
-    console.warn('Gagal ambil daftar nomor notifikasi:', e.message);
-  }
-}
-
 async function sendWAKlien(o){
   if(APP.FONNTE_TOKEN.includes('GANTI'))return;
   const cust = CUSTOMERS.find(c => c.no_hp === o.customer_id);
@@ -2211,11 +2785,14 @@ function goTab(id,btn){
   btn.classList.add('on');
   if(id==='jadwal'){ if(allOrders.length===0) loadOrders().then(renderJadwal); else renderJadwal(); }
   if(id==='masak'){ if(allOrders.length===0) loadOrders().then(renderJadwalMasak); else renderJadwalMasak(); }
-  if(id==='grafik'){ loadGrafik(); }
+  if(id==='grafik'){ loadGrafik(); loadGrafikHarian(); }
   if(id==='absensi'){ initAbsensiTab(); if(CURRENT_USER && isFullAccessRole(CURRENT_USER.role)) loadStatusTim(); }
+  if(id==='laporan'){ loadLaporanList(); }
 }
 function resetForm(){
-  ['f-cid','f-gol','f-produk','f-qty','f-hjual','f-fee','f-hksm','f-hmin','f-del','f-ket','f-pen','f-hp','f-adr','f-krd','f-inv-bayar','f-mirip','f-jam'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  ['f-cid','f-gol','f-produk','f-qty','f-hjual','f-fee','f-hksm','f-hmin','f-del','f-ket','f-pen','f-hp','f-adr','f-krd','f-inv-bayar','f-mirip','f-jam','edit-search-no'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  const es=document.getElementById('edit-search-status');if(es)es.textContent='';
+  updateSubmitButtonLabel();
   const cs=document.getElementById('f-cid-search');if(cs)cs.value='';
   const ms=document.getElementById('mirip-status');if(ms)ms.textContent='';
   const invs=document.getElementById('f-inv-status');if(invs)invs.value='DP';
@@ -2224,6 +2801,414 @@ function resetForm(){
   document.getElementById('cust-info').style.display='none';
   resetMenuSelects();recalc();initNoDisplay();setDefaults();loadSalesLocal();
   applyDefaultProduk();}
+// ══ LAPORAN KELUHAN PELANGGAN ═══════════════════
+let LAP_ORDER_DATA = null; // data order terkait, disimpan sementara utk isi ulang kalau perlu
+
+function isiUlangEmailPengirim_(){
+  const ef = document.getElementById('lap-email-from');
+  const np = document.getElementById('lap-nama-pengirim');
+  if(ef && !ef.value) ef.value = localStorage.getItem('alima_lap_email_from') || '';
+  if(np && !np.value) np.value = localStorage.getItem('alima_lap_nama_pengirim') || 'Alima Boga Batam';
+}
+
+function openLaporanModal(){
+  resetLaporanModal();
+  document.getElementById('lap-dibuat-oleh').value = CURRENT_USER?.nama || '';
+  document.getElementById('lap-modal-title').textContent = '📋 Buat Laporan Keluhan';
+  document.getElementById('laporan-modal').classList.remove('hide');
+}
+function closeLaporanModal(){
+  document.getElementById('laporan-modal').classList.add('hide');
+}
+function resetLaporanModal(){
+  ['lap-no-laporan','lap-cari-no','lap-no-order','lap-nama-customer','lap-customer-id','lap-email-customer',
+   'lap-dibuat-oleh','lap-apa','lap-kapan','lap-dimana','lap-siapa','lap-bagaimana',
+   'lap-investigasi','lap-kesimpulan','lap-solusi','lap-email-from','lap-nama-pengirim'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  const st=document.getElementById('lap-cari-status');if(st)st.textContent='';
+  document.getElementById('lap-hasil-box').style.display='none';
+  const btn=document.getElementById('btn-simpan-laporan');
+  if(btn){btn.disabled=false;btn.textContent='💾 Simpan Laporan';}
+  LAP_ORDER_DATA = null;
+}
+
+async function cariOrderUntukLaporan(){
+  const no = document.getElementById('lap-cari-no').value.trim();
+  const stat = document.getElementById('lap-cari-status');
+  if(!no) return toast('Isi nomor order dulu.','err');
+  stat.textContent = '⏳ Mencari…';
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=getOrderByNo&no=' + encodeURIComponent(no) + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message || 'Order tidak ditemukan');
+    const o = j.data;
+    LAP_ORDER_DATA = o;
+
+    const custId = o.customer_id || '';
+    const cust = CUSTOMERS.find(c => c.no_hp === custId);
+
+    document.getElementById('lap-no-order').value = o.no_order || no;
+    document.getElementById('lap-nama-customer').value = (cust && cust.nama) || o.nama_penerima || '';
+    document.getElementById('lap-customer-id').value = custId;
+    document.getElementById('lap-email-customer').value = (cust && cust.email) || '';
+
+    stat.innerHTML = `✅ Order <strong>${o.no_order||no}</strong> ditemukan.`;
+    toast('Data order dimuat ✓','ok');
+  }catch(e){
+    stat.innerHTML = `❌ ${e.message}`;
+    toast(e.message,'err');
+  }
+}
+
+async function simpanLaporanKeluhan(){
+  const noOrder = document.getElementById('lap-no-order').value.trim();
+  const apa = document.getElementById('lap-apa').value.trim();
+  if(!noOrder) return toast('Cari & pilih order terkait dulu.','err');
+  if(!apa) return toast('Isi keluhan pelanggan dulu.','err');
+
+  const btn = document.getElementById('btn-simpan-laporan');
+  btn.disabled = true; btn.textContent = 'Menyimpan…';
+
+  const data = {
+    no_laporan: document.getElementById('lap-no-laporan').value.trim(),
+    no_order: noOrder,
+    customer_id: document.getElementById('lap-customer-id').value.trim(),
+    nama_customer: document.getElementById('lap-nama-customer').value.trim(),
+    email_customer: document.getElementById('lap-email-customer').value.trim(),
+    dibuat_oleh: document.getElementById('lap-dibuat-oleh').value.trim(),
+    keluhan_apa: apa,
+    keluhan_kapan: document.getElementById('lap-kapan').value.trim(),
+    keluhan_dimana: document.getElementById('lap-dimana').value.trim(),
+    keluhan_siapa: document.getElementById('lap-siapa').value.trim(),
+    keluhan_bagaimana: document.getElementById('lap-bagaimana').value.trim(),
+    investigasi: document.getElementById('lap-investigasi').value.trim(),
+    kesimpulan: document.getElementById('lap-kesimpulan').value.trim(),
+    solusi: document.getElementById('lap-solusi').value.trim(),
+  };
+
+  try{
+    const qs = new URLSearchParams({action:'saveLaporanKeluhan', ...data}).toString();
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message || 'Gagal menyimpan laporan.');
+
+    document.getElementById('lap-no-laporan').value = j.no_laporan;
+    document.getElementById('lap-modal-title').textContent = '✏️ Edit Laporan — ' + j.no_laporan;
+    document.getElementById('lap-doc-link').href = j.doc_url;
+    document.getElementById('lap-hasil-box').style.display = 'block';
+    isiUlangEmailPengirim_();
+    toast(`Laporan ${j.no_laporan} tersimpan ✓`,'ok');
+  }catch(e){
+    toast('Gagal: '+e.message,'err');
+  }finally{
+    btn.disabled = false; btn.textContent = '💾 Simpan Laporan';
+  }
+}
+
+async function kirimLaporanViaEmail(){
+  const noLaporan = document.getElementById('lap-no-laporan').value.trim();
+  if(!noLaporan) return toast('Simpan laporan dulu sebelum kirim.','err');
+
+  const emailFrom = document.getElementById('lap-email-from').value.trim();
+  const namaPengirim = document.getElementById('lap-nama-pengirim').value.trim();
+  if(emailFrom) localStorage.setItem('alima_lap_email_from', emailFrom);
+  if(namaPengirim) localStorage.setItem('alima_lap_nama_pengirim', namaPengirim);
+
+  toast('Mengirim email…','ok');
+  try{
+    const qs = new URLSearchParams({action:'kirimLaporanEmail', id:noLaporan, email_from:emailFrom, nama_pengirim:namaPengirim}).toString();
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message || 'Gagal mengirim email.');
+    toast(j.message || 'Email terkirim ✓','ok');
+  }catch(e){
+    toast('Gagal: '+e.message,'err');
+  }
+}
+
+async function kirimLaporanViaWA(){
+  const noLaporan = document.getElementById('lap-no-laporan').value.trim();
+  if(!noLaporan) return toast('Simpan laporan dulu sebelum kirim.','err');
+  const custId = document.getElementById('lap-customer-id').value.trim();
+  if(!custId) return toast('Nomor WA pelanggan tidak tersedia.','err');
+
+  toast('Menyiapkan PDF…','ok');
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?' + new URLSearchParams({action:'getLaporanPdfUrl', id:noLaporan}).toString() + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message || 'Gagal menyiapkan PDF.');
+
+    const nama = document.getElementById('lap-nama-customer').value.trim() || 'Bapak/Ibu';
+    const caption = `Yth. ${nama},\n\nBerikut kami sampaikan laporan tindak lanjut atas keluhan yang disampaikan. Mohon dapat menjadi perhatian bersama.\n\nTerima kasih atas kepercayaan Bapak/Ibu kepada kami.`;
+
+    await fPostFile(custId, j.pdf_url, caption);
+    toast('Laporan terkirim via WA ✓','ok');
+  }catch(e){
+    toast('Gagal kirim WA: '+e.message,'err');
+  }
+}
+
+// Kirim file (bukan cuma teks) via Fonnte — dipakai khusus utk kirim PDF laporan.
+async function fPostFile(target, fileUrl, caption){
+  const res = await fetch('https://api.fonnte.com/send', {
+    method: 'POST',
+    headers: { 'Authorization': APP.FONNTE_TOKEN, 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ target: normalizeWA(target), url: fileUrl, message: caption })
+  });
+  const j = await res.json();
+  if(!j.status) throw new Error('Fonnte: ' + (j.reason || 'Gagal kirim file'));
+}
+
+async function loadLaporanList(){
+  const wrap = document.getElementById('laporan-list');
+  wrap.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat daftar laporan…</div>';
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=listLaporanKeluhan&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+    if(!j.data || !j.data.length){
+      wrap.innerHTML = '<div class="empty"><div class="eico">📋</div><p>Belum ada laporan keluhan.</p></div>';
+      return;
+    }
+    wrap.innerHTML = j.data.map(r => `
+      <div class="ocard" onclick="bukaLaporanUntukEdit('${r.No_Laporan}')" style="cursor:pointer;">
+        <div class="och">
+          <div>
+            <div class="ono" style="font-size:14px;">${r.No_Laporan}</div>
+            <div class="odt">${fd(String(r.Tanggal_Dibuat).slice(0,10))} · Order ${r.No_Order||'—'}</div>
+          </div>
+          <span class="badge bb">${r.Dibuat_Oleh||'—'}</span>
+        </div>
+        <div class="obody">
+          <strong>${r.Nama_Customer||'—'}</strong><br>
+          ${(r.Keluhan_Apa||'').slice(0,90)}${(r.Keluhan_Apa||'').length>90?'…':''}
+        </div>
+      </div>
+    `).join('');
+  }catch(e){
+    wrap.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>Gagal memuat: ${e.message}</p></div>`;
+  }
+}
+
+async function bukaLaporanUntukEdit(noLaporan){
+  resetLaporanModal();
+  document.getElementById('laporan-modal').classList.remove('hide');
+  document.getElementById('lap-modal-title').textContent = '⏳ Memuat laporan…';
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?' + new URLSearchParams({action:'getLaporanKeluhan', id:noLaporan}).toString() + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+    const d = j.data;
+
+    document.getElementById('lap-no-laporan').value = d.No_Laporan||'';
+    document.getElementById('lap-no-order').value = d.No_Order||'';
+    document.getElementById('lap-nama-customer').value = d.Nama_Customer||'';
+    document.getElementById('lap-customer-id').value = d.Customer_ID||'';
+    document.getElementById('lap-email-customer').value = d.Email_Customer||'';
+    document.getElementById('lap-dibuat-oleh').value = d.Dibuat_Oleh||'';
+    document.getElementById('lap-apa').value = d.Keluhan_Apa||'';
+    document.getElementById('lap-kapan').value = d.Keluhan_Kapan||'';
+    document.getElementById('lap-dimana').value = d.Keluhan_Dimana||'';
+    document.getElementById('lap-siapa').value = d.Keluhan_Siapa||'';
+    document.getElementById('lap-bagaimana').value = d.Keluhan_Bagaimana||'';
+    document.getElementById('lap-investigasi').value = d.Investigasi||'';
+    document.getElementById('lap-kesimpulan').value = d.Kesimpulan||'';
+    document.getElementById('lap-solusi').value = d.Solusi||'';
+
+    document.getElementById('lap-modal-title').textContent = '✏️ Edit Laporan — ' + d.No_Laporan;
+    if(d.Doc_URL){
+      document.getElementById('lap-doc-link').href = d.Doc_URL;
+      document.getElementById('lap-hasil-box').style.display = 'block';
+      isiUlangEmailPengirim_();
+    }
+  }catch(e){
+    toast('Gagal memuat laporan: '+e.message,'err');
+    closeLaporanModal();
+  }
+}
+
+// ══ PRINT MENU KE PRINTER BLUETOOTH 58MM (font diperbesar) ══
+const PRINT_STATE = { order:null, characteristic:null, device:null };
+
+// Bungkus teks panjang jadi beberapa baris supaya pas di kertas 58mm
+function wrapTeksPrint_(str, maxChars){
+  str = String(str||'-');
+  const words = str.split(' ');
+  const lines = [];
+  let cur = '';
+  words.forEach(w=>{
+    if((cur+' '+w).trim().length > maxChars){
+      if(cur) lines.push(cur.trim());
+      cur = w;
+    } else {
+      cur = (cur+' '+w).trim();
+    }
+  });
+  if(cur) lines.push(cur.trim());
+  return lines.length ? lines : [''];
+}
+
+// Susun daftar baris struk: {text, bold, center} — SEMUA baris pakai font
+// double-height+width (sama besar dengan header) supaya mudah dibaca semua.
+function bangunBarisStruk_(o){
+  const menuFields = [
+    ['Nasi',o.nasi],['Lauk',o.lauk_utama],['Tambahan',o.tambahan],['Sayur',o.sayur],
+    ['Sambal',o.sambal],['Kerupuk',o.kerupuk],['Buah',o.buah],['Air',o.air_mineral],
+    ['Kemasan',o.kemasan],['Pilihan 1',o.pilihan_lain_1],['Pilihan 2',o.pilihan_lain_2],
+    ['Pilihan 3',o.pilihan_lain_3],['Pilihan 4',o.pilihan_lain_4],['Pilihan 5',o.pilihan_lain_5],
+    ['Puding',o.puding],['Snack',o.snack],['Minuman',o.minuman]
+  ].filter(([,v]) => v && v!=='—');
+
+  const W = 14; // lebar maks per baris (karakter) — dipotong pendek krn font double-width
+
+  const L = [];
+  L.push({text:'KSM KATERING', bold:true, center:true});
+  L.push({text:'-'.repeat(W), center:true});
+  L.push({text:'No: '+(o.no_order||'-')});
+  const tglObj = o.tanggal_kirim ? new Date(o.tanggal_kirim+'T00:00:00') : null;
+  if (tglObj) {
+    L.push({text: tglObj.toLocaleDateString('id-ID', {weekday:'long'})}); // Hari
+    L.push({text: tglObj.toLocaleDateString('id-ID', {day:'numeric',month:'long',year:'numeric'})}); // Tanggal
+  }
+  L.push({text: o.jam_sampai||''}); // Jam
+  L.push({text:'-'.repeat(W), center:true});
+  wrapTeksPrint_(o.paket||'-', W).forEach(t=>L.push({text:t, bold:true}));
+  L.push({text:'Qty: '+(o.qty||0)+' pax', bold:true});
+  L.push({text:'-'.repeat(W), center:true});
+
+  L.push({cmd:'tight'});
+  menuFields.forEach(([k,v])=>{
+    wrapTeksPrint_(v, W-2).forEach((t,i)=>L.push({text:(i===0?'- ':'  ')+t}));
+  });
+  L.push({cmd:'normal'});
+
+  L.push({text:'-'.repeat(W), center:true});
+  L.push({text:'Penerima:', bold:true});
+  wrapTeksPrint_(o.nama_penerima||'-', W).forEach(t=>L.push({text:t}));
+
+  if(o.alamat_pengiriman){
+    L.push({text:'Alamat:', bold:true});
+    wrapTeksPrint_(o.alamat_pengiriman, W).forEach(t=>L.push({text:t}));
+  }
+  if(o.keterangan){
+    L.push({text:'Ket:', bold:true});
+    wrapTeksPrint_(o.keterangan, W).forEach(t=>L.push({text:t}));
+  }
+  return L;
+}
+
+function bukaPrintPreview(noOrder){
+  const o = allOrders.find(x => String(x.no_order) === String(noOrder));
+  if(!o){ toast('Data order tidak ditemukan.','err'); return; }
+
+  PRINT_STATE.order = o;
+  const baris = bangunBarisStruk_(o);
+  const kertas = document.getElementById('print-paper');
+  kertas.innerHTML = baris.filter(b=>!b.cmd).map(b => {
+    const weight = b.bold ? '700' : '400';
+    const align = b.center ? 'center' : 'left';
+    return `<div style="font-size:21px;font-weight:${weight};line-height:1.15;text-align:${align};margin:0;">${b.text||' '}</div>`;
+  }).join('');
+
+  document.getElementById('print-status').textContent = PRINT_STATE.characteristic
+    ? '🔵 Printer sudah terhubung — siap cetak'
+    : 'Belum terhubung ke printer. Tap "Hubungkan Printer" dulu.';
+  document.getElementById('btn-cetak-sekarang').disabled = !PRINT_STATE.characteristic;
+  document.getElementById('btn-cetak-sekarang').style.background = PRINT_STATE.characteristic ? 'var(--or)' : 'var(--inks)';
+
+  closeOrderDetail();
+  document.getElementById('print-preview-modal').classList.remove('hide');
+}
+function tutupPrintPreview(){
+  document.getElementById('print-preview-modal').classList.add('hide');
+}
+
+// Koneksi ke printer thermal Bluetooth (BLE). UUID di bawah cocok utk kebanyakan
+// printer thermal mini generik (mis. seri "Goojprt/Zjiang" 58mm). Kalau printer
+// Bapak tidak konek, cek UUID service/characteristic yang benar (pakai app BLE
+// scanner) dan ganti PRINTER_SERVICE_UUID / PRINTER_CHAR_UUID di bawah ini.
+const PRINTER_SERVICE_UUID = '000018f0-0000-1000-8000-00805f9b34fb';
+const PRINTER_CHAR_UUID    = '00002af1-0000-1000-8000-00805f9b34fb';
+
+async function pilihPrinterBluetooth(){
+  const stat = document.getElementById('print-status');
+  if(!navigator.bluetooth){
+    toast('Browser ini tidak mendukung Web Bluetooth. Pakai Chrome di Android.','err');
+    return;
+  }
+  try{
+    stat.textContent = '🔍 Mencari printer…';
+    const device = await navigator.bluetooth.requestDevice({
+      acceptAllDevices: true,
+      optionalServices: [PRINTER_SERVICE_UUID]
+    });
+    stat.textContent = '🔗 Menghubungkan ke ' + (device.name||'printer') + '…';
+    const server = await device.gatt.connect();
+    const service = await server.getPrimaryService(PRINTER_SERVICE_UUID);
+    const characteristic = await service.getCharacteristic(PRINTER_CHAR_UUID);
+
+    PRINT_STATE.device = device;
+    PRINT_STATE.characteristic = characteristic;
+
+    stat.textContent = '✅ Terhubung ke ' + (device.name||'printer') + ' — siap cetak';
+    document.getElementById('btn-cetak-sekarang').disabled = false;
+    document.getElementById('btn-cetak-sekarang').style.background = 'var(--or)';
+    toast('Printer terhubung ✓','ok');
+  }catch(e){
+    stat.textContent = '❌ Gagal konek: ' + e.message;
+    toast('Gagal menghubungkan printer: '+e.message,'err');
+  }
+}
+
+// Susun perintah ESC/POS mentah dari baris-baris struk (font diperbesar pakai GS !)
+function bangunByteESCPOS_(baris){
+  const bytes = [];
+  const push = (...arr) => arr.forEach(b => bytes.push(b));
+  const pushText = (str) => { for(let i=0;i<str.length;i++) bytes.push(str.charCodeAt(i) & 0xFF); };
+
+  push(0x1B,0x40); // ESC @ — reset printer
+
+  baris.forEach(b=>{
+    if (b.cmd === 'tight') { push(0x1B,0x33, 24); return; } // ESC 3 n — perkecil jarak antar baris
+    if (b.cmd === 'normal') { push(0x1B,0x32); return; }    // ESC 2 — kembali ke jarak baris default
+    push(0x1B,0x61, b.center ? 0x01 : 0x00); // align
+    push(0x1B,0x45, b.bold ? 0x01 : 0x00);   // bold on/off
+    push(0x1D,0x21, 0x11); // GS ! — double-height + double-width utk SEMUA baris
+    pushText(b.text || ' ');
+    push(0x0A); // line feed
+  });
+
+  push(0x1D,0x21,0x00); // reset ukuran font
+  push(0x0A,0x0A,0x0A); // feed sebelum potong
+  push(0x1D,0x56,0x01); // partial cut
+
+  return new Uint8Array(bytes);
+}
+
+async function cetakKePrinter(){
+  if(!PRINT_STATE.characteristic){ toast('Hubungkan printer dulu.','err'); return; }
+  if(!PRINT_STATE.order){ toast('Data order tidak ada.','err'); return; }
+
+  const stat = document.getElementById('print-status');
+  const btn = document.getElementById('btn-cetak-sekarang');
+  btn.disabled = true; btn.textContent = 'Mencetak…';
+  stat.textContent = '🖨️ Mengirim data ke printer…';
+
+  try{
+    const baris = bangunBarisStruk_(PRINT_STATE.order);
+    const data = bangunByteESCPOS_(baris);
+
+    // Kirim per-chunk kecil (kebanyakan printer BLE murah cuma terima ±100-180 byte per write)
+    const CHUNK = 100;
+    for(let i=0; i<data.length; i+=CHUNK){
+      const chunk = data.slice(i, i+CHUNK);
+      await PRINT_STATE.characteristic.writeValue(chunk);
+      await new Promise(r=>setTimeout(r, 40)); // jeda kecil biar printer tidak overflow buffer
+    }
+
+    stat.textContent = '✅ Selesai dicetak!';
+    toast('Menu berhasil dicetak ✓','ok');
+  }catch(e){
+    stat.textContent = '❌ Gagal cetak: ' + e.message;
+    toast('Gagal mencetak: '+e.message,'err');
+  }finally{
+    btn.disabled = false; btn.textContent = '🖨️ Cetak Sekarang';
+  }
+}
+
 async function checkConn(){
   const el=document.getElementById('cst');
   try{const j=await gasFetch(APP.GAS_URL+'?action=ping&t='+Date.now());el.textContent=j.success?'🟢':'🔴';}
