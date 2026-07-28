@@ -1205,13 +1205,17 @@ async function muatDraftInvoice(){
 
     // 1 checkbox per No Order — dicentang = SEMUA komposisi menu order itu ditambahkan
     // dalam kurung di bawah nama produk pada kolom Deskripsi invoice.
+    // style pakai !important supaya tidak ketiban CSS global app ini (yang me-reset semua <input>
+    // jadi appearance:none, bikin checkbox tak kelihatan status centangnya).
     const detailHtml = j.items.map(it => {
       if(!it.menu_options || !it.menu_options.length) return '';
       const preview = it.menu_options.map(m => m.value).join(', ');
-      return `<label style="display:flex;align-items:flex-start;gap:8px;font-size:12px;
-                margin-bottom:8px;padding:8px 10px;border:1px solid var(--bdr);border-radius:8px;cursor:pointer;">
+      return `<label style="display:flex;align-items:flex-start;gap:10px;font-size:12px;
+                margin-bottom:8px;padding:9px 10px;border:1.5px solid var(--bdr);border-radius:8px;cursor:pointer;">
         <input type="checkbox" class="inv-menu-chk" data-no="${it.no_order}"
-          style="width:16px;height:16px;flex-shrink:0;margin-top:2px;">
+          style="-webkit-appearance:checkbox!important;appearance:checkbox!important;width:18px!important;height:18px!important;
+                 min-width:18px!important;padding:0!important;margin:2px 0 0 0!important;border:1px solid #999!important;
+                 border-radius:3px!important;background:#fff!important;flex-shrink:0;">
         <span><strong>${it.deskripsi}</strong> (${it.no_order})<br>
           <span style="color:var(--inks);font-size:11px;">${preview}</span>
         </span>
@@ -1238,7 +1242,7 @@ async function buatInvoicePdf(){
   const noInvoice = document.getElementById('inv-no-invoice').value.trim();
   if(!noInvoice){ toast('Nomor invoice wajib diisi.','err'); return; }
 
-  // 1 checkbox dicentang = No Order itu -> ambil SEMUA komposisi menunya dari draft
+  // Checkbox yg dicentang -> ambil SEMUA komposisi menu order itu dari draft
   const menuDetail = {};
   document.querySelectorAll('.inv-menu-chk:checked').forEach(chk => {
     const no = chk.dataset.no;
