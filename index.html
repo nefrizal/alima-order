@@ -578,6 +578,13 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
                border-radius:3px!important;background:#fff!important;flex-shrink:0;">
       Tampilkan Rekening Bank &amp; NPWP di PDF
     </label>
+    <label style="display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:12px;cursor:pointer;">
+      <input type="checkbox" id="q-tampilkan-jumlah-besar" checked
+        style="-webkit-appearance:checkbox!important;appearance:checkbox!important;width:16px!important;height:16px!important;
+               min-width:16px!important;padding:0!important;margin:0!important;border:1px solid #999!important;
+               border-radius:3px!important;background:#fff!important;flex-shrink:0;">
+      Tampilkan Total besar (angka mencolok warna pink) di bawah tabel
+    </label>
     <div class="fld"><label>Catatan (opsional)</label><textarea id="q-catatan" style="min-height:40px;"></textarea></div>
 
     <div class="g2">
@@ -2912,6 +2919,7 @@ async function openQuotationModal(){
   document.getElementById('q-catatan').value = '';
   document.getElementById('q-payment-term').value = '';
   document.getElementById('q-tampilkan-bank').checked = true;
+  document.getElementById('q-tampilkan-jumlah-besar').checked = true;
   document.getElementById('q-drive-link-box').classList.add('hide');
   document.getElementById('q-menu-grid-wrap').classList.add('hide');
   document.getElementById('q-menu-toggle-icon').textContent = '▼';
@@ -3099,7 +3107,8 @@ function kumpulkanDataQuote_(){
     signer_jabatan: document.getElementById('q-signer-jabatan').value.trim(),
     catatan: document.getElementById('q-catatan').value.trim(),
     payment_term: document.getElementById('q-payment-term').value.trim(),
-    tampilkan_bank: document.getElementById('q-tampilkan-bank').checked ? '1' : '0'
+    tampilkan_bank: document.getElementById('q-tampilkan-bank').checked ? '1' : '0',
+    tampilkan_jumlah_besar: document.getElementById('q-tampilkan-jumlah-besar').checked ? '1' : '0'
   };
 }
 
