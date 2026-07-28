@@ -129,15 +129,17 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 </div>
 <div id="app-content" class="hide">
 <header>
-  <div class="brand">Alima Boga Batam<small>Sales Order App</small></div>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <button id="btn-quotation" onclick="openQuotationModal()" title="Buat Quotation" class="hide"
+      style="background:rgba(255,255,255,.18);border:none;color:#fff;border-radius:6px;
+             padding:5px 9px;font-size:14px;cursor:pointer;line-height:1;">📃</button>
+    <div class="brand">Alima Boga Batam<small>Sales Order App</small></div>
+  </div>
   <div style="display:flex;align-items:center;gap:8px;">
     <span id="who-badge" style="font-size:10px;background:rgba(255,255,255,.2);padding:3px 8px;border-radius:20px;"></span>
     <button onclick="openInvoiceModal()" title="Buat Invoice"
       style="background:rgba(255,255,255,.18);border:none;color:#fff;border-radius:6px;
              padding:5px 9px;font-size:14px;cursor:pointer;line-height:1;">🧾</button>
-    <button id="btn-quotation" onclick="openQuotationModal()" title="Buat Quotation" class="hide"
-      style="background:rgba(255,255,255,.18);border:none;color:#fff;border-radius:6px;
-             padding:5px 9px;font-size:14px;cursor:pointer;line-height:1;">📃</button>
     <div id="cst">⏳</div>
   </div>
 </header>
@@ -531,6 +533,12 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       <div class="fld"><label>Qty</label><input id="q-qty" type="number" min="1" placeholder="50"></div>
       <div class="fld"><label>Harga/pax (Rp)</label><input id="q-harga" type="number" min="0" placeholder="35000"></div>
       <div class="fld"><label>Delivery (Rp)</label><input id="q-delivery" type="number" min="0" value="0"></div>
+    </div>
+    <button type="button" class="bico" style="width:100%;margin-bottom:8px;background:var(--sur);color:var(--ord);border:1.5px solid var(--or);" onclick="toggleQMenuGrid()">
+      🥘 Komposisi Menu (opsional) <span id="q-menu-toggle-icon">▼</span>
+    </button>
+    <div id="q-menu-grid-wrap" class="hide" style="border:1px solid var(--bdr);border-radius:8px;padding:10px;margin-bottom:10px;">
+      <div class="mgrid" id="q-menu-grid"></div>
     </div>
     <button class="bico" style="width:100%;margin-bottom:12px;" onclick="tambahItemQuote()">➕ Tambah ke Daftar Penawaran</button>
 
@@ -2821,6 +2829,34 @@ function qOnPaket(){
   if(h) document.getElementById('q-harga').value = Number(h) * 1000;
 }
 
+function toggleQMenuGrid(){
+  const wrap = document.getElementById('q-menu-grid-wrap');
+  const icon = document.getElementById('q-menu-toggle-icon');
+  const buka = wrap.classList.contains('hide');
+  if(buka){ wrap.classList.remove('hide'); icon.textContent = '▲'; renderQMenuGrid(); }
+  else{ wrap.classList.add('hide'); icon.textContent = '▼'; }
+}
+function renderQMenuGrid(){
+  const grid = document.getElementById('q-menu-grid');
+  const menuData = MENU_DATA || EMBEDDED_MENU;
+  if(!grid || !menuData) return;
+  const allKeys = Object.keys(menuData);
+  const ordered = [...MENU_ORDER.filter(k => menuData[k]), ...allKeys.filter(k => !MENU_ORDER.includes(k))];
+  let html = '';
+  ordered.forEach(key => {
+    const opts = menuData[key];
+    if(!opts) return;
+    const fk = MENU_KEY_MAP[key] || key.replace(/\s+/g,'_');
+    const lbl = key.charAt(0).toUpperCase() + key.slice(1);
+    const ops = ['—', ...opts].map(o => `<option value="${o==='—'?'':o}">${o}</option>`).join('');
+    html += `<div class="fld"><label>${lbl}</label><select id="qm-${fk}">${ops}</select></div>`;
+  });
+  grid.innerHTML = html;
+}
+function resetQMenuGrid(){
+  document.querySelectorAll('#q-menu-grid select').forEach(sel => sel.value = '');
+}
+
 async function openQuotationModal(){
   document.getElementById('q-nama-pelanggan').value = '';
   document.getElementById('q-instansi').value = '';
@@ -2829,6 +2865,8 @@ async function openQuotationModal(){
   document.getElementById('q-delivery').value = 0;
   document.getElementById('q-catatan').value = '';
   document.getElementById('q-drive-link-box').classList.add('hide');
+  document.getElementById('q-menu-grid-wrap').classList.add('hide');
+  document.getElementById('q-menu-toggle-icon').textContent = '▼';
   QUOTE_ITEMS = [];
   LAST_QUOTATION_RESULT = null;
   renderQProdukDropdown();
@@ -2863,17 +2901,31 @@ function tambahItemQuote(){
   if(!qty){ toast('Isi Qty.','err'); return; }
   if(!harga){ toast('Isi Harga/pax.','err'); return; }
 
-  QUOTE_ITEMS.push({ deskripsi, qty, harga, delivery, total: qty*harga+delivery });
+  // Ambil komposisi menu yg diisi (kalau grid-nya dibuka & ada yg dipilih)
+  const menuOptions = [];
+  document.querySelectorAll('#q-menu-grid select').forEach(sel => {
+    const val = sel.value.trim();
+    if(val){
+      const lbl = sel.previousElementSibling ? sel.previousElementSibling.textContent : '';
+      menuOptions.push({ label: lbl, value: val });
+    }
+  });
+
+  QUOTE_ITEMS.push({ deskripsi, qty, harga, delivery, total: qty*harga+delivery, menu_options: menuOptions, tampilkan_komposisi: false });
   renderQuoteItemsList();
 
-  // Reset qty & delivery utk item berikutnya, biarkan produk/paket/harga supaya cepat tambah lagi
+  // Reset qty, delivery & komposisi menu utk item berikutnya, biarkan produk/paket/harga supaya cepat tambah lagi
   document.getElementById('q-qty').value = '';
   document.getElementById('q-delivery').value = 0;
+  resetQMenuGrid();
   toast('Item ditambahkan ✓','ok');
 }
 function hapusItemQuote(idx){
   QUOTE_ITEMS.splice(idx,1);
   renderQuoteItemsList();
+}
+function toggleQuoteItemDetail(idx, checked){
+  QUOTE_ITEMS[idx].tampilkan_komposisi = checked;
 }
 function renderQuoteItemsList(){
   const box = document.getElementById('q-items-list');
@@ -2888,12 +2940,22 @@ function renderQuoteItemsList(){
   }
   empty.style.display = 'none';
   box.innerHTML = QUOTE_ITEMS.map((it,i) => `
-    <div class="prow" style="border-bottom:1px solid var(--bdr);padding:6px 0;">
-      <span>${it.deskripsi} · ${it.qty}x Rp${it.harga.toLocaleString('en-US')}${it.delivery?' · Del Rp'+it.delivery.toLocaleString('en-US'):''}</span>
-      <span style="display:flex;align-items:center;gap:8px;">
-        Rp${it.total.toLocaleString('en-US')}
-        <button onclick="hapusItemQuote(${i})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;">🗑️</button>
-      </span>
+    <div style="border:1px solid var(--bdr);border-radius:8px;padding:8px 10px;margin-bottom:8px;">
+      <div class="prow">
+        <span>${it.deskripsi} · ${it.qty}x Rp${it.harga.toLocaleString('en-US')}${it.delivery?' · Ongkir Rp'+it.delivery.toLocaleString('en-US'):''}</span>
+        <span style="display:flex;align-items:center;gap:8px;">
+          Rp${it.total.toLocaleString('en-US')}
+          <button onclick="hapusItemQuote(${i})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;">🗑️</button>
+        </span>
+      </div>
+      ${it.menu_options && it.menu_options.length ? `
+      <label style="display:flex;align-items:flex-start;gap:8px;font-size:11px;margin-top:6px;padding-top:6px;border-top:1px dashed var(--bdr);cursor:pointer;">
+        <input type="checkbox" onchange="toggleQuoteItemDetail(${i}, this.checked)" ${it.tampilkan_komposisi?'checked':''}
+          style="-webkit-appearance:checkbox!important;appearance:checkbox!important;width:16px!important;height:16px!important;
+                 min-width:16px!important;padding:0!important;margin:1px 0 0 0!important;border:1px solid #999!important;
+                 border-radius:3px!important;background:#fff!important;flex-shrink:0;">
+        <span>Tampilkan komposisi menu dalam kurung:<br><span style="color:var(--inks);">${it.menu_options.map(m=>m.value).join(', ')}</span></span>
+      </label>` : ''}
     </div>`).join('');
   const total = QUOTE_ITEMS.reduce((s,it)=>s+it.total,0);
   document.getElementById('q-total-text').textContent = 'Rp ' + total.toLocaleString('id-ID');
@@ -2901,8 +2963,12 @@ function renderQuoteItemsList(){
 }
 
 function kumpulkanDataQuote_(){
+  const itemsUntukDikirim = QUOTE_ITEMS.map(it => ({
+    deskripsi: it.deskripsi, qty: it.qty, harga: it.harga, delivery: it.delivery,
+    menu_detail_terpilih: (it.tampilkan_komposisi && it.menu_options) ? it.menu_options.map(m => m.value) : []
+  }));
   return {
-    items: JSON.stringify(QUOTE_ITEMS),
+    items: JSON.stringify(itemsUntukDikirim),
     nama_pelanggan: document.getElementById('q-nama-pelanggan').value.trim(),
     instansi: document.getElementById('q-instansi').value.trim(),
     no_quotation: document.getElementById('q-no-quotation').value.trim(),
