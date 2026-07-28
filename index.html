@@ -552,8 +552,8 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       <div class="mgrid" id="q-menu-grid"></div>
     </div>
     <div class="g2">
-      <button class="bico" style="background:var(--inkm);" onclick="resetFormItemQuote()">🔄 Reset Form Item</button>
-      <button class="bico" onclick="tambahItemQuote()">➕ Tambah ke Daftar</button>
+      <button class="bico" style="background:var(--inkm);" onclick="quotationBaru()">🆕 Quotation Baru</button>
+      <button class="bico" onclick="tambahItemQuote()">➕ Tambah Item</button>
     </div>
 
     <div id="q-items-list"></div>
@@ -2910,7 +2910,10 @@ function resetQMenuGrid(){
   document.querySelectorAll('#q-menu-grid select').forEach(sel => sel.value = '');
 }
 
-async function openQuotationModal(){
+// Reset total draft quotation (item, customer, semua field) + ambil saran nomor/penandatangan baru.
+// Dipakai baik saat popup pertama dibuka MAUPUN saat tombol "🆕 Quotation Baru" ditekan
+// (tanpa perlu tutup-buka popup) — supaya bisa langsung lanjut bikin quotation lain di sesi yang sama.
+async function _resetQuotationDraft(){
   document.getElementById('q-nama-pelanggan').value = '';
   document.getElementById('q-instansi').value = '';
   document.getElementById('q-cust-info').style.display = 'none';
@@ -2930,7 +2933,6 @@ async function openQuotationModal(){
   renderQProdukDropdown();
   document.getElementById('q-paket').innerHTML = '<option value="">— Pilih Produk dulu —</option>';
   renderQuoteItemsList();
-  document.getElementById('quotation-modal').classList.remove('hide');
 
   // Ambil saran nomor quotation & penandatangan berikutnya
   try{
@@ -2943,6 +2945,19 @@ async function openQuotationModal(){
       document.getElementById('q-signer-jabatan').value = j.suggested_jabatan || '';
     }
   }catch(e){ console.warn('Gagal ambil saran quotation:', e.message); }
+}
+
+async function openQuotationModal(){
+  document.getElementById('quotation-modal').classList.remove('hide');
+  await _resetQuotationDraft();
+}
+
+// Tombol "🆕 Quotation Baru" — reset semua (item, customer, nomor baru) TANPA nutup popup,
+// supaya bisa langsung lanjut bikin quotation lain di sesi yang sama hari itu.
+async function quotationBaru(){
+  if(QUOTE_ITEMS.length && !confirm('Mulai quotation baru? Item yang belum disimpan di quotation ini akan hilang (kalau sudah ditekan "Simpan ke Google Sheets" sebelumnya, datanya aman tersimpan).')) return;
+  await _resetQuotationDraft();
+  toast('Siap untuk quotation baru ✓','ok');
 }
 function closeQuotationModal(){
   document.getElementById('quotation-modal').classList.add('hide');
@@ -3040,19 +3055,6 @@ function tambahItemQuote(){
   toast('Item ditambahkan ✓','ok');
 }
 
-// Kosongkan semua field mini-form "Tambah Item" (Produk, Paket, Harga, Delivery, Komposisi Menu)
-// TANPA menghapus item yg sudah masuk daftar penawaran.
-function resetFormItemQuote(){
-  document.getElementById('q-produk').value = '';
-  document.getElementById('q-paket').innerHTML = '<option value="">— Pilih Produk dulu —</option>';
-  document.getElementById('q-harga').value = '';
-  document.getElementById('q-qty').value = 1;
-  document.getElementById('q-delivery').value = 0;
-  resetQMenuGrid();
-  document.getElementById('q-menu-grid-wrap').classList.add('hide');
-  document.getElementById('q-menu-toggle-icon').textContent = '▼';
-  toast('Form item dikosongkan ✓','ok');
-}
 function hapusItemQuote(idx){
   QUOTE_ITEMS.splice(idx,1);
   renderQuoteItemsList();
