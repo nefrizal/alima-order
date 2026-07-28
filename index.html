@@ -3059,6 +3059,47 @@ function hapusItemQuote(idx){
   QUOTE_ITEMS.splice(idx,1);
   renderQuoteItemsList();
 }
+// Muat item yang sudah ada kembali ke mini-form "Tambah Item" utk diedit — item-nya SEMENTARA
+// dikeluarkan dulu dari daftar, dan baru masuk lagi (dengan nilai barunya) setelah tombol
+// "➕ Tambah Item" ditekan ulang. Ini yang bikin edit delivery/qty/dll pada item yang SUDAH
+// ditambahkan bisa berubah — sebelumnya field mini-form cuma berlaku utk item BERIKUTNYA.
+async function editItemQuote(idx){
+  const it = QUOTE_ITEMS[idx];
+  if(!it) return;
+
+  const produk = findProdukByPaket(it.deskripsi);
+  if(produk){
+    document.getElementById('q-produk').value = produk;
+    qOnProduk();
+    await sleep(50);
+    const paketSel = document.getElementById('q-paket');
+    const opt = Array.from(paketSel.options).find(o => o.value === it.deskripsi);
+    if(opt) paketSel.value = it.deskripsi;
+  }
+  document.getElementById('q-qty').value = it.qty;
+  document.getElementById('q-harga').value = it.harga;
+  document.getElementById('q-delivery').value = it.delivery || 0;
+
+  if(it.menu_options && it.menu_options.length){
+    document.getElementById('q-menu-grid-wrap').classList.remove('hide');
+    document.getElementById('q-menu-toggle-icon').textContent = '▲';
+    renderQMenuGrid();
+    await sleep(50);
+    it.menu_options.forEach(m => {
+      document.querySelectorAll('#q-menu-grid select').forEach(sel => {
+        const lbl = sel.previousElementSibling ? sel.previousElementSibling.textContent : '';
+        if(lbl === m.label){
+          const o = Array.from(sel.options).find(o => o.value === m.value);
+          if(o) sel.value = m.value;
+        }
+      });
+    });
+  }
+
+  QUOTE_ITEMS.splice(idx,1); // keluarkan dulu dari daftar, masuk lagi setelah "Tambah Item" ditekan
+  renderQuoteItemsList();
+  toast('Item dimuat ke form — ubah seperlunya lalu tekan "➕ Tambah Item" lagi.','ok');
+}
 function toggleQuoteItemDetail(idx, checked){
   QUOTE_ITEMS[idx].tampilkan_komposisi = checked;
 }
@@ -3080,6 +3121,7 @@ function renderQuoteItemsList(){
         <span>${it.deskripsi} · ${it.qty}x Rp${it.harga.toLocaleString('en-US')}${it.delivery?' · Ongkir Rp'+it.delivery.toLocaleString('en-US'):''}</span>
         <span style="display:flex;align-items:center;gap:8px;">
           Rp${it.total.toLocaleString('en-US')}
+          <button onclick="editItemQuote(${i})" style="background:none;border:none;color:var(--or);cursor:pointer;font-size:14px;">✏️</button>
           <button onclick="hapusItemQuote(${i})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;">🗑️</button>
         </span>
       </div>
