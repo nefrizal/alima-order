@@ -532,6 +532,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       <div class="sales-hint">🔍 Cari dari customer lama, atau ketik bebas kalau prospek baru (belum tersimpan)</div>
     </div>
     <div id="q-cust-info" style="display:none;background:var(--orl);border:1px solid #f7d4bc;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:var(--inkm);line-height:1.7;"></div>
+    <input type="hidden" id="q-cust-gender" value="">
     <div class="fld"><label>Instansi (opsional)</label><input id="q-instansi" placeholder="Nama instansi"></div>
 
     <div class="stitle" style="font-size:13px;margin-top:6px;">🍱 Tambah Item</div>
@@ -583,7 +584,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
         style="-webkit-appearance:checkbox!important;appearance:checkbox!important;width:16px!important;height:16px!important;
                min-width:16px!important;padding:0!important;margin:0!important;border:1px solid #999!important;
                border-radius:3px!important;background:#fff!important;flex-shrink:0;">
-      Tampilkan Total besar (angka mencolok warna pink) di bawah tabel
+      Tampilkan Total di PDF (baris Total di tabel + angka besar warna pink)
     </label>
     <div class="fld"><label>Catatan (opsional)</label><textarea id="q-catatan" style="min-height:40px;"></textarea></div>
 
@@ -2913,6 +2914,7 @@ async function openQuotationModal(){
   document.getElementById('q-nama-pelanggan').value = '';
   document.getElementById('q-instansi').value = '';
   document.getElementById('q-cust-info').style.display = 'none';
+  document.getElementById('q-cust-gender').value = '';
   document.getElementById('q-qty').value = 1;
   document.getElementById('q-harga').value = '';
   document.getElementById('q-delivery').value = 0;
@@ -2952,6 +2954,7 @@ function filterQCust(){
   const q = document.getElementById('q-nama-pelanggan').value.toLowerCase().trim();
   const dd = document.getElementById('q-cust-dd');
   document.getElementById('q-cust-info').style.display = 'none';
+  document.getElementById('q-cust-gender').value = ''; // ketik ulang -> bukan lagi customer tersimpan, sebutan direset
 
   let filtered, totalMatch;
   if(q.length < 1){
@@ -2995,6 +2998,7 @@ function selectCustForQuote(id){
   if(!c) return;
   document.getElementById('q-nama-pelanggan').value = c.nama || '';
   document.getElementById('q-instansi').value = c.nama_instansi || c.instansi || '';
+  document.getElementById('q-cust-gender').value = c.gender || '';
   document.getElementById('q-cust-dd').style.display = 'none';
   const info = document.getElementById('q-cust-info');
   info.style.display = 'block';
@@ -3108,7 +3112,8 @@ function kumpulkanDataQuote_(){
     catatan: document.getElementById('q-catatan').value.trim(),
     payment_term: document.getElementById('q-payment-term').value.trim(),
     tampilkan_bank: document.getElementById('q-tampilkan-bank').checked ? '1' : '0',
-    tampilkan_jumlah_besar: document.getElementById('q-tampilkan-jumlah-besar').checked ? '1' : '0'
+    tampilkan_jumlah_besar: document.getElementById('q-tampilkan-jumlah-besar').checked ? '1' : '0',
+    gender: document.getElementById('q-cust-gender').value
   };
 }
 
