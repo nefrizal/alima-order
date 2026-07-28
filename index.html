@@ -479,14 +479,13 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
         <div id="inv-preview-body" style="font-size:12px;"></div>
       </div>
 
+      <div id="inv-menu-detail-box"></div>
+
       <div class="g2">
         <div class="fld"><label>Nomor Invoice</label><input id="inv-no-invoice"></div>
         <div class="fld"><label>Tanggal Invoice</label><input id="inv-tgl" type="date"></div>
       </div>
-      <div class="g2">
-        <div class="fld"><label>Jatuh Tempo</label><input id="inv-jatuh-tempo" type="date"></div>
-        <div class="fld"><label>Diterima Oleh</label><input id="inv-diterima"></div>
-      </div>
+      <div class="fld"><label>Jatuh Tempo</label><input id="inv-jatuh-tempo" type="date"></div>
       <div class="g2">
         <div class="fld"><label>Ditandatangani Oleh</label><input id="inv-signer-nama"></div>
         <div class="fld"><label>Jabatan</label><input id="inv-signer-jabatan"></div>
@@ -1175,6 +1174,7 @@ function openInvoiceModal(){
   document.getElementById('inv-no-orders').value = '';
   document.getElementById('inv-draft-box').classList.add('hide');
   document.getElementById('inv-drive-link-box').classList.add('hide');
+  document.getElementById('inv-menu-detail-box').innerHTML = '';
   document.getElementById('invoice-modal').classList.remove('hide');
 }
 function closeInvoiceModal(){
@@ -1201,10 +1201,25 @@ async function muatDraftInvoice(){
       `<div class="prow tot"><span>Total</span><span>Rp${j.grand_total.toLocaleString('en-US')}</span></div>` +
       (j.customer_beda ? '<div style="color:var(--red);font-size:11px;margin-top:6px;">⚠️ No Order yang dipilih berasal dari customer berbeda — invoice akan pakai data customer dari order pertama.</div>' : '');
 
+    // Checkbox detail komposisi menu per item — dicentang = ditambahkan dalam kurung di kolom Deskripsi
+    const detailHtml = j.items.map(it => {
+      if(!it.menu_options || !it.menu_options.length) return '';
+      const boxes = it.menu_options.map((m,mi) =>
+        `<label style="display:inline-flex;align-items:center;gap:4px;font-size:11px;margin:2px 10px 2px 0;cursor:pointer;">
+           <input type="checkbox" class="inv-menu-chk" data-no="${it.no_order}" value="${m.value.replace(/"/g,'&quot;')}">
+           ${m.label}: ${m.value}
+         </label>`
+      ).join('');
+      return `<div class="fld" style="margin-bottom:8px;">
+        <label style="margin-bottom:4px;">Detail "${it.deskripsi}" (${it.no_order}) — centang yg mau ditampilkan dlm kurung</label>
+        <div style="border:1px solid var(--bdr);border-radius:8px;padding:8px 10px;">${boxes}</div>
+      </div>`;
+    }).join('');
+    document.getElementById('inv-menu-detail-box').innerHTML = detailHtml;
+
     document.getElementById('inv-no-invoice').value    = j.suggested_no_invoice || '';
     document.getElementById('inv-tgl').value           = j.suggested_tanggal || '';
     document.getElementById('inv-jatuh-tempo').value   = j.suggested_jatuh_tempo || '';
-    document.getElementById('inv-diterima').value      = j.customer.nama || '';
     document.getElementById('inv-signer-nama').value   = j.suggested_signer || '';
     document.getElementById('inv-signer-jabatan').value= j.suggested_jabatan || '';
     document.getElementById('inv-catatan').value       = '';
@@ -1220,6 +1235,14 @@ async function buatInvoicePdf(){
   const noInvoice = document.getElementById('inv-no-invoice').value.trim();
   if(!noInvoice){ toast('Nomor invoice wajib diisi.','err'); return; }
 
+  // Kumpulkan checkbox detail menu yang dicentang, dikelompokkan per No Order
+  const menuDetail = {};
+  document.querySelectorAll('.inv-menu-chk:checked').forEach(chk => {
+    const no = chk.dataset.no;
+    if(!menuDetail[no]) menuDetail[no] = [];
+    menuDetail[no].push(chk.value);
+  });
+
   // Buka tab kosong DULU (sinkron, sebelum await) supaya tidak diblokir popup-blocker browser/HP.
   const newTab = window.open('', '_blank');
 
@@ -1229,10 +1252,10 @@ async function buatInvoicePdf(){
     no_invoice: noInvoice,
     tanggal_invoice: document.getElementById('inv-tgl').value,
     jatuh_tempo: document.getElementById('inv-jatuh-tempo').value,
-    diterima_oleh: document.getElementById('inv-diterima').value,
     signer_nama: document.getElementById('inv-signer-nama').value,
     signer_jabatan: document.getElementById('inv-signer-jabatan').value,
-    catatan: document.getElementById('inv-catatan').value
+    catatan: document.getElementById('inv-catatan').value,
+    menu_detail: JSON.stringify(menuDetail)
   }).toString();
 
   showOvl('Membuat PDF invoice…');
