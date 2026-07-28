@@ -135,6 +135,9 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     <button onclick="openInvoiceModal()" title="Buat Invoice"
       style="background:rgba(255,255,255,.18);border:none;color:#fff;border-radius:6px;
              padding:5px 9px;font-size:14px;cursor:pointer;line-height:1;">🧾</button>
+    <button id="btn-quotation" onclick="openQuotationModal()" title="Buat Quotation" class="hide"
+      style="background:rgba(255,255,255,.18);border:none;color:#fff;border-radius:6px;
+             padding:5px 9px;font-size:14px;cursor:pointer;line-height:1;">📃</button>
     <div id="cst">⏳</div>
   </div>
 </header>
@@ -498,6 +501,65 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
         <a id="inv-drive-link" href="#" target="_blank" style="color:var(--blu);word-break:break-all;"></a>
         <button class="bico" onclick="kirimInvoiceViaWA()" style="width:100%;margin-top:10px;background:#1B7A4A;">📲 Kirim PDF ke WA Admin/Sales/Finance</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL BUAT QUOTATION -->
+<div class="modal-bg hide" id="quotation-modal">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-head">
+      <h2>📃 Buat Quotation (Penawaran Harga)</h2>
+      <button class="modal-close" onclick="closeQuotationModal()">×</button>
+    </div>
+    <div style="background:var(--orl);border:1px solid #f7d4bc;border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:11px;color:var(--ord);">
+      ℹ️ Item di bawah BELUM tersimpan ke Google Sheets — cuma disimpan sementara di HP/browser ini.
+      Baru masuk ke Sheets setelah Bapak tekan "Simpan ke Google Sheets".
+    </div>
+
+    <div class="g2">
+      <div class="fld"><label>Kepada (Nama Calon Pelanggan) <span class="req">*</span></label><input id="q-nama-pelanggan" placeholder="Nama / PT / instansi"></div>
+      <div class="fld"><label>Instansi (opsional)</label><input id="q-instansi" placeholder="Nama instansi"></div>
+    </div>
+
+    <div class="stitle" style="font-size:13px;margin-top:6px;">🍱 Tambah Item</div>
+    <div class="g2">
+      <div class="fld"><label>Produk</label><select id="q-produk" onchange="qOnProduk()"><option value="">— Pilih Produk —</option></select></div>
+      <div class="fld"><label>Paket</label><select id="q-paket" onchange="qOnPaket()"><option value="">— Pilih Produk dulu —</option></select></div>
+    </div>
+    <div class="g3">
+      <div class="fld"><label>Qty</label><input id="q-qty" type="number" min="1" placeholder="50"></div>
+      <div class="fld"><label>Harga/pax (Rp)</label><input id="q-harga" type="number" min="0" placeholder="35000"></div>
+      <div class="fld"><label>Delivery (Rp)</label><input id="q-delivery" type="number" min="0" value="0"></div>
+    </div>
+    <button class="bico" style="width:100%;margin-bottom:12px;" onclick="tambahItemQuote()">➕ Tambah ke Daftar Penawaran</button>
+
+    <div id="q-items-list"></div>
+    <div id="q-items-empty" class="empty" style="padding:16px;"><p style="font-size:12px;">Belum ada item. Tambahkan minimal 1 item di atas.</p></div>
+    <div id="q-total-strip" class="pstrip hide" style="margin-bottom:14px;">
+      <div class="prow tot"><span>Total Penawaran</span><span id="q-total-text">Rp 0</span></div>
+    </div>
+
+    <div class="g2">
+      <div class="fld"><label>Nomor Quotation</label><input id="q-no-quotation"></div>
+      <div class="fld"><label>Tanggal</label><input id="q-tgl" type="date"></div>
+    </div>
+    <div class="fld"><label>Berlaku Hingga</label><input id="q-berlaku-hingga" type="date"></div>
+    <div class="g2">
+      <div class="fld"><label>Ditandatangani Oleh</label><input id="q-signer-nama"></div>
+      <div class="fld"><label>Jabatan</label><input id="q-signer-jabatan"></div>
+    </div>
+    <div class="fld"><label>Catatan (opsional)</label><textarea id="q-catatan" style="min-height:40px;"></textarea></div>
+
+    <div class="g2">
+      <button class="bico" style="background:var(--inkm);" onclick="previewQuotationPdf()">👁️ Preview PDF (belum simpan)</button>
+      <button class="bsub" onclick="simpanQuotationFinal()">💾 Simpan ke Google Sheets</button>
+    </div>
+
+    <div id="q-drive-link-box" class="hide" style="background:var(--grnl);border:1px solid #b7dfc9;border-radius:8px;padding:10px 12px;margin-top:10px;font-size:12px;">
+      ✅ Tersimpan permanen di Drive:<br>
+      <a id="q-drive-link" href="#" target="_blank" style="color:var(--blu);word-break:break-all;"></a>
+      <button class="bico" onclick="kirimQuotationViaWA()" style="width:100%;margin-top:10px;background:#1B7A4A;">📲 Kirim PDF ke WA Admin/Sales/Finance</button>
     </div>
   </div>
 </div>
@@ -976,6 +1038,11 @@ async function handleGoogleCredential(resp){
     document.getElementById('login-gate').classList.add('hide');
     document.getElementById('app-content').classList.remove('hide');
     document.getElementById('who-badge').textContent = `${CURRENT_USER.nama} · ${CURRENT_USER.role}`;
+
+    // Tombol Quotation cuma utk role admin/finance/sales
+    if (['admin','finance','sales'].includes(CURRENT_USER.role)) {
+      document.getElementById('btn-quotation').classList.remove('hide');
+    }
 
     if (isFullAccessRole(CURRENT_USER.role)) {
       initAppContent(); // admin / sales: akses penuh (Order Baru, Revisi, Jadwal, Masak, Absensi)
@@ -2721,6 +2788,225 @@ async function kirimInvoiceViaWA(){
     }
     hideOvl();
     toast(gagal ? `PDF terkirim, tapi ${gagal} nomor gagal.` : 'PDF invoice terkirim ke semua Admin/Sales/Finance ✓', gagal ? 'err' : 'ok');
+  }catch(e){
+    hideOvl();
+    toast('Gagal kirim: '+e.message,'err');
+  }
+}
+
+// ══ QUOTATION (Penawaran Harga) ═══════════════════════════════
+// Item disimpan SEMENTARA di memori browser (QUOTE_ITEMS) — belum masuk Google Sheets
+// sampai user tekan "Simpan ke Google Sheets" (simpanQuotationFinal).
+let QUOTE_ITEMS = [];
+let LAST_QUOTATION_RESULT = null;
+
+function renderQProdukDropdown(){
+  const sel = document.getElementById('q-produk');
+  if(!sel) return;
+  const keys = Object.keys(PAKET_DATA);
+  sel.innerHTML = '<option value="">— Pilih Produk —</option>' +
+    keys.map(k => `<option value="${k}">${k.charAt(0).toUpperCase()+k.slice(1)}</option>`).join('');
+}
+function qOnProduk(){
+  const produk = document.getElementById('q-produk').value;
+  const psel = document.getElementById('q-paket');
+  if(!produk){ psel.innerHTML = '<option value="">— Pilih Produk dulu —</option>'; return; }
+  const list = PAKET_DATA[produk] || [];
+  psel.innerHTML = '<option value="">— Pilih Paket —</option>' +
+    list.map(p => `<option value="${p.nama}" data-h="${p.harga_default||0}">${p.nama}${p.harga_default?' — Rp '+p.harga_default+'rb/pax':''}</option>`).join('');
+}
+function qOnPaket(){
+  const sel = document.getElementById('q-paket');
+  const h = sel.options[sel.selectedIndex]?.dataset?.h;
+  if(h) document.getElementById('q-harga').value = Number(h) * 1000;
+}
+
+async function openQuotationModal(){
+  document.getElementById('q-nama-pelanggan').value = '';
+  document.getElementById('q-instansi').value = '';
+  document.getElementById('q-qty').value = '';
+  document.getElementById('q-harga').value = '';
+  document.getElementById('q-delivery').value = 0;
+  document.getElementById('q-catatan').value = '';
+  document.getElementById('q-drive-link-box').classList.add('hide');
+  QUOTE_ITEMS = [];
+  LAST_QUOTATION_RESULT = null;
+  renderQProdukDropdown();
+  document.getElementById('q-paket').innerHTML = '<option value="">— Pilih Produk dulu —</option>';
+  renderQuoteItemsList();
+  document.getElementById('quotation-modal').classList.remove('hide');
+
+  // Ambil saran nomor quotation & penandatangan berikutnya
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=getQuotationSuggestion&t=' + Date.now());
+    if(j.success){
+      document.getElementById('q-no-quotation').value = j.suggested_no_quotation || '';
+      document.getElementById('q-tgl').value = j.suggested_tanggal || '';
+      document.getElementById('q-berlaku-hingga').value = j.suggested_berlaku_hingga || '';
+      document.getElementById('q-signer-nama').value = j.suggested_signer || '';
+      document.getElementById('q-signer-jabatan').value = j.suggested_jabatan || '';
+    }
+  }catch(e){ console.warn('Gagal ambil saran quotation:', e.message); }
+}
+function closeQuotationModal(){
+  document.getElementById('quotation-modal').classList.add('hide');
+}
+
+function tambahItemQuote(){
+  const paketSel = document.getElementById('q-paket');
+  const deskripsi = paketSel.value;
+  const qty = parseFloat(document.getElementById('q-qty').value) || 0;
+  const harga = parseFloat(document.getElementById('q-harga').value) || 0;
+  const delivery = parseFloat(document.getElementById('q-delivery').value) || 0;
+
+  if(!deskripsi){ toast('Pilih Paket dulu.','err'); return; }
+  if(!qty){ toast('Isi Qty.','err'); return; }
+  if(!harga){ toast('Isi Harga/pax.','err'); return; }
+
+  QUOTE_ITEMS.push({ deskripsi, qty, harga, delivery, total: qty*harga+delivery });
+  renderQuoteItemsList();
+
+  // Reset qty & delivery utk item berikutnya, biarkan produk/paket/harga supaya cepat tambah lagi
+  document.getElementById('q-qty').value = '';
+  document.getElementById('q-delivery').value = 0;
+  toast('Item ditambahkan ✓','ok');
+}
+function hapusItemQuote(idx){
+  QUOTE_ITEMS.splice(idx,1);
+  renderQuoteItemsList();
+}
+function renderQuoteItemsList(){
+  const box = document.getElementById('q-items-list');
+  const empty = document.getElementById('q-items-empty');
+  const totStrip = document.getElementById('q-total-strip');
+
+  if(!QUOTE_ITEMS.length){
+    box.innerHTML = '';
+    empty.style.display = 'block';
+    totStrip.classList.add('hide');
+    return;
+  }
+  empty.style.display = 'none';
+  box.innerHTML = QUOTE_ITEMS.map((it,i) => `
+    <div class="prow" style="border-bottom:1px solid var(--bdr);padding:6px 0;">
+      <span>${it.deskripsi} · ${it.qty}x Rp${it.harga.toLocaleString('en-US')}${it.delivery?' · Del Rp'+it.delivery.toLocaleString('en-US'):''}</span>
+      <span style="display:flex;align-items:center;gap:8px;">
+        Rp${it.total.toLocaleString('en-US')}
+        <button onclick="hapusItemQuote(${i})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;">🗑️</button>
+      </span>
+    </div>`).join('');
+  const total = QUOTE_ITEMS.reduce((s,it)=>s+it.total,0);
+  document.getElementById('q-total-text').textContent = 'Rp ' + total.toLocaleString('id-ID');
+  totStrip.classList.remove('hide');
+}
+
+function kumpulkanDataQuote_(){
+  return {
+    items: JSON.stringify(QUOTE_ITEMS),
+    nama_pelanggan: document.getElementById('q-nama-pelanggan').value.trim(),
+    instansi: document.getElementById('q-instansi').value.trim(),
+    no_quotation: document.getElementById('q-no-quotation').value.trim(),
+    tanggal_quotation: document.getElementById('q-tgl').value,
+    berlaku_hingga: document.getElementById('q-berlaku-hingga').value,
+    signer_nama: document.getElementById('q-signer-nama').value.trim(),
+    signer_jabatan: document.getElementById('q-signer-jabatan').value.trim(),
+    catatan: document.getElementById('q-catatan').value.trim()
+  };
+}
+
+async function previewQuotationPdf(){
+  if(!QUOTE_ITEMS.length){ toast('Tambahkan minimal 1 item dulu.','err'); return; }
+  if(!document.getElementById('q-nama-pelanggan').value.trim()){ toast('Isi Kepada (nama calon pelanggan) dulu.','err'); return; }
+
+  const newTab = window.open('', '_blank');
+  const data = kumpulkanDataQuote_();
+  const qs = new URLSearchParams({ action:'generateQuotationPdf', ...data }).toString();
+
+  showOvl('Membuat preview PDF…');
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+
+    const byteChars = atob(j.base64);
+    const byteNumbers = new Array(byteChars.length);
+    for(let i=0;i<byteChars.length;i++) byteNumbers[i]=byteChars.charCodeAt(i);
+    const blob = new Blob([new Uint8Array(byteNumbers)], {type:'application/pdf'});
+    const url = URL.createObjectURL(blob);
+    if(newTab) newTab.location.href = url; else window.open(url,'_blank');
+    toast('Preview dibuat (belum tersimpan ke Sheets) ✓','ok');
+  }catch(e){
+    if(newTab) newTab.close();
+    toast('Gagal buat preview: '+e.message,'err');
+  }finally{ hideOvl(); }
+}
+
+async function simpanQuotationFinal(){
+  if(!QUOTE_ITEMS.length){ toast('Tambahkan minimal 1 item dulu.','err'); return; }
+  if(!document.getElementById('q-nama-pelanggan').value.trim()){ toast('Isi Kepada (nama calon pelanggan) dulu.','err'); return; }
+  const noQuotation = document.getElementById('q-no-quotation').value.trim();
+  if(!noQuotation){ toast('Nomor quotation wajib diisi.','err'); return; }
+
+  if(!confirm(`Simpan quotation ${noQuotation} ke Google Sheets?\n\nSetelah ini datanya permanen tercatat (bukan lagi sekadar draft sementara).`)) return;
+
+  const newTab = window.open('', '_blank');
+  const data = kumpulkanDataQuote_();
+  data.dibuat_oleh = CURRENT_USER.nama;
+  const qs = new URLSearchParams({ action:'simpanQuotation', ...data }).toString();
+
+  showOvl('Menyimpan quotation ke Google Sheets…');
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+
+    const byteChars = atob(j.base64);
+    const byteNumbers = new Array(byteChars.length);
+    for(let i=0;i<byteChars.length;i++) byteNumbers[i]=byteChars.charCodeAt(i);
+    const blob = new Blob([new Uint8Array(byteNumbers)], {type:'application/pdf'});
+    const url = URL.createObjectURL(blob);
+    if(newTab) newTab.location.href = url; else window.open(url,'_blank');
+
+    const dlLink = document.createElement('a');
+    dlLink.href = url; dlLink.download = j.filename || 'quotation.pdf';
+    document.body.appendChild(dlLink); dlLink.click(); document.body.removeChild(dlLink);
+
+    LAST_QUOTATION_RESULT = {
+      no_quotation: noQuotation,
+      customer_nama: data.nama_pelanggan,
+      pdf_url: j.pdf_url || ''
+    };
+    if(j.drive_url){
+      document.getElementById('q-drive-link').href = j.drive_url;
+      document.getElementById('q-drive-link').textContent = j.drive_url;
+      document.getElementById('q-drive-link-box').classList.remove('hide');
+    }
+    toast('Quotation tersimpan ke Google Sheets ✓','ok');
+  }catch(e){
+    if(newTab) newTab.close();
+    toast('Gagal simpan: '+e.message,'err');
+  }finally{ hideOvl(); }
+}
+
+async function kirimQuotationViaWA(){
+  if(!LAST_QUOTATION_RESULT || !LAST_QUOTATION_RESULT.pdf_url){
+    toast('Simpan quotation-nya dulu (belum ada PDF utk dikirim).','err');
+    return;
+  }
+  showOvl('Mengirim PDF ke WA…');
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=getNotifRecipients&t=' + Date.now());
+    if(!j.success || !j.data || !j.data.length){ toast('Tidak ada nomor Admin/Sales/Finance terdaftar.','err'); return; }
+
+    const caption = `📃 *Quotation ${LAST_QUOTATION_RESULT.no_quotation}*\n` +
+      `Kepada: ${LAST_QUOTATION_RESULT.customer_nama || '—'}\n\n` +
+      `Dikirim oleh: ${CURRENT_USER.nama}`;
+
+    let gagal = 0;
+    for(const hp of j.data){
+      try{ await fPostFile(hp, LAST_QUOTATION_RESULT.pdf_url, caption); }
+      catch(e){ gagal++; console.warn('Gagal kirim quotation ke '+hp+':', e.message); }
+    }
+    hideOvl();
+    toast(gagal ? `PDF terkirim, tapi ${gagal} nomor gagal.` : 'PDF quotation terkirim ke semua Admin/Sales/Finance ✓', gagal ? 'err' : 'ok');
   }catch(e){
     hideOvl();
     toast('Gagal kirim: '+e.message,'err');
