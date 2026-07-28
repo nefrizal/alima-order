@@ -519,10 +519,20 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       Baru masuk ke Sheets setelah Bapak tekan "Simpan ke Google Sheets".
     </div>
 
-    <div class="g2">
-      <div class="fld"><label>Kepada (Nama Calon Pelanggan) <span class="req">*</span></label><input id="q-nama-pelanggan" placeholder="Nama / PT / instansi"></div>
-      <div class="fld"><label>Instansi (opsional)</label><input id="q-instansi" placeholder="Nama instansi"></div>
+    <div class="fld">
+      <label>Kepada (Nama Calon Pelanggan) <span class="req">*</span></label>
+      <div style="display:flex;gap:6px;align-items:flex-start;">
+        <div style="flex:1;position:relative;">
+          <input id="q-nama-pelanggan" type="text" placeholder="Ketik nama…" autocomplete="off"
+            oninput="filterQCust()" onfocus="filterQCust()" onblur="setTimeout(hideQCustDD,200)">
+          <div id="q-cust-dd" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--or);border-radius:0 0 8px 8px;max-height:200px;overflow-y:auto;z-index:100;box-shadow:var(--sh);"></div>
+        </div>
+        <button type="button" onclick="openCustModalForQuote()" style="background:var(--or);color:#fff;border:none;border-radius:7px;padding:9px 11px;cursor:pointer;font-size:14px;flex-shrink:0;margin-top:1px;">＋</button>
+      </div>
+      <div class="sales-hint">🔍 Cari dari customer lama, atau ketik bebas kalau prospek baru (belum tersimpan)</div>
     </div>
+    <div id="q-cust-info" style="display:none;background:var(--orl);border:1px solid #f7d4bc;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:var(--inkm);line-height:1.7;"></div>
+    <div class="fld"><label>Instansi (opsional)</label><input id="q-instansi" placeholder="Nama instansi"></div>
 
     <div class="stitle" style="font-size:13px;margin-top:6px;">🍱 Tambah Item</div>
     <div class="g2">
@@ -530,7 +540,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       <div class="fld"><label>Paket</label><select id="q-paket" onchange="qOnPaket()"><option value="">— Pilih Produk dulu —</option></select></div>
     </div>
     <div class="g3">
-      <div class="fld"><label>Qty</label><input id="q-qty" type="number" min="1" placeholder="50"></div>
+      <div class="fld"><label>Qty</label><input id="q-qty" type="number" min="1" placeholder="50" value="1"></div>
       <div class="fld"><label>Harga/pax (Rp)</label><input id="q-harga" type="number" min="0" placeholder="35000"></div>
       <div class="fld"><label>Delivery (Rp)</label><input id="q-delivery" type="number" min="0" value="0"></div>
     </div>
@@ -540,7 +550,10 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     <div id="q-menu-grid-wrap" class="hide" style="border:1px solid var(--bdr);border-radius:8px;padding:10px;margin-bottom:10px;">
       <div class="mgrid" id="q-menu-grid"></div>
     </div>
-    <button class="bico" style="width:100%;margin-bottom:12px;" onclick="tambahItemQuote()">➕ Tambah ke Daftar Penawaran</button>
+    <div class="g2">
+      <button class="bico" style="background:var(--inkm);" onclick="resetFormItemQuote()">🔄 Reset Form Item</button>
+      <button class="bico" onclick="tambahItemQuote()">➕ Tambah ke Daftar</button>
+    </div>
 
     <div id="q-items-list"></div>
     <div id="q-items-empty" class="empty" style="padding:16px;"><p style="font-size:12px;">Belum ada item. Tambahkan minimal 1 item di atas.</p></div>
@@ -557,6 +570,14 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       <div class="fld"><label>Ditandatangani Oleh</label><input id="q-signer-nama"></div>
       <div class="fld"><label>Jabatan</label><input id="q-signer-jabatan"></div>
     </div>
+    <div class="fld"><label>Payment Term (opsional)</label><input id="q-payment-term" placeholder="Contoh: 30 hari / DP 50%, pelunasan saat barang diterima"></div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:12px;cursor:pointer;">
+      <input type="checkbox" id="q-tampilkan-bank" checked
+        style="-webkit-appearance:checkbox!important;appearance:checkbox!important;width:16px!important;height:16px!important;
+               min-width:16px!important;padding:0!important;margin:0!important;border:1px solid #999!important;
+               border-radius:3px!important;background:#fff!important;flex-shrink:0;">
+      Tampilkan Rekening Bank &amp; NPWP di PDF
+    </label>
     <div class="fld"><label>Catatan (opsional)</label><textarea id="q-catatan" style="min-height:40px;"></textarea></div>
 
     <div class="g2">
@@ -685,6 +706,7 @@ const APP = {
   GOOGLE_CLIENT_ID: "437595495608-lksqd7ofcl1jo1ebaa75re48mn04mtkl.apps.googleusercontent.com"
 };
 let CURRENT_USER = null; // {email, nama, role} setelah login berhasil
+let CUST_MODAL_CONTEXT = 'order'; // 'order' atau 'quote' — nentuin selectCust mana yg dipanggil setelah simpan customer baru di modal
 let ID_TOKEN = null;     // token Google, dikirim otomatis di setiap request backend (lihat gasFetch)
 
 // ══ MASTER DATA ═══════════════════════
@@ -1383,7 +1405,7 @@ async function buatInvoicePdf(){
 // ══ MASTER (hanya Paket dari GAS) ═════
 async function loadMasterFromGAS(){
   const cachedPaket = cGet('alima_paket');
-  if(cachedPaket){ PAKET_DATA=cachedPaket; renderProdukDropdownKeepSelection(); }
+  if(cachedPaket){ PAKET_DATA=cachedPaket; renderProdukDropdownKeepSelection(); renderQProdukDropdownKeepSelection(); }
   const cachedMenu = cGet('alima_menu');
   if(cachedMenu){ MENU_DATA=cachedMenu; renderMenuGridKeepSelection(MENU_DATA); }
   gasFetch(APP.GAS_URL+'?action=getMaster&t='+Date.now())
@@ -1392,6 +1414,7 @@ async function loadMasterFromGAS(){
         PAKET_DATA=j.paket;
         cSet('alima_paket', j.paket);
         renderProdukDropdownKeepSelection();
+        renderQProdukDropdownKeepSelection();
       }
       if(j?.success && j.menu && Object.keys(j.menu).length){
         MENU_DATA=j.menu;
@@ -1402,6 +1425,7 @@ async function loadMasterFromGAS(){
       if(!cachedPaket){
         PAKET_DATA={"nasi kotak":[{nama:"nasi kotak A",harga_default:25},{nama:"nasi kotak B",harga_default:32},{nama:"nasi kotak C",harga_default:40}],"prasmanan":[{nama:"prasmanan A",harga_default:32},{nama:"prasmanan B",harga_default:40}],"coffee break":[{nama:"coffee break",harga_default:20}]};
         renderProdukDropdownKeepSelection();
+        renderQProdukDropdownKeepSelection();
       }
       // Kalau fetch menu gagal & belum ada cache, EMBEDDED_MENU (sudah dirender saat init) tetap dipakai sebagai fallback.
     });
@@ -1570,6 +1594,26 @@ function renderProdukDropdownKeepSelection(){
     }
   } else if(!prevProduk){
     applyDefaultProduk(); // belum ada pilihan sama sekali -> pakai default (nasi kotak)
+  }
+}
+// Versi sama persis, tapi utk dropdown Produk/Paket di modal Quotation (q-produk/q-paket),
+// dipanggil bareng renderProdukDropdownKeepSelection() setiap PAKET_DATA ter-update dari server —
+// supaya paket baru/harga terbaru langsung ikut ke Quotation juga, sama seperti form Order.
+function renderQProdukDropdownKeepSelection(){
+  const prodSel = document.getElementById('q-produk');
+  if(!prodSel) return; // modal quotation belum pernah dibuka -> belum ada elemennya, aman diabaikan
+  const paketSelBefore = document.getElementById('q-paket');
+  const prevProduk = prodSel.value || '';
+  const prevPaket  = paketSelBefore?.value || '';
+  renderQProdukDropdown();
+  if(prevProduk && Array.from(prodSel.options).some(o=>o.value===prevProduk)){
+    prodSel.value = prevProduk;
+    qOnProduk();
+    if(prevPaket){
+      const paketSel = document.getElementById('q-paket');
+      const opt = Array.from(paketSel.options).find(o=>o.value===prevPaket);
+      if(opt){ paketSel.value = prevPaket; qOnPaket(); }
+    }
   }
 }
 // Cari kategori Produk dari nama Paket (Produk tidak disimpan di sheet, jadi ini satu-satunya cara
@@ -1742,6 +1786,7 @@ function openCustModal(){
 function closeCustModal(){
   document.getElementById('cust-modal').classList.add('hide');
   resetCustModalToAdd();
+  CUST_MODAL_CONTEXT = 'order'; // reset default supaya pemanggilan generic berikutnya tidak salah sasaran
 }
 function resetCustModalToAdd(){
   ['nc-nama','nc-instansi','nc-hp','nc-sales','nc-email','nc-alamat','nc-koordinat','nc-maplink','nc-search','nc-id'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
@@ -1867,7 +1912,7 @@ async function saveCustomerModal(){
       const idx = CUSTOMERS.findIndex(c => c.id === editId);
       if(idx>=0) CUSTOMERS[idx] = {...CUSTOMERS[idx], ...data};
       cSet('alima_custs', CUSTOMERS);
-      selectCust(editId);
+      if(CUST_MODAL_CONTEXT === 'quote') selectCustForQuote(editId); else selectCust(editId);
       toast(`Customer ${nama} diperbarui ✓`,'ok'); closeCustModal();
     }catch(e){ toast('Gagal: '+e.message,'err'); }
     finally{ btn.disabled=false; btn.textContent='💾 Simpan Perubahan'; }
@@ -1891,7 +1936,7 @@ async function saveCustomerModal(){
     const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
     if(!j.success) throw new Error(j.message || 'Gagal menyimpan customer.');
     CUSTOMERS.push(data);cSet('alima_custs',CUSTOMERS);renderCustDD();
-    selectCust(newId);
+    if(CUST_MODAL_CONTEXT === 'quote') selectCustForQuote(newId); else selectCust(newId);
     toast(`Customer ${nama} ditambahkan ✓`,'ok');closeCustModal();
   }catch(e){toast('Gagal: '+e.message,'err');}
   finally{btn.disabled=false;btn.textContent='💾 Simpan Customer';}
@@ -2860,10 +2905,13 @@ function resetQMenuGrid(){
 async function openQuotationModal(){
   document.getElementById('q-nama-pelanggan').value = '';
   document.getElementById('q-instansi').value = '';
-  document.getElementById('q-qty').value = '';
+  document.getElementById('q-cust-info').style.display = 'none';
+  document.getElementById('q-qty').value = 1;
   document.getElementById('q-harga').value = '';
   document.getElementById('q-delivery').value = 0;
   document.getElementById('q-catatan').value = '';
+  document.getElementById('q-payment-term').value = '';
+  document.getElementById('q-tampilkan-bank').checked = true;
   document.getElementById('q-drive-link-box').classList.add('hide');
   document.getElementById('q-menu-grid-wrap').classList.add('hide');
   document.getElementById('q-menu-toggle-icon').textContent = '▼';
@@ -2890,6 +2938,65 @@ function closeQuotationModal(){
   document.getElementById('quotation-modal').classList.add('hide');
 }
 
+// ── CARI CUSTOMER utk field "Kepada" di Quotation (persis pola form Order,
+//    tapi tetap boleh diketik bebas kalau prospek baru belum tersimpan) ──
+function filterQCust(){
+  const q = document.getElementById('q-nama-pelanggan').value.toLowerCase().trim();
+  const dd = document.getElementById('q-cust-dd');
+  document.getElementById('q-cust-info').style.display = 'none';
+
+  let filtered, totalMatch;
+  if(q.length < 1){
+    filtered = CUSTOMERS.slice(0, 20);
+    totalMatch = filtered.length;
+  } else {
+    const namaStarts = [], namaContains = [], lainnya = [];
+    CUSTOMERS.forEach(c => {
+      const nama = (c.nama||'').toLowerCase();
+      if(nama.startsWith(q)){ namaStarts.push(c); return; }
+      if(nama.includes(q)){ namaContains.push(c); return; }
+      const cocokLain = (c.nama_instansi||'').toLowerCase().includes(q) || (c.no_hp||'').toLowerCase().includes(q);
+      if(cocokLain) lainnya.push(c);
+    });
+    namaStarts.sort((a,b)=>(a.nama||'').localeCompare(b.nama||''));
+    namaContains.sort((a,b)=>(a.nama||'').localeCompare(b.nama||''));
+    const all = [...namaStarts, ...namaContains, ...lainnya];
+    totalMatch = all.length;
+    filtered = all.slice(0, 30);
+  }
+
+  if(!filtered.length){ dd.style.display='none'; return; }
+  const hintRow = totalMatch > filtered.length
+    ? `<div style="padding:8px 12px;font-size:11px;color:var(--inks);text-align:center;background:var(--sur);">+${totalMatch-filtered.length} hasil lain — ketik lebih spesifik</div>`
+    : '';
+  dd.innerHTML = filtered.map(c => `
+    <div onclick="selectCustForQuote('${c.id}')"
+      style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--bdr);font-size:13px;"
+      onmouseover="this.style.background='var(--orl)'" onmouseout="this.style.background=''">
+      <strong>${c.nama||'—'}</strong>
+      ${c.nama_instansi?`<span style="color:var(--inks);font-size:11px;"> — ${c.nama_instansi}</span>`:''}
+      <br><span style="color:var(--inks);font-size:11px;">📱 ${c.no_hp||'—'} · ${c.instansi||'—'}</span>
+    </div>`).join('') + hintRow;
+  dd.style.display = 'block';
+}
+function hideQCustDD(){
+  document.getElementById('q-cust-dd').style.display = 'none';
+}
+function selectCustForQuote(id){
+  const c = CUSTOMERS.find(x => x.id === id);
+  if(!c) return;
+  document.getElementById('q-nama-pelanggan').value = c.nama || '';
+  document.getElementById('q-instansi').value = c.nama_instansi || c.instansi || '';
+  document.getElementById('q-cust-dd').style.display = 'none';
+  const info = document.getElementById('q-cust-info');
+  info.style.display = 'block';
+  info.innerHTML = `<strong>${c.nama}</strong>${c.nama_instansi?' · '+c.nama_instansi:''}<br>📱 ${c.no_hp||'—'} · ${c.instansi||'—'}<br>📍 ${c.alamat||'—'}`;
+}
+function openCustModalForQuote(){
+  CUST_MODAL_CONTEXT = 'quote';
+  openCustModal();
+}
+
 function tambahItemQuote(){
   const paketSel = document.getElementById('q-paket');
   const deskripsi = paketSel.value;
@@ -2914,11 +3021,25 @@ function tambahItemQuote(){
   QUOTE_ITEMS.push({ deskripsi, qty, harga, delivery, total: qty*harga+delivery, menu_options: menuOptions, tampilkan_komposisi: false });
   renderQuoteItemsList();
 
-  // Reset qty, delivery & komposisi menu utk item berikutnya, biarkan produk/paket/harga supaya cepat tambah lagi
-  document.getElementById('q-qty').value = '';
+  // Reset qty (kembali ke default 1), delivery & komposisi menu utk item berikutnya, biarkan produk/paket/harga supaya cepat tambah lagi
+  document.getElementById('q-qty').value = 1;
   document.getElementById('q-delivery').value = 0;
   resetQMenuGrid();
   toast('Item ditambahkan ✓','ok');
+}
+
+// Kosongkan semua field mini-form "Tambah Item" (Produk, Paket, Harga, Delivery, Komposisi Menu)
+// TANPA menghapus item yg sudah masuk daftar penawaran.
+function resetFormItemQuote(){
+  document.getElementById('q-produk').value = '';
+  document.getElementById('q-paket').innerHTML = '<option value="">— Pilih Produk dulu —</option>';
+  document.getElementById('q-harga').value = '';
+  document.getElementById('q-qty').value = 1;
+  document.getElementById('q-delivery').value = 0;
+  resetQMenuGrid();
+  document.getElementById('q-menu-grid-wrap').classList.add('hide');
+  document.getElementById('q-menu-toggle-icon').textContent = '▼';
+  toast('Form item dikosongkan ✓','ok');
 }
 function hapusItemQuote(idx){
   QUOTE_ITEMS.splice(idx,1);
@@ -2976,7 +3097,9 @@ function kumpulkanDataQuote_(){
     berlaku_hingga: document.getElementById('q-berlaku-hingga').value,
     signer_nama: document.getElementById('q-signer-nama').value.trim(),
     signer_jabatan: document.getElementById('q-signer-jabatan').value.trim(),
-    catatan: document.getElementById('q-catatan').value.trim()
+    catatan: document.getElementById('q-catatan').value.trim(),
+    payment_term: document.getElementById('q-payment-term').value.trim(),
+    tampilkan_bank: document.getElementById('q-tampilkan-bank').checked ? '1' : '0'
   };
 }
 
