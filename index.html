@@ -504,7 +504,8 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       </label>
       <div class="fld"><label>Catatan (opsional)</label><textarea id="inv-catatan" style="min-height:40px;"></textarea></div>
 
-      <button class="bsub" onclick="buatInvoicePdf()">📄 Buat &amp; Buka PDF</button>
+      <button class="bico" style="background:var(--inkm);" onclick="previewInvoicePdf()">👁️ Preview PDF (belum simpan)</button>
+      <button class="bsub" onclick="buatInvoicePdf()">💾 Buat &amp; Simpan (Drive + WA)</button>
       <div id="inv-drive-link-box" class="hide" style="background:var(--grnl);border:1px solid #b7dfc9;border-radius:8px;padding:10px 12px;margin-top:10px;font-size:12px;">
         ✅ Tersimpan permanen di Drive:<br>
         <a id="inv-drive-link" href="#" target="_blank" style="color:var(--blu);word-break:break-all;"></a>
@@ -1357,26 +1358,17 @@ async function muatDraftInvoice(){
   }finally{ hideOvl(); }
 }
 
-async function buatInvoicePdf(){
-  if(!INV_DRAFT){ toast('Muat data order dulu.','err'); return; }
-  const noInvoice = document.getElementById('inv-no-invoice').value.trim();
-  if(!noInvoice){ toast('Nomor invoice wajib diisi.','err'); return; }
-
-  // Checkbox yg dicentang -> ambil SEMUA komposisi menu order itu dari draft
+// Kumpulkan semua parameter dari form invoice (dipakai bareng oleh preview & simpan final)
+function kumpulkanDataInvoice_(){
   const menuDetail = {};
   document.querySelectorAll('.inv-menu-chk:checked').forEach(chk => {
     const no = chk.dataset.no;
     const it = (INV_DRAFT.items || []).find(x => x.no_order === no);
     if(it && it.menu_options) menuDetail[no] = it.menu_options.map(m => m.value);
   });
-
-  // Buka tab kosong DULU (sinkron, sebelum await) supaya tidak diblokir popup-blocker browser/HP.
-  const newTab = window.open('', '_blank');
-
-  const qs = new URLSearchParams({
-    action: 'generateInvoicePdf',
+  return {
     no_orders: document.getElementById('inv-no-orders').value.trim(),
-    no_invoice: noInvoice,
+    no_invoice: document.getElementById('inv-no-invoice').value.trim(),
     tanggal_invoice: document.getElementById('inv-tgl').value,
     jatuh_tempo: document.getElementById('inv-jatuh-tempo').value,
     signer_nama: document.getElementById('inv-signer-nama').value,
@@ -1384,7 +1376,43 @@ async function buatInvoicePdf(){
     catatan: document.getElementById('inv-catatan').value,
     menu_detail: JSON.stringify(menuDetail),
     tampilkan_stempel: document.getElementById('inv-tampilkan-stempel').checked ? '1' : '0'
-  }).toString();
+  };
+}
+
+async function previewInvoicePdf(){
+  if(!INV_DRAFT){ toast('Muat data order dulu.','err'); return; }
+  if(!document.getElementById('inv-no-invoice').value.trim()){ toast('Nomor invoice wajib diisi.','err'); return; }
+
+  const newTab = window.open('', '_blank');
+  const qs = new URLSearchParams({ action: 'previewInvoicePdf', ...kumpulkanDataInvoice_() }).toString();
+
+  showOvl('Membuat preview PDF…');
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+
+    const byteChars = atob(j.base64);
+    const byteNumbers = new Array(byteChars.length);
+    for(let i=0;i<byteChars.length;i++) byteNumbers[i]=byteChars.charCodeAt(i);
+    const blob = new Blob([new Uint8Array(byteNumbers)], {type:'application/pdf'});
+    const url = URL.createObjectURL(blob);
+    if(newTab) newTab.location.href = url; else window.open(url,'_blank');
+    toast('Preview dibuat (belum tersimpan ke Drive) ✓','ok');
+  }catch(e){
+    if(newTab) newTab.close();
+    toast('Gagal buat preview: '+e.message,'err');
+  }finally{ hideOvl(); }
+}
+
+async function buatInvoicePdf(){
+  if(!INV_DRAFT){ toast('Muat data order dulu.','err'); return; }
+  const noInvoice = document.getElementById('inv-no-invoice').value.trim();
+  if(!noInvoice){ toast('Nomor invoice wajib diisi.','err'); return; }
+
+  // Buka tab kosong DULU (sinkron, sebelum await) supaya tidak diblokir popup-blocker browser/HP.
+  const newTab = window.open('', '_blank');
+
+  const qs = new URLSearchParams({ action: 'generateInvoicePdf', ...kumpulkanDataInvoice_() }).toString();
 
   showOvl('Membuat PDF invoice…');
   try{
@@ -1419,7 +1447,7 @@ async function buatInvoicePdf(){
       pdf_url: j.pdf_url || '',
       customer_nama: j.customer_nama || ''
     };
-    toast('Invoice berhasil dibuat ✓', 'ok');
+    toast('Invoice berhasil dibuat & disimpan ✓', 'ok');
   }catch(e){
     if(newTab) newTab.close();
     toast('Gagal buat invoice: ' + e.message, 'err');
