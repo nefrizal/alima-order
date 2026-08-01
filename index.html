@@ -3427,7 +3427,7 @@ function tambahItemQuote(){
     const p = PERALATAN_DATA.find(x => x.nama === nama);
     if(!p) return;
     QUOTE_ITEMS.push({
-      deskripsi: '🧰 Sewa: ' + nama, qty: qtyPrl, harga: p.harga, delivery: 0,
+      deskripsi: 'Sewa: ' + nama, qty: qtyPrl, harga: p.harga, delivery: 0,
       total: qtyPrl * p.harga, menu_options: [], tampilkan_komposisi: false
     });
   });
