@@ -603,6 +603,25 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     <div id="q-menu-grid-wrap" class="hide" style="border:1px solid var(--bdr);border-radius:8px;padding:10px;margin-bottom:10px;">
       <div class="mgrid" id="q-menu-grid"></div>
     </div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;">
+      <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;">
+        <input type="checkbox" id="q-peralatan-toggle" onchange="toggleQPeralatanBox()"
+          style="-webkit-appearance:checkbox!important;appearance:checkbox!important;width:16px!important;height:16px!important;
+                 min-width:16px!important;padding:0!important;margin:0!important;border:1px solid #999!important;
+                 border-radius:3px!important;background:#fff!important;flex-shrink:0;">
+        🧰 Tambahan Peralatan (Sewa)?
+      </label>
+      <button type="button" onclick="openKelolaPeralatanModal()" title="Kelola Peralatan"
+        style="background:var(--sur);border:1.5px solid var(--bdr);border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;color:var(--inkm);flex-shrink:0;">⚙️ Kelola</button>
+    </div>
+    <div id="q-peralatan-box" class="hide" style="margin-bottom:10px;">
+      <div id="q-peralatan-list" style="border:1px solid var(--bdr);border-radius:8px;overflow:hidden;">
+        <div style="padding:14px;text-align:center;color:var(--inks);font-size:12px;">⏳ Memuat daftar peralatan…</div>
+      </div>
+      <div style="font-size:10px;color:var(--inks);margin-top:4px;">Peralatan yang dicentang akan ikut masuk sbg baris tersendiri saat "➕ Tambah Item" ditekan.</div>
+    </div>
+
     <div class="g2">
       <button class="bico" style="background:var(--inkm);" onclick="quotationBaru()">🆕 Quotation Baru</button>
       <button class="bico" onclick="tambahItemQuote()">➕ Tambah Item</button>
@@ -1987,6 +2006,64 @@ async function afkirPeralatanSekarang(id, nama){
   }finally{ hideOvl(); }
 }
 
+// ── PERALATAN DI QUOTATION — state TERPISAH dari form Order (Q_PERALATAN_TERPILIH),
+//    biar tidak saling menimpa. Datanya sendiri (PERALATAN_DATA) tetap dipakai bareng. ──
+let Q_PERALATAN_TERPILIH = {};
+
+async function toggleQPeralatanBox(){
+  const on = document.getElementById('q-peralatan-toggle').checked;
+  const box = document.getElementById('q-peralatan-box');
+  if(on){
+    box.classList.remove('hide');
+    if(!PERALATAN_DATA.length){
+      document.getElementById('q-peralatan-list').innerHTML = '<div style="padding:14px;text-align:center;color:var(--inks);font-size:12px;"><div class="sp" style="margin:0 auto 8px;"></div>Memuat daftar peralatan…</div>';
+      await loadPeralatanData();
+    }
+    renderQPeralatanList();
+  } else {
+    box.classList.add('hide');
+    Q_PERALATAN_TERPILIH = {};
+  }
+}
+function renderQPeralatanList(){
+  const wrap = document.getElementById('q-peralatan-list');
+  if(!PERALATAN_DATA.length){
+    wrap.innerHTML = '<div style="padding:14px;text-align:center;color:var(--inks);font-size:12px;">Belum ada data di sheet "Peralatan". Tambahkan lewat tombol ⚙️ Kelola.</div>';
+    return;
+  }
+  wrap.innerHTML = PERALATAN_DATA.map((p,i) => {
+    const qtyTerpilih = Q_PERALATAN_TERPILIH[p.nama] || 0;
+    const dicentang = qtyTerpilih > 0;
+    return `
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-bottom:${i<PERALATAN_DATA.length-1?'1px solid var(--bdr)':'none'};">
+      <input type="checkbox" onchange="toggleQPeralatanItem('${p.nama.replace(/'/g,"\\'")}', this.checked)" ${dicentang?'checked':''}
+        style="-webkit-appearance:checkbox!important;appearance:checkbox!important;width:16px!important;height:16px!important;
+               min-width:16px!important;padding:0!important;margin:0!important;border:1px solid #999!important;
+               border-radius:3px!important;background:#fff!important;flex-shrink:0;">
+      <span style="flex:1;font-size:12px;">${p.nama}</span>
+      <input type="number" min="1" value="${qtyTerpilih||1}" onchange="ubahQtyQPeralatan('${p.nama.replace(/'/g,"\\'")}', this.value)"
+        style="width:50px;padding:4px 5px;font-size:11px;text-align:center;${dicentang?'':'visibility:hidden;'}">
+      <span style="font-size:11px;color:var(--inkm);width:80px;text-align:right;">Rp ${p.harga.toLocaleString('id-ID')}</span>
+    </div>`;
+  }).join('');
+}
+function toggleQPeralatanItem(nama, dicentang){
+  if(dicentang) Q_PERALATAN_TERPILIH[nama] = Q_PERALATAN_TERPILIH[nama] || 1;
+  else delete Q_PERALATAN_TERPILIH[nama];
+  renderQPeralatanList();
+}
+function ubahQtyQPeralatan(nama, qty){
+  const q = Math.max(1, parseInt(qty)||1);
+  if(Q_PERALATAN_TERPILIH.hasOwnProperty(nama)) Q_PERALATAN_TERPILIH[nama] = q;
+}
+function resetQPeralatanForm(){
+  Q_PERALATAN_TERPILIH = {};
+  const toggle = document.getElementById('q-peralatan-toggle');
+  if(toggle) toggle.checked = false;
+  const box = document.getElementById('q-peralatan-box');
+  if(box) box.classList.add('hide');
+}
+
 function renderCustDD(){
   // Tidak perlu render dropdown — pakai autocomplete
   const inp = document.getElementById('f-cid-search');
@@ -2564,7 +2641,7 @@ function renderJadwal(){
         return `
         <div class="jw-row">
           <div class="jw-jam">${o.jam_sampai||'—'}</div>
-          <div class="jw-paket" onclick="openOrderDetail('${o.no_order}')">${o.paket||'—'}</div>
+          <div class="jw-paket" onclick="openOrderDetail('${o.no_order}')">${o.paket||'—'}${o.peralatan_disewa?' 🧰':''}</div>
           <div class="jw-qty">${o.qty||0}</div>
           <div class="jw-nama">${o.nama_penerima||o.customer_id||'—'}${driverBadge?'<br>'+driverBadge:''}</div>
         </div>`;
@@ -2997,6 +3074,11 @@ function openOrderDetail(no){
     ['Pilihan 4',o.pilihan_lain_4],['Pilihan 5',o.pilihan_lain_5],['Puding',o.puding],['Snack',o.snack],['Minuman',o.minuman]
   ].filter(([,v]) => v && v!=='—');
 
+  // Peralatan (sewa) — kolom "Peralatan Disewa" (JSON) & "Biaya Peralatan"
+  let peralatanList = [];
+  try { peralatanList = o.peralatan_disewa ? (JSON.parse(o.peralatan_disewa) || []) : []; } catch(e) { peralatanList = []; }
+  const peralatanBiaya = Number(o.biaya_peralatan) || 0;
+
   const tot = Number(o.jumlah_total)||0;
   const bc={Baru:'bb',Proses:'bp',Selesai:'bs',Batal:'bx'};
 
@@ -3021,6 +3103,12 @@ function openOrderDetail(no){
     ${menuFields.length?`
     <div class="stitle" style="margin-top:16px;font-size:13px;">🥘 Komposisi Menu</div>
     <div class="jw-menulist">${menuFields.map(([k,v])=>`<div class="jw-menurow"><span class="jw-menuk">${k}</span><span class="jw-menuv">${v}</span></div>`).join('')}</div>
+    `:''}
+    ${peralatanList.length?`
+    <div class="stitle" style="margin-top:16px;font-size:13px;">🧰 Peralatan Disewa</div>
+    <div class="jw-menulist">${peralatanList.map(p=>`<div class="jw-menurow"><span class="jw-menuk">${p.nama} (${p.qty}x)</span><span class="jw-menuv">Rp ${(p.subtotal||0).toLocaleString('id-ID')}</span></div>`).join('')}
+      <div class="jw-menurow" style="font-weight:700;color:var(--ord);"><span class="jw-menuk">Total Sewa</span><span class="jw-menuv">Rp ${peralatanBiaya.toLocaleString('id-ID')}</span></div>
+    </div>
     `:''}
     ${o.keterangan?`<div style="margin-top:10px;font-size:12px;color:var(--inkm);"><strong>Keterangan:</strong> ${o.keterangan}</div>`:''}
     ${isFullAccessRole(CURRENT_USER.role) ? `
@@ -3203,6 +3291,7 @@ async function _resetQuotationDraft(){
   document.getElementById('q-instansi').value = '';
   document.getElementById('q-cust-info').style.display = 'none';
   document.getElementById('q-cust-gender').value = '';
+  resetQPeralatanForm();
   document.getElementById('q-qty').value = 1;
   document.getElementById('q-harga').value = '';
   document.getElementById('q-delivery').value = 0;
@@ -3332,6 +3421,18 @@ function tambahItemQuote(){
   });
 
   QUOTE_ITEMS.push({ deskripsi, qty, harga, delivery, total: qty*harga+delivery, menu_options: menuOptions, tampilkan_komposisi: false });
+
+  // Peralatan yg dicentang -> masuk sbg item TERSENDIRI (baris terpisah, bukan digabung ke item paket)
+  Object.entries(Q_PERALATAN_TERPILIH).forEach(([nama, qtyPrl]) => {
+    const p = PERALATAN_DATA.find(x => x.nama === nama);
+    if(!p) return;
+    QUOTE_ITEMS.push({
+      deskripsi: '🧰 Sewa: ' + nama, qty: qtyPrl, harga: p.harga, delivery: 0,
+      total: qtyPrl * p.harga, menu_options: [], tampilkan_komposisi: false
+    });
+  });
+  resetQPeralatanForm();
+
   renderQuoteItemsList();
 
   // Reset qty (kembali ke default 1), delivery & komposisi menu utk item berikutnya, biarkan produk/paket/harga supaya cepat tambah lagi
@@ -3969,6 +4070,19 @@ function bangunBarisStruk_(o){
     wrapTeksPrint_(v, W-2).forEach((t,i)=>L.push({text:(i===0?'- ':'  ')+t}));
   });
   L.push({cmd:'normal'});
+
+  // Peralatan (sewa) — kalau ada, tampilkan supaya kurir/dapur ingat bawa barangnya
+  let peralatanCetak = [];
+  try { peralatanCetak = o.peralatan_disewa ? (JSON.parse(o.peralatan_disewa) || []) : []; } catch(e) { peralatanCetak = []; }
+  if(peralatanCetak.length){
+    L.push({text:'-'.repeat(W), center:true});
+    L.push({text:'🧰 Bawa Peralatan:', bold:true});
+    L.push({cmd:'tight'});
+    peralatanCetak.forEach(p=>{
+      wrapTeksPrint_(`${p.nama} x${p.qty}`, W-2).forEach((t,i)=>L.push({text:(i===0?'- ':'  ')+t}));
+    });
+    L.push({cmd:'normal'});
+  }
 
   L.push({text:'-'.repeat(W), center:true});
   L.push({text:'Penerima:', bold:true});
