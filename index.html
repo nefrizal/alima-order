@@ -248,6 +248,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     <div class="pstrip">
       <div class="prow"><span>Jumlah (Qty × Harga KSM × 1000)</span><span id="c-jml">Rp 0</span></div>
       <div class="prow"><span>Delivery Charge</span><span id="c-del">Rp 0</span></div>
+      <div class="prow hide" id="c-peralatan-row"><span>Peralatan (Sewa)</span><span id="c-peralatan">Rp 0</span></div>
       <div class="prow tot"><span>Jumlah Total</span><span id="c-tot">Rp 0</span></div>
     </div>
     <div class="g2" style="margin-top:10px;">
@@ -269,6 +270,29 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     <div id="sisa-strip" style="display:none;background:var(--grnl);border:1px solid #b7dfc9;border-radius:8px;padding:10px 14px;margin-top:6px;">
       <div class="prow"><span>Jumlah Bayar</span><span id="c-bayar">Rp 0</span></div>
       <div class="prow tot" style="color:var(--grn);border-top-color:#b7dfc9;"><span>Sisa</span><span id="c-sisa">Rp 0</span></div>
+    </div>
+  </div>
+
+  <!-- Tambahan Peralatan (sewa) -->
+  <div class="sec">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--ord);cursor:pointer;">
+        <input type="checkbox" id="f-peralatan-toggle" onchange="togglePeralatanBox()"
+          style="-webkit-appearance:checkbox!important;appearance:checkbox!important;width:18px!important;height:18px!important;
+                 min-width:18px!important;padding:0!important;margin:0!important;border:1px solid #999!important;
+                 border-radius:3px!important;background:#fff!important;flex-shrink:0;">
+        🧰 Tambahan Peralatan (Sewa)?
+      </label>
+      <button type="button" onclick="openKelolaPeralatanModal()" title="Kelola Peralatan"
+        style="background:var(--sur);border:1.5px solid var(--bdr);border-radius:6px;padding:5px 9px;font-size:13px;cursor:pointer;color:var(--inkm);flex-shrink:0;">⚙️ Kelola</button>
+    </div>
+    <div id="f-peralatan-box" class="hide" style="margin-top:12px;">
+      <div id="f-peralatan-list" style="border:1px solid var(--bdr);border-radius:8px;overflow:hidden;">
+        <div style="padding:14px;text-align:center;color:var(--inks);font-size:12px;">⏳ Memuat daftar peralatan…</div>
+      </div>
+      <div id="f-peralatan-total-strip" class="pstrip hide" style="margin-top:10px;">
+        <div class="prow tot"><span>Total Sewa Peralatan</span><span id="f-peralatan-total-text">Rp 0</span></div>
+      </div>
     </div>
   </div>
 
@@ -445,6 +469,26 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       <button class="modal-close" onclick="closeOrderDetail()">×</button>
     </div>
     <div id="od-body"><!-- diisi JS --></div>
+  </div>
+</div>
+
+<!-- MODAL KELOLA PERALATAN -->
+<div class="modal-bg hide" id="peralatan-modal">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-head">
+      <h2>⚙️ Kelola Peralatan</h2>
+      <button class="modal-close" onclick="closeKelolaPeralatanModal()">×</button>
+    </div>
+
+    <div class="stitle" style="font-size:13px;">➕ Tambah Peralatan Baru</div>
+    <div class="g2">
+      <div class="fld"><label>Nama Peralatan</label><input id="prl-nama" placeholder="Contoh: Sendok"></div>
+      <div class="fld"><label>Harga Sewa (Rp/unit)</label><input id="prl-harga" type="number" min="0" placeholder="1000"></div>
+    </div>
+    <button class="bico" style="width:100%;margin-bottom:16px;" onclick="simpanPeralatanBaru()">💾 Simpan Peralatan Baru</button>
+
+    <div class="stitle" style="font-size:13px;">📋 Daftar Peralatan</div>
+    <div id="prl-list"><div class="empty" style="padding:16px;"><p style="font-size:12px;">⏳ Memuat…</p></div></div>
   </div>
 </div>
 
@@ -938,6 +982,23 @@ async function muatDataKeForm(d) {
       setSelectValueCocok_(sel, val);
     });
     syncPilihanSearchLabels();
+
+    // ── Peralatan (sewa) — restore dari kolom "Peralatan Disewa" (JSON) kalau ada ──
+    resetPeralatanForm();
+    const peralatanRaw = d.peralatan_disewa || '';
+    if (peralatanRaw) {
+      try {
+        const arr = JSON.parse(peralatanRaw);
+        if (Array.isArray(arr) && arr.length) {
+          if(!PERALATAN_DATA.length) await loadPeralatanData(); // perlu daftar harga terkini utk render, muat kalau belum ada
+          arr.forEach(it => { if (it.nama) PERALATAN_TERPILIH[it.nama] = it.qty || 1; });
+          document.getElementById('f-peralatan-toggle').checked = true;
+          document.getElementById('f-peralatan-box').classList.remove('hide');
+          renderPeralatanList();
+          recalcPeralatanTotal();
+        }
+      } catch (e) { /* format JSON rusak/lama -> abaikan, form peralatan tetap kosong */ }
+    }
 }
 
 async function cloneOrder() {
@@ -1697,11 +1758,15 @@ function recalc(source){
   const hjl=parseFloat(document.getElementById('f-hjual').value)||0;
   const fee=parseFloat(document.getElementById('f-fee').value)||0;
   const del=parseFloat(document.getElementById('f-del').value)||0;
+  const peralatan=(typeof hitungTotalPeralatan==='function')?hitungTotalPeralatan():0;
   const hksm=Math.max(0,hjl-fee);
   document.getElementById('f-hksm').value=hksm||'';
-  const jml=qty*hksm*1000,tot=jml+del;
+  const jml=qty*hksm*1000,tot=jml+del+peralatan;
   document.getElementById('c-jml').textContent='Rp '+jml.toLocaleString('id-ID');
   document.getElementById('c-del').textContent='Rp '+del.toLocaleString('id-ID');
+  const peralatanRow=document.getElementById('c-peralatan-row');
+  if(peralatan>0){ peralatanRow.classList.remove('hide'); document.getElementById('c-peralatan').textContent='Rp '+peralatan.toLocaleString('id-ID'); }
+  else{ peralatanRow.classList.add('hide'); }
   document.getElementById('c-tot').textContent='Rp '+tot.toLocaleString('id-ID');
 
   // Auto-isi Jumlah Bayar berdasarkan Status Pembayaran (kecuali user sedang mengetik manual di kolom Bayar)
@@ -1748,6 +1813,180 @@ async function loadSalesData(){
     if(j.success&&j.data){SALES_DATA=j.data;cSet('alima_sales',j.data);}
   }catch(e){ console.warn('Gagal load data sales:', e.message); }
 }
+
+// ══ TAMBAHAN PERALATAN (SEWA) ═════════
+let PERALATAN_DATA = [];       // [{nama, harga}, ...] dari sheet "Peralatan"
+let PERALATAN_TERPILIH = {};   // { nama: qty, ... } — cuma isi yg qty>0 & checkbox-nya dicentang
+
+async function loadPeralatanData(){
+  const cached = cGet('alima_peralatan');
+  if(cached){ PERALATAN_DATA = cached; }
+  try{
+    const j = await gasFetch(APP.GAS_URL+'?action=getPeralatan&t='+Date.now());
+    if(j.success && j.data){ PERALATAN_DATA = j.data; cSet('alima_peralatan', j.data); }
+  }catch(e){ console.warn('Gagal load data peralatan:', e.message); }
+}
+
+async function togglePeralatanBox(){
+  const on = document.getElementById('f-peralatan-toggle').checked;
+  const box = document.getElementById('f-peralatan-box');
+  if(on){
+    box.classList.remove('hide');
+    if(!PERALATAN_DATA.length){
+      document.getElementById('f-peralatan-list').innerHTML = '<div style="padding:14px;text-align:center;color:var(--inks);font-size:12px;"><div class="sp" style="margin:0 auto 8px;"></div>Memuat daftar peralatan…</div>';
+      await loadPeralatanData(); // baru dipanggil sekarang — dipakai sesekali aja, tidak perlu dimuat di awal
+    }
+    renderPeralatanList();
+  } else {
+    box.classList.add('hide');
+    PERALATAN_TERPILIH = {};
+    recalcPeralatanTotal();
+  }
+}
+
+function renderPeralatanList(){
+  const wrap = document.getElementById('f-peralatan-list');
+  if(!PERALATAN_DATA.length){
+    wrap.innerHTML = '<div style="padding:14px;text-align:center;color:var(--inks);font-size:12px;">Belum ada data di sheet "Peralatan". Tambahkan dulu: kolom A=Nama Peralatan, B=Harga Sewa.</div>';
+    return;
+  }
+  wrap.innerHTML = PERALATAN_DATA.map((p,i) => {
+    const qtyTerpilih = PERALATAN_TERPILIH[p.nama] || 0;
+    const dicentang = qtyTerpilih > 0;
+    return `
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:${i<PERALATAN_DATA.length-1?'1px solid var(--bdr)':'none'};">
+      <input type="checkbox" onchange="togglePeralatanItem('${p.nama.replace(/'/g,"\\'")}', this.checked)" ${dicentang?'checked':''}
+        style="-webkit-appearance:checkbox!important;appearance:checkbox!important;width:17px!important;height:17px!important;
+               min-width:17px!important;padding:0!important;margin:0!important;border:1px solid #999!important;
+               border-radius:3px!important;background:#fff!important;flex-shrink:0;">
+      <span style="flex:1;font-size:13px;">${p.nama}</span>
+      <input type="number" min="1" value="${qtyTerpilih||1}" id="peralatan-qty-${i}"
+        onchange="ubahQtyPeralatan('${p.nama.replace(/'/g,"\\'")}', this.value)"
+        style="width:56px;padding:5px 6px;font-size:12px;text-align:center;${dicentang?'':'visibility:hidden;'}">
+      <span style="font-size:12px;color:var(--inkm);width:90px;text-align:right;">Rp ${p.harga.toLocaleString('id-ID')}</span>
+    </div>`;
+  }).join('');
+}
+
+function togglePeralatanItem(nama, dicentang){
+  if(dicentang){
+    PERALATAN_TERPILIH[nama] = PERALATAN_TERPILIH[nama] || 1;
+  } else {
+    delete PERALATAN_TERPILIH[nama];
+  }
+  renderPeralatanList();
+  recalcPeralatanTotal();
+}
+function ubahQtyPeralatan(nama, qty){
+  const q = Math.max(1, parseInt(qty)||1);
+  if(PERALATAN_TERPILIH.hasOwnProperty(nama)) PERALATAN_TERPILIH[nama] = q;
+  recalcPeralatanTotal();
+}
+function hitungTotalPeralatan(){
+  let total = 0;
+  Object.entries(PERALATAN_TERPILIH).forEach(([nama, qty]) => {
+    const p = PERALATAN_DATA.find(x => x.nama === nama);
+    if(p) total += p.harga * qty;
+  });
+  return total;
+}
+function recalcPeralatanTotal(){
+  const total = hitungTotalPeralatan();
+  const strip = document.getElementById('f-peralatan-total-strip');
+  if(total > 0){
+    document.getElementById('f-peralatan-total-text').textContent = 'Rp ' + total.toLocaleString('id-ID');
+    strip.classList.remove('hide');
+  } else {
+    strip.classList.add('hide');
+  }
+  recalc(); // ikut refresh Jumlah Total di section Produk & Paket
+}
+// Detail lengkap peralatan terpilih, dikirim ke server sbg JSON saat submit order
+function bangunDetailPeralatanTerpilih_(){
+  return Object.entries(PERALATAN_TERPILIH).map(([nama, qty]) => {
+    const p = PERALATAN_DATA.find(x => x.nama === nama) || { harga: 0 };
+    return { nama, qty, harga: p.harga, subtotal: p.harga * qty };
+  });
+}
+function resetPeralatanForm(){
+  PERALATAN_TERPILIH = {};
+  const toggle = document.getElementById('f-peralatan-toggle');
+  if(toggle) toggle.checked = false;
+  const box = document.getElementById('f-peralatan-box');
+  if(box) box.classList.add('hide');
+  const strip = document.getElementById('f-peralatan-total-strip');
+  if(strip) strip.classList.add('hide');
+}
+
+// ── MODAL KELOLA PERALATAN (tambah baru / afkir) ──
+async function openKelolaPeralatanModal(){
+  document.getElementById('prl-nama').value = '';
+  document.getElementById('prl-harga').value = '';
+  document.getElementById('peralatan-modal').classList.remove('hide');
+  await renderKelolaPeralatanList();
+}
+function closeKelolaPeralatanModal(){
+  document.getElementById('peralatan-modal').classList.add('hide');
+}
+async function renderKelolaPeralatanList(){
+  const wrap = document.getElementById('prl-list');
+  wrap.innerHTML = '<div class="empty" style="padding:16px;"><p style="font-size:12px;">⏳ Memuat…</p></div>';
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=getPeralatanSemua&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+    if(!j.data || !j.data.length){
+      wrap.innerHTML = '<div class="empty" style="padding:16px;"><p style="font-size:12px;">Belum ada peralatan. Tambahkan lewat form di atas.</p></div>';
+      return;
+    }
+    wrap.innerHTML = j.data.map(p => {
+      const afkir = String(p.status||'').toLowerCase() === 'afkir';
+      return `<div style="display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--bdr);${afkir?'opacity:.5;':''}">
+        <span style="flex:1;font-size:13px;${afkir?'text-decoration:line-through;':''}">${p.nama} <span style="color:var(--inks);font-size:10px;">(${p.id})</span></span>
+        <span style="font-size:12px;color:var(--inkm);">Rp ${p.harga.toLocaleString('id-ID')}</span>
+        ${afkir
+          ? `<span class="badge bx" style="font-size:9px;">Afkir</span>`
+          : `<button onclick="afkirPeralatanSekarang('${p.id}','${p.nama.replace(/'/g,"\\'")}')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;" title="Afkir/buang peralatan ini">🗑️</button>`}
+      </div>`;
+    }).join('');
+  }catch(e){
+    wrap.innerHTML = `<div class="empty" style="padding:16px;"><p style="font-size:12px;color:var(--red);">Gagal memuat: ${e.message}</p></div>`;
+  }
+}
+async function simpanPeralatanBaru(){
+  const nama = document.getElementById('prl-nama').value.trim();
+  const harga = parseFloat(document.getElementById('prl-harga').value) || 0;
+  if(!nama){ toast('Nama peralatan wajib diisi.','err'); return; }
+  showOvl('Menyimpan peralatan…');
+  try{
+    const qs = new URLSearchParams({ action:'tambahPeralatan', nama, harga }).toString();
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+    document.getElementById('prl-nama').value = '';
+    document.getElementById('prl-harga').value = '';
+    toast(`Peralatan "${nama}" ditambahkan ✓ (ID: ${j.id})`,'ok');
+    await renderKelolaPeralatanList();
+    PERALATAN_DATA = []; // paksa refresh cache biar daftar di form Order ikut update kalau dibuka lagi
+    cSet('alima_peralatan', null);
+  }catch(e){
+    toast('Gagal: '+e.message,'err');
+  }finally{ hideOvl(); }
+}
+async function afkirPeralatanSekarang(id, nama){
+  if(!confirm(`Afkir/buang peralatan "${nama}"?\n\nPeralatan ini tidak akan muncul lagi di pilihan form Order, tapi order lama yang pernah pakai tetap tercatat aman.`)) return;
+  showOvl('Memproses…');
+  try{
+    const qs = new URLSearchParams({ action:'afkirPeralatan', id }).toString();
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+    toast(`Peralatan "${nama}" sudah diafkir ✓`,'ok');
+    await renderKelolaPeralatanList();
+    PERALATAN_DATA = []; // paksa refresh cache
+    cSet('alima_peralatan', null);
+  }catch(e){
+    toast('Gagal: '+e.message,'err');
+  }finally{ hideOvl(); }
+}
+
 function renderCustDD(){
   // Tidak perlu render dropdown — pakai autocomplete
   const inp = document.getElementById('f-cid-search');
@@ -2146,6 +2385,8 @@ async function submitOrder(){
       penerima:document.getElementById('f-pen').value.trim(),
       hp_penerima:normalizeWA(document.getElementById('f-hp').value.trim()),
       alamat:document.getElementById('f-adr').value.trim(),koordinat:document.getElementById('f-krd').value.trim(),
+      peralatan_json: Object.keys(PERALATAN_TERPILIH).length ? JSON.stringify(bangunDetailPeralatanTerpilih_()) : '',
+      peralatan_biaya: hitungTotalPeralatan(),
       status: isEdit ? 'Revisi' : 'Baru'
     };
     if(!d.customer_id){toast('Pilih customer terlebih dahulu.','err');btn.disabled=false;return;}
@@ -3452,6 +3693,7 @@ function resetForm(){
   const ss=document.getElementById('sisa-strip');if(ss)ss.style.display='none';
   document.getElementById('f-paket').innerHTML='<option value="">— Pilih Produk dulu —</option>';
   document.getElementById('cust-info').style.display='none';
+  resetPeralatanForm();
   resetMenuSelects();recalc();initNoDisplay();setDefaults();loadSalesLocal();
   applyDefaultProduk();}
 // ══ LAPORAN KELUHAN PELANGGAN ═══════════════════
