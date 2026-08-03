@@ -728,7 +728,8 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     <div class="fld"><textarea id="lap-kesimpulan" style="min-height:52px;" placeholder="Kesimpulan dari investigasi…"></textarea></div>
 
     <div class="stitle" style="margin-top:16px;">4️⃣ Solusi Perbaikan &amp; Pencegahan</div>
-    <div class="fld"><textarea id="lap-solusi" style="min-height:70px;" placeholder="Tindakan perbaikan & pencegahan (jika diperlukan)…"></textarea></div>
+    <div class="fld"><label>Tindakan Perbaikan</label><textarea id="lap-perbaikan" style="min-height:60px;" placeholder="Apa yang dilakukan untuk memperbaiki masalah ini…"></textarea></div>
+    <div class="fld"><label>Tindakan Pencegahan</label><textarea id="lap-pencegahan" style="min-height:60px;" placeholder="Apa yang dilakukan supaya tidak terulang…"></textarea></div>
 
     <button class="bsub" id="btn-simpan-laporan" onclick="simpanLaporanSaja()" style="margin-top:10px;">💾 Simpan Saja</button>
     <div class="g2" style="margin-top:8px;">
@@ -3866,7 +3867,7 @@ function closeLaporanModal(){
 function resetLaporanModal(){
   ['lap-no-laporan','lap-cari-no','lap-no-order','lap-nama-customer','lap-customer-id','lap-email-customer',
    'lap-dibuat-oleh','lap-apa','lap-kapan','lap-dimana','lap-siapa','lap-bagaimana',
-   'lap-investigasi','lap-kesimpulan','lap-solusi','lap-email-from','lap-nama-pengirim'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+   'lap-investigasi','lap-kesimpulan','lap-perbaikan','lap-pencegahan','lap-email-from','lap-nama-pengirim'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   const st=document.getElementById('lap-cari-status');if(st)st.textContent='';
   document.getElementById('lap-hasil-box').style.display='none';
   const btn=document.getElementById('btn-simpan-laporan');
@@ -3893,12 +3894,40 @@ async function cariOrderUntukLaporan(){
     document.getElementById('lap-customer-id').value = custId;
     document.getElementById('lap-email-customer').value = (cust && cust.email) || '';
 
+    // Autofill Kapan/Dimana/Siapa dari data order — tetap bisa diedit manual kalau perlu disesuaikan
+    let tglIndo = '';
+    if (o.tanggal_kirim) {
+      try { tglIndo = new Date(String(o.tanggal_kirim).slice(0,10)+'T00:00:00').toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'short',year:'numeric'}); }
+      catch(e) { tglIndo = ''; }
+    }
+    document.getElementById('lap-kapan').value = [tglIndo, o.jam_sampai ? 'sekitar jam ' + o.jam_sampai : ''].filter(Boolean).join(' ');
+    document.getElementById('lap-dimana').value = o.alamat_pengiriman || '';
+    document.getElementById('lap-siapa').value = o.nama_penerima || '';
+
     stat.innerHTML = `✅ Order <strong>${o.no_order||no}</strong> ditemukan.`;
     toast('Data order dimuat ✓','ok');
   }catch(e){
     stat.innerHTML = `❌ ${e.message}`;
     toast(e.message,'err');
   }
+}
+
+// Field Perbaikan & Pencegahan digabung jadi 1 teks (dikirim sbg "solusi") supaya tetap kompatibel
+// dengan kolom "Solusi" yang sudah ada di sheet — tampilannya di form tetap 2 kotak terpisah.
+function bangunTeksSolusiGabungan_(){
+  const perbaikan = document.getElementById('lap-perbaikan').value.trim();
+  const pencegahan = document.getElementById('lap-pencegahan').value.trim();
+  const bagian = [];
+  if(perbaikan) bagian.push('Perbaikan: ' + perbaikan);
+  if(pencegahan) bagian.push('Pencegahan: ' + pencegahan);
+  return bagian.join('\n\n');
+}
+// Kebalikannya — pecah lagi teks gabungan jadi 2 kotak saat buka laporan lama utk diedit
+function pecahTeksSolusiGabungan_(teks){
+  teks = String(teks || '');
+  const m = teks.match(/^Perbaikan:\s*([\s\S]*?)(?:\n\nPencegahan:\s*([\s\S]*))?$/);
+  if(m) return { perbaikan: (m[1]||'').trim(), pencegahan: (m[2]||'').trim() };
+  return { perbaikan: teks.trim(), pencegahan: '' }; // format lama/tidak dikenali -> taruh semua di Perbaikan
 }
 
 async function simpanLaporanKeluhan(){
@@ -3927,7 +3956,7 @@ async function simpanLaporanKeluhan(){
     keluhan_bagaimana: document.getElementById('lap-bagaimana').value.trim(),
     investigasi: document.getElementById('lap-investigasi').value.trim(),
     kesimpulan: document.getElementById('lap-kesimpulan').value.trim(),
-    solusi: document.getElementById('lap-solusi').value.trim(),
+    solusi: bangunTeksSolusiGabungan_(),
   };
 
   try{
@@ -4095,7 +4124,9 @@ async function bukaLaporanUntukEdit(noLaporan){
     document.getElementById('lap-bagaimana').value = d.Keluhan_Bagaimana||'';
     document.getElementById('lap-investigasi').value = d.Investigasi||'';
     document.getElementById('lap-kesimpulan').value = d.Kesimpulan||'';
-    document.getElementById('lap-solusi').value = d.Solusi||'';
+    const pecahan = pecahTeksSolusiGabungan_(d.Solusi);
+    document.getElementById('lap-perbaikan').value = pecahan.perbaikan;
+    document.getElementById('lap-pencegahan').value = pecahan.pencegahan;
 
     document.getElementById('lap-modal-title').textContent = '✏️ Edit Laporan — ' + d.No_Laporan;
     if(d.Doc_URL){
