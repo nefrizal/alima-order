@@ -730,7 +730,12 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     <div class="stitle" style="margin-top:16px;">4️⃣ Solusi Perbaikan &amp; Pencegahan</div>
     <div class="fld"><textarea id="lap-solusi" style="min-height:70px;" placeholder="Tindakan perbaikan & pencegahan (jika diperlukan)…"></textarea></div>
 
-    <button class="bsub" id="btn-simpan-laporan" onclick="simpanLaporanKeluhan()" style="margin-top:10px;">💾 Simpan Laporan</button>
+    <button class="bsub" id="btn-simpan-laporan" onclick="simpanLaporanSaja()" style="margin-top:10px;">💾 Simpan Saja</button>
+    <div class="g2" style="margin-top:8px;">
+      <button class="bico" id="btn-simpan-wa-laporan" style="background:#1B7A4A;" onclick="simpanDanKirimWA()">📲 Simpan &amp; Kirim WA</button>
+      <button class="bico" id="btn-simpan-pdf-laporan" style="background:#1565C0;" onclick="simpanDanUnduhPdf()">📄 Simpan &amp; Unduh PDF</button>
+    </div>
+    <div style="font-size:10px;color:var(--inks);margin-top:6px;">"Kirim WA" & "Unduh PDF" otomatis menyimpan dulu sebelum lanjut mengirim/mengambil filenya.</div>
 
     <div id="lap-hasil-box" style="display:none;background:var(--grnl);border:1px solid #b7dfc9;border-radius:10px;padding:14px;margin-top:14px;">
       <p style="font-size:13px;color:var(--grn);font-weight:700;margin-bottom:8px;">✅ Laporan tersimpan!</p>
@@ -752,6 +757,23 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
         <button class="bico" onclick="kirimLaporanViaWA()" style="flex:1;background:#1B7A4A;">📲 Kirim WA</button>
         <button class="bico" onclick="kirimLaporanViaEmail()" style="flex:1;background:#1565C0;">📧 Kirim Email</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PREVIEW PDF LAPORAN (sebelum diunduh) -->
+<div class="modal-bg hide" id="laporan-pdf-preview-modal">
+  <div class="modal" style="max-width:640px;padding-bottom:16px;">
+    <div class="modal-head">
+      <h2>👁️ Preview PDF Laporan</h2>
+      <button class="modal-close" onclick="tutupPreviewPdfLaporan()">×</button>
+    </div>
+    <div style="border:1px solid var(--bdr);border-radius:8px;overflow:hidden;background:#525659;">
+      <iframe id="laporan-pdf-preview-frame" src="" style="width:100%;height:60vh;border:none;display:block;"></iframe>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px;">
+      <button class="bico" style="flex:1;background:var(--inkm);" onclick="tutupPreviewPdfLaporan()">Tutup</button>
+      <button class="bsub" style="flex:1;margin-top:0;" onclick="unduhPdfLaporanSekarang()">⬇️ Unduh / Buka di Tab Baru</button>
     </div>
   </div>
 </div>
@@ -3823,7 +3845,7 @@ function resetLaporanModal(){
   const st=document.getElementById('lap-cari-status');if(st)st.textContent='';
   document.getElementById('lap-hasil-box').style.display='none';
   const btn=document.getElementById('btn-simpan-laporan');
-  if(btn){btn.disabled=false;btn.textContent='💾 Simpan Laporan';}
+  if(btn){btn.disabled=false;btn.textContent='💾 Simpan Saja';}
   LAP_ORDER_DATA = null;
 }
 
@@ -3857,11 +3879,14 @@ async function cariOrderUntukLaporan(){
 async function simpanLaporanKeluhan(){
   const noOrder = document.getElementById('lap-no-order').value.trim();
   const apa = document.getElementById('lap-apa').value.trim();
-  if(!noOrder) return toast('Cari & pilih order terkait dulu.','err');
-  if(!apa) return toast('Isi keluhan pelanggan dulu.','err');
+  if(!noOrder){ toast('Cari & pilih order terkait dulu.','err'); return false; }
+  if(!apa){ toast('Isi keluhan pelanggan dulu.','err'); return false; }
 
+  const semuaTombol = document.querySelectorAll('#btn-simpan-laporan, #btn-simpan-wa-laporan, #btn-simpan-pdf-laporan');
+  semuaTombol.forEach(b => b.disabled = true);
   const btn = document.getElementById('btn-simpan-laporan');
-  btn.disabled = true; btn.textContent = 'Menyimpan…';
+  const labelAsal = btn.textContent;
+  btn.textContent = 'Menyimpan…';
 
   const data = {
     no_laporan: document.getElementById('lap-no-laporan').value.trim(),
@@ -3891,11 +3916,54 @@ async function simpanLaporanKeluhan(){
     document.getElementById('lap-hasil-box').style.display = 'block';
     isiUlangEmailPengirim_();
     toast(`Laporan ${j.no_laporan} tersimpan ✓`,'ok');
+    return true;
   }catch(e){
     toast('Gagal: '+e.message,'err');
+    return false;
   }finally{
-    btn.disabled = false; btn.textContent = '💾 Simpan Laporan';
+    semuaTombol.forEach(b => b.disabled = false);
+    btn.textContent = labelAsal;
   }
+}
+
+// Tombol "💾 Simpan Saja" — cuma simpan, tidak kirim apapun
+async function simpanLaporanSaja(){
+  await simpanLaporanKeluhan();
+}
+
+// Tombol "📲 Simpan & Kirim WA" — simpan dulu, kalau berhasil langsung lanjut kirim WA
+async function simpanDanKirimWA(){
+  const berhasil = await simpanLaporanKeluhan();
+  if(berhasil) await kirimLaporanViaWA();
+}
+
+// Tombol "📄 Simpan & Unduh PDF" — simpan dulu, kalau berhasil TAMPILKAN PREVIEW dulu
+// (bukan langsung unduh), baru user pilih mau unduh/buka di tab baru dari situ.
+let LAPORAN_PDF_URL_AKTIF = '';
+
+async function simpanDanUnduhPdf(){
+  const berhasil = await simpanLaporanKeluhan();
+  if(!berhasil) return;
+
+  const noLaporan = document.getElementById('lap-no-laporan').value.trim();
+  showOvl('Menyiapkan preview PDF…');
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?' + new URLSearchParams({action:'getLaporanPdfUrl', id:noLaporan}).toString() + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message || 'Gagal menyiapkan PDF.');
+    LAPORAN_PDF_URL_AKTIF = j.pdf_url;
+    document.getElementById('laporan-pdf-preview-frame').src = j.pdf_url;
+    document.getElementById('laporan-pdf-preview-modal').classList.remove('hide');
+  }catch(e){
+    toast('Gagal ambil PDF: '+e.message,'err');
+  }finally{ hideOvl(); }
+}
+function tutupPreviewPdfLaporan(){
+  document.getElementById('laporan-pdf-preview-modal').classList.add('hide');
+  document.getElementById('laporan-pdf-preview-frame').src = ''; // hentikan loading iframe pas ditutup
+}
+function unduhPdfLaporanSekarang(){
+  if(!LAPORAN_PDF_URL_AKTIF){ toast('URL PDF belum siap.','err'); return; }
+  window.open(LAPORAN_PDF_URL_AKTIF, '_blank');
 }
 
 async function kirimLaporanViaEmail(){
