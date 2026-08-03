@@ -778,6 +778,23 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   </div>
 </div>
 
+<!-- MODAL PREVIEW PDF INVOICE (sebelum diunduh) -->
+<div class="modal-bg hide" id="invoice-pdf-preview-modal">
+  <div class="modal" style="max-width:640px;padding-bottom:16px;">
+    <div class="modal-head">
+      <h2>👁️ Preview PDF Invoice</h2>
+      <button class="modal-close" onclick="tutupPreviewPdfInvoice()">×</button>
+    </div>
+    <div style="border:1px solid var(--bdr);border-radius:8px;overflow:hidden;background:#525659;">
+      <iframe id="invoice-pdf-preview-frame" src="" style="width:100%;height:60vh;border:none;display:block;"></iframe>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px;">
+      <button class="bico" style="flex:1;background:var(--inkm);" onclick="tutupPreviewPdfInvoice()">Tutup</button>
+      <button class="bsub" style="flex:1;margin-top:0;" onclick="unduhPdfInvoiceSekarang()">⬇️ Unduh PDF</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL PRINT PREVIEW (printer thermal Bluetooth 58mm) -->
 <div class="modal-bg hide" id="print-preview-modal">
   <div class="modal" style="max-width:400px;background:#f0f0f0;">
@@ -1485,7 +1502,6 @@ async function previewInvoicePdf(){
   if(!INV_DRAFT){ toast('Muat data order dulu.','err'); return; }
   if(!document.getElementById('inv-no-invoice').value.trim()){ toast('Nomor invoice wajib diisi.','err'); return; }
 
-  const newTab = window.open('', '_blank');
   const qs = new URLSearchParams({ action: 'previewInvoicePdf', ...kumpulkanDataInvoice_() }).toString();
 
   showOvl('Membuat preview PDF…');
@@ -1498,10 +1514,9 @@ async function previewInvoicePdf(){
     for(let i=0;i<byteChars.length;i++) byteNumbers[i]=byteChars.charCodeAt(i);
     const blob = new Blob([new Uint8Array(byteNumbers)], {type:'application/pdf'});
     const url = URL.createObjectURL(blob);
-    if(newTab) newTab.location.href = url; else window.open(url,'_blank');
+    tampilkanPreviewPdfInvoice_(url, j.filename || 'invoice.pdf');
     toast('Preview dibuat (belum tersimpan ke Drive) ✓','ok');
   }catch(e){
-    if(newTab) newTab.close();
     toast('Gagal buat preview: '+e.message,'err');
   }finally{ hideOvl(); }
 }
@@ -1510,9 +1525,6 @@ async function buatInvoicePdf(){
   if(!INV_DRAFT){ toast('Muat data order dulu.','err'); return; }
   const noInvoice = document.getElementById('inv-no-invoice').value.trim();
   if(!noInvoice){ toast('Nomor invoice wajib diisi.','err'); return; }
-
-  // Buka tab kosong DULU (sinkron, sebelum await) supaya tidak diblokir popup-blocker browser/HP.
-  const newTab = window.open('', '_blank');
 
   const qs = new URLSearchParams({ action: 'generateInvoicePdf', ...kumpulkanDataInvoice_() }).toString();
 
@@ -1527,16 +1539,7 @@ async function buatInvoicePdf(){
     const blob = new Blob([new Uint8Array(byteNumbers)], { type: 'application/pdf' });
     const url = URL.createObjectURL(blob);
 
-    if(newTab) newTab.location.href = url; else window.open(url, '_blank');
-
-    // Trigger download eksplisit dengan nama file "inv-{no order}.pdf" (buka tab di atas cuma utk preview,
-    // browser sering kasih nama acak/blob kalau di-save manual dari situ tanpa link download ini).
-    const dlLink = document.createElement('a');
-    dlLink.href = url;
-    dlLink.download = j.filename || 'invoice.pdf';
-    document.body.appendChild(dlLink);
-    dlLink.click();
-    document.body.removeChild(dlLink);
+    tampilkanPreviewPdfInvoice_(url, j.filename || 'invoice.pdf');
 
     if(j.drive_url){
       document.getElementById('inv-drive-link').href = j.drive_url;
@@ -1549,11 +1552,33 @@ async function buatInvoicePdf(){
       pdf_url: j.pdf_url || '',
       customer_nama: j.customer_nama || ''
     };
-    toast('Invoice berhasil dibuat & disimpan ✓', 'ok');
+    toast('Invoice berhasil dibuat & disimpan ✓ — cek preview lalu unduh kalau perlu.', 'ok');
   }catch(e){
-    if(newTab) newTab.close();
     toast('Gagal buat invoice: ' + e.message, 'err');
   }finally{ hideOvl(); }
+}
+
+// ── PREVIEW PDF INVOICE (popup iframe, sebelum benar-benar diunduh) ──
+let INVOICE_PDF_BLOB_URL_AKTIF = '';
+let INVOICE_PDF_FILENAME_AKTIF = '';
+function tampilkanPreviewPdfInvoice_(blobUrl, filename){
+  INVOICE_PDF_BLOB_URL_AKTIF = blobUrl;
+  INVOICE_PDF_FILENAME_AKTIF = filename || 'invoice.pdf';
+  document.getElementById('invoice-pdf-preview-frame').src = blobUrl;
+  document.getElementById('invoice-pdf-preview-modal').classList.remove('hide');
+}
+function tutupPreviewPdfInvoice(){
+  document.getElementById('invoice-pdf-preview-modal').classList.add('hide');
+  document.getElementById('invoice-pdf-preview-frame').src = ''; // lepas resource iframe
+}
+function unduhPdfInvoiceSekarang(){
+  if(!INVOICE_PDF_BLOB_URL_AKTIF){ toast('PDF belum siap.','err'); return; }
+  const a = document.createElement('a');
+  a.href = INVOICE_PDF_BLOB_URL_AKTIF;
+  a.download = INVOICE_PDF_FILENAME_AKTIF;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }
 
 // ══ MASTER (hanya Paket dari GAS) ═════
