@@ -732,11 +732,8 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     <div class="fld"><label>Tindakan Pencegahan</label><textarea id="lap-pencegahan" style="min-height:60px;" placeholder="Apa yang dilakukan supaya tidak terulang…"></textarea></div>
 
     <button class="bsub" id="btn-simpan-laporan" onclick="simpanLaporanSaja()" style="margin-top:10px;">💾 Simpan Saja</button>
-    <div class="g2" style="margin-top:8px;">
-      <button class="bico" id="btn-simpan-wa-laporan" style="background:#1B7A4A;" onclick="simpanDanKirimWA()">📲 Simpan &amp; Kirim WA</button>
-      <button class="bico" id="btn-simpan-pdf-laporan" style="background:#1565C0;" onclick="simpanDanUnduhPdf()">📄 Simpan &amp; Unduh PDF</button>
-    </div>
-    <div style="font-size:10px;color:var(--inks);margin-top:6px;">"Kirim WA" & "Unduh PDF" otomatis menyimpan dulu sebelum lanjut mengirim/mengambil filenya.</div>
+    <button class="bico" id="btn-simpan-pdf-laporan" style="width:100%;margin-top:8px;background:#1565C0;" onclick="previewPdfLaporan()">👁️ Preview PDF</button>
+    <div style="font-size:10px;color:var(--inks);margin-top:6px;">Kalau laporan belum pernah disimpan, "Preview PDF" otomatis menyimpan dulu. Kalau sudah pernah tersimpan, tombol ini langsung preview tanpa menyimpan ulang.</div>
 
     <div id="lap-hasil-box" style="display:none;background:var(--grnl);border:1px solid #b7dfc9;border-radius:10px;padding:14px;margin-top:14px;">
       <p style="font-size:13px;color:var(--grn);font-weight:700;margin-bottom:8px;">✅ Laporan tersimpan!</p>
@@ -3936,7 +3933,7 @@ async function simpanLaporanKeluhan(){
   if(!noOrder){ toast('Cari & pilih order terkait dulu.','err'); return false; }
   if(!apa){ toast('Isi keluhan pelanggan dulu.','err'); return false; }
 
-  const semuaTombol = document.querySelectorAll('#btn-simpan-laporan, #btn-simpan-wa-laporan, #btn-simpan-pdf-laporan');
+  const semuaTombol = document.querySelectorAll('#btn-simpan-laporan, #btn-simpan-pdf-laporan');
   semuaTombol.forEach(b => b.disabled = true);
   const btn = document.getElementById('btn-simpan-laporan');
   const labelAsal = btn.textContent;
@@ -3986,20 +3983,22 @@ async function simpanLaporanSaja(){
 }
 
 // Tombol "📲 Simpan & Kirim WA" — simpan dulu, kalau berhasil langsung lanjut kirim WA
-async function simpanDanKirimWA(){
-  const berhasil = await simpanLaporanKeluhan();
-  if(berhasil) await kirimLaporanViaWA();
-}
-
 // Tombol "📄 Simpan & Unduh PDF" — simpan dulu, kalau berhasil TAMPILKAN PREVIEW dulu
 // (bukan langsung unduh), baru user pilih mau unduh/buka di tab baru dari situ.
 let LAPORAN_PDF_URL_AKTIF = '';
 
-async function simpanDanUnduhPdf(){
-  const berhasil = await simpanLaporanKeluhan();
-  if(!berhasil) return;
+// Tombol "👁️ Preview PDF" — kalau laporan SUDAH pernah disimpan (lap-no-laporan sudah terisi),
+// langsung preview tanpa menyimpan ulang (persis pola tombol Preview di Invoice). Kalau belum
+// pernah disimpan sama sekali, simpan dulu sekali (wajib, karena PDF laporan dibuat dari
+// Google Doc yang perlu ada dulu di server), baru lanjut preview.
+async function previewPdfLaporan(){
+  let noLaporan = document.getElementById('lap-no-laporan').value.trim();
+  if(!noLaporan){
+    const berhasil = await simpanLaporanKeluhan();
+    if(!berhasil) return;
+    noLaporan = document.getElementById('lap-no-laporan').value.trim();
+  }
 
-  const noLaporan = document.getElementById('lap-no-laporan').value.trim();
   showOvl('Menyiapkan preview PDF…');
   try{
     const j = await gasFetch(APP.GAS_URL + '?' + new URLSearchParams({action:'getLaporanPdfUrl', id:noLaporan}).toString() + '&t=' + Date.now());
