@@ -539,6 +539,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
         <div class="fld"><label>Ditandatangani Oleh</label><input id="inv-signer-nama"></div>
         <div class="fld"><label>Jabatan</label><input id="inv-signer-jabatan"></div>
       </div>
+      <div class="fld"><label>Rekening Bank</label><input id="inv-rekening-bank" value="Mandiri 1090031113798 a/n PT Katering Sukses Mandiri"></div>
       <label style="display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:12px;cursor:pointer;">
         <input type="checkbox" id="inv-tampilkan-stempel" checked
           style="-webkit-appearance:checkbox!important;appearance:checkbox!important;width:16px!important;height:16px!important;
@@ -1415,6 +1416,7 @@ function openInvoiceModal(){
   document.getElementById('inv-drive-link-box').classList.add('hide');
   document.getElementById('inv-menu-detail-box').innerHTML = '';
   document.getElementById('inv-tampilkan-stempel').checked = true;
+  document.getElementById('inv-rekening-bank').value = 'Mandiri 1090031113798 a/n PT Katering Sukses Mandiri';
   document.getElementById('invoice-modal').classList.remove('hide');
 }
 function closeInvoiceModal(){
@@ -1498,7 +1500,8 @@ function kumpulkanDataInvoice_(){
     signer_jabatan: document.getElementById('inv-signer-jabatan').value,
     catatan: document.getElementById('inv-catatan').value,
     menu_detail: JSON.stringify(menuDetail),
-    tampilkan_stempel: document.getElementById('inv-tampilkan-stempel').checked ? '1' : '0'
+    tampilkan_stempel: document.getElementById('inv-tampilkan-stempel').checked ? '1' : '0',
+    rekening_bank: document.getElementById('inv-rekening-bank').value.trim()
   };
 }
 
