@@ -1432,13 +1432,19 @@ async function muatDraftInvoice(){
     INV_DRAFT = j;
 
     const itemsHtml = j.items.map(it =>
-      `<div class="prow"><span>${it.no_order} · ${it.deskripsi} (${it.qty}x)</span><span>Rp${it.total.toLocaleString('en-US')}</span></div>`
+      `<div class="prow"><span>${it.no_order} · ${it.deskripsi} (${it.qty}x)${it.dp>0?' · DP Rp'+it.dp.toLocaleString('en-US'):''}</span><span>Rp${it.total.toLocaleString('en-US')}</span></div>`
     ).join('');
+
+    const ringkasanTotal = j.total_dp > 0
+      ? `<div class="prow"><span>Total</span><span>Rp${j.grand_total.toLocaleString('en-US')}</span></div>` +
+        `<div class="prow" style="color:#1B7A4A;"><span>DP / Sudah Dibayar</span><span>– Rp${j.total_dp.toLocaleString('en-US')}</span></div>` +
+        `<div class="prow tot"><span>Sisa Tagihan</span><span>Rp${j.sisa_tagihan.toLocaleString('en-US')}</span></div>`
+      : `<div class="prow tot"><span>Total</span><span>Rp${j.grand_total.toLocaleString('en-US')}</span></div>`;
 
     document.getElementById('inv-preview-body').innerHTML =
       `<strong>${j.customer.nama || '—'}</strong>${j.customer.nama_instansi ? ' · ' + j.customer.nama_instansi : ''}<br>` +
       itemsHtml +
-      `<div class="prow tot"><span>Total</span><span>Rp${j.grand_total.toLocaleString('en-US')}</span></div>` +
+      ringkasanTotal +
       (j.customer_beda ? '<div style="color:var(--red);font-size:11px;margin-top:6px;">⚠️ No Order yang dipilih berasal dari customer berbeda — invoice akan pakai data customer dari order pertama.</div>' : '');
 
     // 1 checkbox per No Order — dicentang = SEMUA komposisi menu order itu ditambahkan
