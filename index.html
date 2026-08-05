@@ -530,6 +530,12 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 
       <div id="inv-menu-detail-box"></div>
 
+      <div class="stitle" style="font-size:13px;">✉️ Tujuan Surat</div>
+      <div style="font-size:11px;font-weight:700;color:var(--inkm);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px;">Kepada Yth.</div>
+      <div class="fld"><label>Tujuan Surat</label><input id="inv-tujuan-surat" placeholder="Contoh: Bapak Nefrizal"></div>
+      <div class="fld"><label>Instansi</label><input id="inv-instansi-surat" placeholder="Nama instansi (opsional)"></div>
+      <div class="fld"><label>Alamat</label><textarea id="inv-alamat-surat" style="min-height:44px;" placeholder="Alamat surat"></textarea></div>
+
       <div class="g2">
         <div class="fld"><label>Nomor Invoice</label><input id="inv-no-invoice"></div>
         <div class="fld"><label>Tanggal Invoice</label><input id="inv-tgl" type="date"></div>
@@ -1470,6 +1476,9 @@ async function muatDraftInvoice(){
     document.getElementById('inv-menu-detail-box').innerHTML = detailHtml
       ? `<div class="fld"><label>Tampilkan detail menu dalam kurung?</label>${detailHtml}</div>` : '';
 
+    document.getElementById('inv-tujuan-surat').value   = j.suggested_tujuan_surat || '';
+    document.getElementById('inv-instansi-surat').value = j.suggested_instansi_surat || '';
+    document.getElementById('inv-alamat-surat').value   = j.suggested_alamat_surat || '';
     document.getElementById('inv-no-invoice').value    = j.suggested_no_invoice || '';
     document.getElementById('inv-tgl').value           = j.suggested_tanggal || '';
     document.getElementById('inv-jatuh-tempo').value   = j.suggested_jatuh_tempo || '';
@@ -1501,7 +1510,10 @@ function kumpulkanDataInvoice_(){
     catatan: document.getElementById('inv-catatan').value,
     menu_detail: JSON.stringify(menuDetail),
     tampilkan_stempel: document.getElementById('inv-tampilkan-stempel').checked ? '1' : '0',
-    rekening_bank: document.getElementById('inv-rekening-bank').value.trim()
+    rekening_bank: document.getElementById('inv-rekening-bank').value.trim(),
+    tujuan_surat: document.getElementById('inv-tujuan-surat').value.trim(),
+    instansi_surat: document.getElementById('inv-instansi-surat').value.trim(),
+    alamat_surat: document.getElementById('inv-alamat-surat').value.trim()
   };
 }
 
