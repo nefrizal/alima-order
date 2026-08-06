@@ -2437,7 +2437,7 @@ async function cariOrderUntukEdit(){
   if(!no) return toast('Isi nomor order dulu.','err');
   stat.textContent = '⏳ Mencari…';
   try{
-    const j = await gasFetch(APP.GAS_URL + '?action=getOrderByNo&no=' + encodeURIComponent(no) + '&t=' + Date.now());
+    const j = await gasFetch(APP.GAS_URL + '?action=getOrderByNo&no=' + encodeURIComponent(no) + '&hari_ini_saja=1&t=' + Date.now());
     if(!j.success) throw new Error(j.message || 'Tidak ditemukan');
 
     await muatDataKeForm(j.data);
@@ -2706,7 +2706,7 @@ function renderJadwal(){
           : `<span${klikAttr} style="font-size:9px;color:var(--red);font-weight:700;${bisaAssign?'cursor:pointer;text-decoration:underline;':''}">⚠️ Belum ada driver</span>`;
         return `
         <div class="jw-row">
-          <div class="jw-jam">${o.jam_sampai||'—'}</div>
+          <div class="jw-jam">${jamBerangkat_(o.jam_sampai)||'—'}</div>
           <div class="jw-paket" onclick="openOrderDetail('${o.no_order}')">${o.paket||'—'}${o.peralatan_disewa?' 🧰':''}</div>
           <div class="jw-qty">${o.qty||0}</div>
           <div class="jw-nama">${o.nama_penerima||o.customer_id||'—'}${driverBadge?'<br>'+driverBadge:''}</div>
@@ -2719,7 +2719,7 @@ function renderJadwal(){
             <span class="jw-daybadge">${totalQty} pax</span>
           </div>
           <div class="jw-table">
-            <div class="jw-row head"><div>Jam</div><div>Paket</div><div>Qty</div><div>Penerima</div></div>
+            <div class="jw-row head"><div>Berangkat</div><div>Paket</div><div>Qty</div><div>Penerima</div></div>
             ${rowsHtml}
           </div>
         </div>`;
