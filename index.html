@@ -793,7 +793,9 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     <div style="border:1px solid var(--bdr);border-radius:8px;overflow:hidden;background:#525659;">
       <iframe id="invoice-pdf-preview-frame" src="" style="width:100%;height:60vh;border:none;display:block;"></iframe>
     </div>
-    <div style="display:flex;gap:8px;margin-top:14px;">
+    <div style="font-size:10px;color:var(--inks);margin-top:8px;">Kalau preview di atas tidak muncul (sering terjadi di HP), pakai tombol "Buka di Tab Baru" di bawah.</div>
+    <button id="invoice-pdf-open-tab-btn" class="bico" style="width:100%;margin-top:10px;background:var(--or);color:#fff;" onclick="bukaPdfInvoiceTabBaru()">↗️ Buka di Tab Baru</button>
+    <div style="display:flex;gap:8px;margin-top:8px;">
       <button class="bico" style="flex:1;background:var(--inkm);" onclick="tutupPreviewPdfInvoice()">Tutup</button>
       <button class="bsub" style="flex:1;margin-top:0;" onclick="unduhPdfInvoiceSekarang()">⬇️ Unduh PDF</button>
     </div>
@@ -1598,6 +1600,10 @@ function unduhPdfInvoiceSekarang(){
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
+}
+function bukaPdfInvoiceTabBaru(){
+  if(!INVOICE_PDF_BLOB_URL_AKTIF){ toast('PDF belum siap.','err'); return; }
+  window.open(INVOICE_PDF_BLOB_URL_AKTIF, '_blank');
 }
 
 // ══ MASTER (hanya Paket dari GAS) ═════
