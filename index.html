@@ -249,6 +249,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       <div class="prow"><span>Jumlah (Qty × Harga KSM × 1000)</span><span id="c-jml">Rp 0</span></div>
       <div class="prow"><span>Delivery Charge</span><span id="c-del">Rp 0</span></div>
       <div class="prow hide" id="c-peralatan-row"><span>Peralatan (Sewa)</span><span id="c-peralatan">Rp 0</span></div>
+      <div class="prow hide" id="c-pramusaji-row"><span>Tambahan Pramusaji</span><span id="c-pramusaji">Rp 0</span></div>
       <div class="prow tot"><span>Jumlah Total</span><span id="c-tot">Rp 0</span></div>
     </div>
     <div class="g2" style="margin-top:10px;">
@@ -292,6 +293,29 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       </div>
       <div id="f-peralatan-total-strip" class="pstrip hide" style="margin-top:10px;">
         <div class="prow tot"><span>Total Sewa Peralatan</span><span id="f-peralatan-total-text">Rp 0</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tambahan Pramusaji -->
+  <div class="sec">
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--ord);cursor:pointer;">
+      <input type="checkbox" id="f-pramusaji-toggle" onchange="togglePramusajiBox()"
+        style="-webkit-appearance:checkbox!important;appearance:checkbox!important;width:18px!important;height:18px!important;
+               min-width:18px!important;padding:0!important;margin:0!important;border:1px solid #999!important;
+               border-radius:3px!important;background:#fff!important;flex-shrink:0;">
+      🧑‍🍳 Tambahan Pramusaji?
+    </label>
+    <div id="f-pramusaji-box" class="hide" style="margin-top:12px;">
+      <div class="g2">
+        <div class="fld"><label>Jumlah Pramusaji</label><input type="number" id="f-pramusaji-qty" min="1" value="1" oninput="recalcPramusajiTotal()"></div>
+        <div class="fld"><label>Harga per Orang (Rp)</label><input type="number" id="f-pramusaji-harga" min="0" value="150000" oninput="recalcPramusajiTotal()"></div>
+      </div>
+      <div style="font-size:10px;color:var(--inks);margin-top:-6px;margin-bottom:10px;">
+        Default Rp150.000/orang untuk maksimal 8 jam kerja. Kalau lebih dari 8 jam, tambahan Rp20.000/jam per orang — sesuaikan manual di kolom Harga kalau perlu.
+      </div>
+      <div id="f-pramusaji-total-strip" class="pstrip hide">
+        <div class="prow tot"><span>Total Biaya Pramusaji</span><span id="f-pramusaji-total-text">Rp 0</span></div>
       </div>
     </div>
   </div>
@@ -1063,6 +1087,22 @@ async function muatDataKeForm(d) {
           recalcPeralatanTotal();
         }
       } catch (e) { /* format JSON rusak/lama -> abaikan, form peralatan tetap kosong */ }
+    }
+
+    // ── Pramusaji — restore dari kolom "Tambahan Pramusaji" (JSON) kalau ada ──
+    resetPramusajiForm();
+    const pramusajiRaw = d.tambahan_pramusaji || '';
+    if (pramusajiRaw) {
+      try {
+        const arr = JSON.parse(pramusajiRaw);
+        if (Array.isArray(arr) && arr.length && arr[0].qty) {
+          document.getElementById('f-pramusaji-toggle').checked = true;
+          document.getElementById('f-pramusaji-box').classList.remove('hide');
+          document.getElementById('f-pramusaji-qty').value = arr[0].qty || 1;
+          document.getElementById('f-pramusaji-harga').value = arr[0].harga || 150000;
+          recalcPramusajiTotal();
+        }
+      } catch (e) { /* format JSON rusak/lama -> abaikan, form pramusaji tetap kosong */ }
     }
 }
 
@@ -1850,14 +1890,18 @@ function recalc(source){
   const fee=parseFloat(document.getElementById('f-fee').value)||0;
   const del=parseFloat(document.getElementById('f-del').value)||0;
   const peralatan=(typeof hitungTotalPeralatan==='function')?hitungTotalPeralatan():0;
+  const pramusaji=(typeof hitungTotalPramusaji==='function')?hitungTotalPramusaji():0;
   const hksm=Math.max(0,hjl-fee);
   document.getElementById('f-hksm').value=hksm||'';
-  const jml=qty*hksm*1000,tot=jml+del+peralatan;
+  const jml=qty*hksm*1000,tot=jml+del+peralatan+pramusaji;
   document.getElementById('c-jml').textContent='Rp '+jml.toLocaleString('id-ID');
   document.getElementById('c-del').textContent='Rp '+del.toLocaleString('id-ID');
   const peralatanRow=document.getElementById('c-peralatan-row');
   if(peralatan>0){ peralatanRow.classList.remove('hide'); document.getElementById('c-peralatan').textContent='Rp '+peralatan.toLocaleString('id-ID'); }
   else{ peralatanRow.classList.add('hide'); }
+  const pramusajiRow=document.getElementById('c-pramusaji-row');
+  if(pramusaji>0){ pramusajiRow.classList.remove('hide'); document.getElementById('c-pramusaji').textContent='Rp '+pramusaji.toLocaleString('id-ID'); }
+  else{ pramusajiRow.classList.add('hide'); }
   document.getElementById('c-tot').textContent='Rp '+tot.toLocaleString('id-ID');
 
   // Auto-isi Jumlah Bayar berdasarkan Status Pembayaran (kecuali user sedang mengetik manual di kolom Bayar)
@@ -2006,6 +2050,57 @@ function resetPeralatanForm(){
   const box = document.getElementById('f-peralatan-box');
   if(box) box.classList.add('hide');
   const strip = document.getElementById('f-peralatan-total-strip');
+  if(strip) strip.classList.add('hide');
+}
+
+// ══ TAMBAHAN PRAMUSAJI ═════════════════
+function togglePramusajiBox(){
+  const on = document.getElementById('f-pramusaji-toggle').checked;
+  const box = document.getElementById('f-pramusaji-box');
+  if(on){
+    box.classList.remove('hide');
+  } else {
+    box.classList.add('hide');
+    document.getElementById('f-pramusaji-qty').value = 1;
+    document.getElementById('f-pramusaji-harga').value = 150000;
+  }
+  recalcPramusajiTotal();
+}
+function hitungTotalPramusaji(){
+  const toggle = document.getElementById('f-pramusaji-toggle');
+  if(!toggle || !toggle.checked) return 0;
+  const qty = parseInt(document.getElementById('f-pramusaji-qty').value) || 0;
+  const harga = parseFloat(document.getElementById('f-pramusaji-harga').value) || 0;
+  return qty * harga;
+}
+function recalcPramusajiTotal(){
+  const total = hitungTotalPramusaji();
+  const strip = document.getElementById('f-pramusaji-total-strip');
+  if(total > 0){
+    document.getElementById('f-pramusaji-total-text').textContent = 'Rp ' + total.toLocaleString('id-ID');
+    strip.classList.remove('hide');
+  } else {
+    strip.classList.add('hide');
+  }
+  recalc();
+}
+// Detail pramusaji, dikirim ke server sbg JSON saat submit order
+function bangunDetailPramusaji_(){
+  const toggle = document.getElementById('f-pramusaji-toggle');
+  if(!toggle || !toggle.checked) return [];
+  const qty = parseInt(document.getElementById('f-pramusaji-qty').value) || 0;
+  const harga = parseFloat(document.getElementById('f-pramusaji-harga').value) || 0;
+  if(!qty || !harga) return [];
+  return [{ qty, harga, subtotal: qty * harga }];
+}
+function resetPramusajiForm(){
+  const toggle = document.getElementById('f-pramusaji-toggle');
+  if(toggle) toggle.checked = false;
+  const box = document.getElementById('f-pramusaji-box');
+  if(box) box.classList.add('hide');
+  document.getElementById('f-pramusaji-qty').value = 1;
+  document.getElementById('f-pramusaji-harga').value = 150000;
+  const strip = document.getElementById('f-pramusaji-total-strip');
   if(strip) strip.classList.add('hide');
 }
 
@@ -2536,6 +2631,8 @@ async function submitOrder(){
       alamat:document.getElementById('f-adr').value.trim(),koordinat:document.getElementById('f-krd').value.trim(),
       peralatan_json: Object.keys(PERALATAN_TERPILIH).length ? JSON.stringify(bangunDetailPeralatanTerpilih_()) : '',
       peralatan_biaya: hitungTotalPeralatan(),
+      pramusaji_json: hitungTotalPramusaji() > 0 ? JSON.stringify(bangunDetailPramusaji_()) : '',
+      pramusaji_biaya: hitungTotalPramusaji(),
       status: isEdit ? 'Revisi' : 'Baru'
     };
     if(!d.customer_id){toast('Pilih customer terlebih dahulu.','err');btn.disabled=false;return;}
@@ -3867,6 +3964,7 @@ function resetForm(){
   document.getElementById('f-paket').innerHTML='<option value="">— Pilih Produk dulu —</option>';
   document.getElementById('cust-info').style.display='none';
   resetPeralatanForm();
+  resetPramusajiForm();
   resetMenuSelects();recalc();initNoDisplay();setDefaults();loadSalesLocal();
   applyDefaultProduk();}
 // ══ LAPORAN KELUHAN PELANGGAN ═══════════════════
