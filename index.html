@@ -436,7 +436,14 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
         <select id="kn-filter-unit">
           <option value="">— Semua —</option>
           <option value="KSM">KSM</option>
-          <option value="ABB">ABB (Alima Boga Batam)</option>
+          <option value="KKB">KKB</option>
+          <option value="KCI">KCI</option>
+          <option value="BGN0">BGN0</option>
+          <option value="BGN1">BGN1</option>
+          <option value="BGN2">BGN2</option>
+          <option value="BGN3">BGN3</option>
+          <option value="BGN4">BGN4</option>
+          <option value="BGN5">BGN5</option>
         </select>
       </div>
     </div>
@@ -567,7 +574,14 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       <div class="fld"><label>Kode Unit</label>
         <select id="nt-unit">
           <option value="KSM">KSM</option>
-          <option value="ABB">ABB (Alima Boga Batam)</option>
+          <option value="KKB">KKB</option>
+          <option value="KCI">KCI</option>
+          <option value="BGN0">BGN0</option>
+          <option value="BGN1">BGN1</option>
+          <option value="BGN2">BGN2</option>
+          <option value="BGN3">BGN3</option>
+          <option value="BGN4">BGN4</option>
+          <option value="BGN5">BGN5</option>
         </select>
       </div>
     </div>
@@ -592,6 +606,8 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
         <select id="nt-status">
           <option value="Lunas">Lunas</option>
           <option value="Pending">Pending</option>
+          <option value="DP">DP</option>
+          <option value="COD">COD</option>
           <option value="Batal">Batal</option>
         </select>
       </div>
@@ -608,9 +624,10 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     <div class="fld"><label>Deskripsi <span class="req">*</span></label><input id="nt-deskripsi" placeholder="Contoh: Beras 25kg"></div>
     <div class="g3">
       <div class="fld"><label>Qty</label><input id="nt-qty" type="number" min="1" value="1"></div>
+      <div class="fld"><label>Satuan</label><input id="nt-satuan" placeholder="kg/dus/pcs/liter"></div>
       <div class="fld"><label>Harga Satuan (Rp)</label><input id="nt-harga" type="number" min="0" placeholder="50000"></div>
-      <div class="fld"><label>Jumlah</label><input id="nt-jumlah-preview" type="text" readonly placeholder="Auto"></div>
     </div>
+    <div class="fld"><label>Jumlah</label><input id="nt-jumlah-preview" type="text" readonly placeholder="Auto"></div>
     <button class="bico" style="width:100%;margin-bottom:10px;" onclick="tambahItemNota()">➕ Tambah Item ke Nota</button>
 
     <div id="nt-items-list"></div>
@@ -4410,6 +4427,7 @@ async function openNotaModal(){
   document.getElementById('nt-akun-value').value = '';
   document.getElementById('nt-deskripsi').value = '';
   document.getElementById('nt-qty').value = 1;
+  document.getElementById('nt-satuan').value = '';
   document.getElementById('nt-harga').value = '';
   document.getElementById('nt-jumlah-preview').value = '';
   toggleNtCardField();
@@ -4473,6 +4491,7 @@ function tambahItemNota(){
   const kodeAkun = document.getElementById('nt-akun-value').value;
   const deskripsi = document.getElementById('nt-deskripsi').value.trim();
   const qty = parseFloat(document.getElementById('nt-qty').value) || 0;
+  const satuan = document.getElementById('nt-satuan').value.trim();
   const harga = parseFloat(document.getElementById('nt-harga').value) || 0;
 
   if(!kodeAkun){ toast('Pilih Kode Akun dulu (cari dari kotak di atas).','err'); return; }
@@ -4483,13 +4502,14 @@ function tambahItemNota(){
   const akunInfo = KODE_AKUN_DATA.find(a => a.kode === kodeAkun) || {};
   NOTA_ITEMS.push({
     kode_akun: kodeAkun, kategori_akun: akunInfo.kategori || kodeAkun,
-    deskripsi, qty, harga_satuan: harga, jumlah: qty*harga
+    deskripsi, qty, satuan, harga_satuan: harga, jumlah: qty*harga
   });
   renderNotaItemsList();
 
   // Reset mini-form item (kecuali Kode Akun — sering belanja beberapa item dari akun yg sama berturut-turut)
   document.getElementById('nt-deskripsi').value = '';
   document.getElementById('nt-qty').value = 1;
+  document.getElementById('nt-satuan').value = '';
   document.getElementById('nt-harga').value = '';
   document.getElementById('nt-jumlah-preview').value = '';
   toast('Item ditambahkan ✓','ok');
@@ -4512,7 +4532,7 @@ function renderNotaItemsList(){
   box.innerHTML = NOTA_ITEMS.map((it,i) => `
     <div style="border:1px solid var(--bdr);border-radius:8px;padding:8px 10px;margin-bottom:8px;">
       <div class="prow">
-        <span>${it.deskripsi}<br><span style="color:var(--inks);font-size:10px;">${it.kode_akun} — ${it.kategori_akun} · ${it.qty} x Rp${it.harga_satuan.toLocaleString('en-US')}</span></span>
+        <span>${it.deskripsi}<br><span style="color:var(--inks);font-size:10px;">${it.kode_akun} — ${it.kategori_akun} · ${it.qty}${it.satuan?' '+it.satuan:''} x Rp${it.harga_satuan.toLocaleString('en-US')}</span></span>
         <span style="display:flex;align-items:flex-start;gap:8px;">
           Rp${it.jumlah.toLocaleString('en-US')}
           <button onclick="hapusItemNota(${i})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;">🗑️</button>
@@ -4538,7 +4558,7 @@ async function simpanNotaFinal(){
     no_ref: document.getElementById('nt-no-ref').value.trim(),
     status: document.getElementById('nt-status').value,
     items: JSON.stringify(NOTA_ITEMS.map(it => ({
-      deskripsi: it.deskripsi, kode_akun: it.kode_akun, qty: it.qty, harga_satuan: it.harga_satuan
+      deskripsi: it.deskripsi, kode_akun: it.kode_akun, qty: it.qty, satuan: it.satuan, harga_satuan: it.harga_satuan
     })))
   };
 
@@ -4592,7 +4612,7 @@ async function loadJurnalData(){
       const itemsHtml = items.map(t => {
         const bisaHapus = t.sumber === 'Manual' && CURRENT_USER && CURRENT_USER.role === 'admin';
         return `<div class="jw-menurow">
-          <span class="jw-menuk">${t.deskripsi}<br><span style="font-size:10px;color:var(--inks);">${t.kode_akun} · ${t.kategori}</span></span>
+          <span class="jw-menuk">${t.deskripsi}<br><span style="font-size:10px;color:var(--inks);">${t.kode_akun} · ${t.kategori}${t.qty?' · '+t.qty+(t.satuan?' '+t.satuan:''):''}</span></span>
           <span class="jw-menuv" style="color:${jenisWarna[t.jenis_akun]||'var(--ink)'};display:flex;align-items:center;gap:6px;">
             Rp ${t.jumlah.toLocaleString('id-ID')}
             ${bisaHapus?`<button onclick="hapusJurnalBaris(${t.row_index})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;">🗑️</button>`:''}
