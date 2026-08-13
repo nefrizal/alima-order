@@ -1377,14 +1377,19 @@ async function handleGoogleCredential(resp){
     if (!j.success) { showLoginDenied(j.message || 'Akun tidak terdaftar.'); return; }
 
     ID_TOKEN = resp.credential; // simpan token supaya request selanjutnya ikut terautentikasi
-    CURRENT_USER = { email:j.email, nama:j.nama, role:(j.role||'karyawan').toLowerCase() };
+    CURRENT_USER = { email:j.email, nama:j.nama, role:(j.role||'karyawan').toLowerCase(), aksesKeuangan: !!j.aksesKeuangan };
     document.getElementById('login-gate').classList.add('hide');
     document.getElementById('app-content').classList.remove('hide');
     document.getElementById('who-badge').textContent = `${CURRENT_USER.nama} · ${CURRENT_USER.role}`;
 
-    // Tombol Quotation & tab Keuangan cuma utk role admin/finance/sales
+    // Tombol Quotation cuma utk role admin/finance/sales
     if (['admin','finance','sales'].includes(CURRENT_USER.role)) {
       document.getElementById('btn-quotation').classList.remove('hide');
+    }
+    // Tab Keuangan HANYA muncul kalau akses-nya sudah disetujui admin (admin sendiri selalu otomatis
+    // disetujui — lihat cekAksesKeuangan_ di AkuntansiBackend.gs). Ini terpisah dari role, supaya admin
+    // bisa memberi akses granular per orang, bukan cuma berdasarkan role.
+    if (CURRENT_USER.aksesKeuangan) {
       document.getElementById('tab-keuangan').classList.remove('hide');
     }
 
