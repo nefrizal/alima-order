@@ -423,40 +423,47 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 <!-- ═══ KEUANGAN (JURNAL & LABA RUGI) ═══ -->
 <div class="panel" id="panel-keuangan">
   <div class="lbar">
-    <button class="bico" onclick="openNotaModal()" style="flex:1;background:var(--or);">➕ Buat Nota</button>
-    <button class="bico" onclick="loadJurnalData()">↻</button>
+    <button class="bico" id="kn-btn-buat-nota" onclick="openNotaModal()" style="flex:1;background:var(--or);">➕ Buat Nota</button>
+    <button class="bico" id="kn-btn-refresh" onclick="loadJurnalData()">↻</button>
   </div>
 
-  <div class="sec">
-    <div class="stitle">🔍 Filter Periode</div>
-    <div class="g3">
-      <div class="fld"><label>Dari Tanggal</label><input id="kn-filter-mulai" type="date"></div>
-      <div class="fld"><label>Sampai Tanggal</label><input id="kn-filter-sampai" type="date"></div>
-      <div class="fld"><label>Kode Unit</label>
-        <select id="kn-filter-unit">
-          <option value="">— Semua —</option>
-          <option value="KSM">KSM</option>
-          <option value="KKB">KKB</option>
-          <option value="KCI">KCI</option>
-          <option value="BGN0">BGN0</option>
-          <option value="BGN1">BGN1</option>
-          <option value="BGN2">BGN2</option>
-          <option value="BGN3">BGN3</option>
-          <option value="BGN4">BGN4</option>
-          <option value="BGN5">BGN5</option>
-        </select>
+  <div id="kn-input-only-note" class="empty hide" style="padding:24px 16px;">
+    <div class="eico">✍️</div>
+    <p>Akses Anda: <strong>Input saja</strong> — Anda bisa menambahkan nota pembelian, tapi tidak bisa melihat rekap/jurnal keuangan.</p>
+  </div>
+
+  <div id="kn-view-section">
+    <div class="sec">
+      <div class="stitle">🔍 Filter Periode</div>
+      <div class="g3">
+        <div class="fld"><label>Dari Tanggal</label><input id="kn-filter-mulai" type="date"></div>
+        <div class="fld"><label>Sampai Tanggal</label><input id="kn-filter-sampai" type="date"></div>
+        <div class="fld"><label>Kode Unit</label>
+          <select id="kn-filter-unit">
+            <option value="">— Semua —</option>
+            <option value="KSM">KSM</option>
+            <option value="KKB">KKB</option>
+            <option value="KCI">KCI</option>
+            <option value="BGN0">BGN0</option>
+            <option value="BGN1">BGN1</option>
+            <option value="BGN2">BGN2</option>
+            <option value="BGN3">BGN3</option>
+            <option value="BGN4">BGN4</option>
+            <option value="BGN5">BGN5</option>
+          </select>
+        </div>
       </div>
+      <button class="bico" style="width:100%;" onclick="loadJurnalData()">🔍 Terapkan Filter</button>
     </div>
-    <button class="bico" style="width:100%;" onclick="loadJurnalData()">🔍 Terapkan Filter</button>
-  </div>
 
-  <div id="kn-summary" class="pstrip" style="margin-bottom:14px;">
-    <div class="prow"><span>Total Pemasukan</span><span id="kn-total-masuk" style="color:var(--grn);font-weight:700;">Rp 0</span></div>
-    <div class="prow"><span>Total Pengeluaran</span><span id="kn-total-keluar" style="color:var(--red);font-weight:700;">Rp 0</span></div>
-    <div class="prow tot"><span>Laba Bersih</span><span id="kn-laba">Rp 0</span></div>
-  </div>
+    <div id="kn-summary" class="pstrip" style="margin-bottom:14px;">
+      <div class="prow"><span>Total Pemasukan</span><span id="kn-total-masuk" style="color:var(--grn);font-weight:700;">Rp 0</span></div>
+      <div class="prow"><span>Total Pengeluaran</span><span id="kn-total-keluar" style="color:var(--red);font-weight:700;">Rp 0</span></div>
+      <div class="prow tot"><span>Laba Bersih</span><span id="kn-laba">Rp 0</span></div>
+    </div>
 
-  <div id="kn-list"><div class="empty"><div class="eico">📒</div><p>Klik ↻ untuk memuat data jurnal.</p></div></div>
+    <div id="kn-list"><div class="empty"><div class="eico">📒</div><p>Klik ↻ untuk memuat data jurnal.</p></div></div>
+  </div>
 </div>
 
 </main>
@@ -636,7 +643,25 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       <div class="prow tot"><span>Total Nota</span><span id="nt-total-text">Rp 0</span></div>
     </div>
 
-    <button class="bsub" onclick="simpanNotaFinal()">💾 Simpan Nota</button>
+    <button class="bsub" onclick="previewNota()">👁️ Preview &amp; Simpan Nota</button>
+  </div>
+</div>
+
+<!-- MODAL PREVIEW NOTA (pengecekan sebelum benar-benar disimpan) -->
+<div class="modal-bg hide" id="nota-preview-modal">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-head">
+      <h2>👁️ Preview Nota</h2>
+      <button class="modal-close" onclick="closeNotaPreview()">×</button>
+    </div>
+    <div style="background:var(--orl);border:1px solid #f7d4bc;border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:11px;color:var(--ord);">
+      ℹ️ Cek dulu sebelum disimpan — No. Nota baru akan di-generate setelah Bapak tekan "Ya, Simpan".
+    </div>
+    <div id="ntp-body"></div>
+    <div style="display:flex;gap:8px;margin-top:16px;">
+      <button class="bico" style="flex:1;background:var(--inkm);" onclick="closeNotaPreview()">✏️ Edit Lagi</button>
+      <button class="bsub" id="ntp-btn-konfirmasi" style="flex:1;margin-top:0;" onclick="konfirmasiSimpanNota()">✅ Ya, Simpan</button>
+    </div>
   </div>
 </div>
 
@@ -1377,7 +1402,7 @@ async function handleGoogleCredential(resp){
     if (!j.success) { showLoginDenied(j.message || 'Akun tidak terdaftar.'); return; }
 
     ID_TOKEN = resp.credential; // simpan token supaya request selanjutnya ikut terautentikasi
-    CURRENT_USER = { email:j.email, nama:j.nama, role:(j.role||'karyawan').toLowerCase(), aksesKeuangan: !!j.aksesKeuangan };
+    CURRENT_USER = { email:j.email, nama:j.nama, role:(j.role||'karyawan').toLowerCase(), aksesKeuanganLevel: j.aksesKeuanganLevel || '' };
     document.getElementById('login-gate').classList.add('hide');
     document.getElementById('app-content').classList.remove('hide');
     document.getElementById('who-badge').textContent = `${CURRENT_USER.nama} · ${CURRENT_USER.role}`;
@@ -1386,11 +1411,12 @@ async function handleGoogleCredential(resp){
     if (['admin','finance','sales'].includes(CURRENT_USER.role)) {
       document.getElementById('btn-quotation').classList.remove('hide');
     }
-    // Tab Keuangan HANYA muncul kalau akses-nya sudah disetujui admin (admin sendiri selalu otomatis
-    // disetujui — lihat cekAksesKeuangan_ di AkuntansiBackend.gs). Ini terpisah dari role, supaya admin
-    // bisa memberi akses granular per orang, bukan cuma berdasarkan role.
-    if (CURRENT_USER.aksesKeuangan) {
+    // Tab Keuangan HANYA muncul kalau ada level akses yang disetujui admin (admin sendiri selalu
+    // otomatis "Semua" — lihat ambilLevelAksesKeuangan_ di AkuntansiBackend.gs). Tampilan di dalam
+    // tab-nya sendiri juga menyesuaikan level (Lihat/Input/Semua) — lihat applyKeuanganLevelUI().
+    if (CURRENT_USER.aksesKeuanganLevel) {
       document.getElementById('tab-keuangan').classList.remove('hide');
+      applyKeuanganLevelUI();
     }
 
     if (isFullAccessRole(CURRENT_USER.role)) {
@@ -4083,13 +4109,45 @@ function goTab(id,btn){
   if(id==='absensi'){ initAbsensiTab(); if(CURRENT_USER && isFullAccessRole(CURRENT_USER.role)) loadStatusTim(); }
   if(id==='laporan'){ loadLaporanList(); }
   if(id==='keuangan'){
-    if(!document.getElementById('kn-filter-mulai').value){
-      const now = new Date();
-      const awalBulan = new Date(now.getFullYear(), now.getMonth(), 1);
-      document.getElementById('kn-filter-mulai').value = awalBulan.toISOString().split('T')[0];
-      document.getElementById('kn-filter-sampai').value = now.toISOString().split('T')[0];
+    const level = CURRENT_USER ? CURRENT_USER.aksesKeuanganLevel : '';
+    if(level === 'Lihat' || level === 'Semua'){
+      if(!document.getElementById('kn-filter-mulai').value){
+        const now = new Date();
+        const awalBulan = new Date(now.getFullYear(), now.getMonth(), 1);
+        document.getElementById('kn-filter-mulai').value = awalBulan.toISOString().split('T')[0];
+        document.getElementById('kn-filter-sampai').value = now.toISOString().split('T')[0];
+      }
+      loadJurnalData();
     }
-    loadJurnalData();
+  }
+}
+
+// Sesuaikan tampilan tab Keuangan dengan level akses ('Lihat' / 'Input' / 'Semua'):
+// - Lihat  : sembunyikan tombol "Buat Nota", tampilkan filter+rekap+jurnal
+// - Input  : tampilkan HANYA tombol "Buat Nota", sembunyikan filter+rekap+jurnal (tidak boleh lihat)
+// - Semua  : tampilkan semuanya
+function applyKeuanganLevelUI(){
+  const level = CURRENT_USER ? CURRENT_USER.aksesKeuanganLevel : '';
+  const btnBuatNota = document.getElementById('kn-btn-buat-nota');
+  const btnRefresh  = document.getElementById('kn-btn-refresh');
+  const viewSection = document.getElementById('kn-view-section');
+  const inputNote   = document.getElementById('kn-input-only-note');
+
+  if(level === 'Input'){
+    btnBuatNota.classList.remove('hide');
+    btnRefresh.classList.add('hide');
+    viewSection.classList.add('hide');
+    inputNote.classList.remove('hide');
+  } else if(level === 'Lihat'){
+    btnBuatNota.classList.add('hide');
+    btnRefresh.classList.remove('hide');
+    viewSection.classList.remove('hide');
+    inputNote.classList.add('hide');
+  } else { // 'Semua'
+    btnBuatNota.classList.remove('hide');
+    btnRefresh.classList.remove('hide');
+    viewSection.classList.remove('hide');
+    inputNote.classList.add('hide');
   }
 }
 function resetForm(){
@@ -4549,14 +4607,52 @@ function renderNotaItemsList(){
   totStrip.classList.remove('hide');
 }
 
-async function simpanNotaFinal(){
+function previewNota(){
   if(!NOTA_ITEMS.length){ toast('Tambahkan minimal 1 item dulu.','err'); return; }
   const tanggal = document.getElementById('nt-tanggal').value;
   if(!tanggal){ toast('Tanggal wajib diisi.','err'); return; }
 
+  const kodeUnit = document.getElementById('nt-unit').value;
+  const metodeBayar = document.getElementById('nt-metode-bayar').value;
+  const card = document.getElementById('nt-card').value.trim();
+  const noRef = document.getElementById('nt-no-ref').value.trim();
+  const status = document.getElementById('nt-status').value;
+  const total = NOTA_ITEMS.reduce((s,it)=>s+it.jumlah,0);
+
+  const itemsHtml = NOTA_ITEMS.map(it => `
+    <div class="jw-menurow">
+      <span class="jw-menuk">${it.deskripsi}<br><span style="font-size:10px;color:var(--inks);">${it.kode_akun} — ${it.kategori_akun} · ${it.qty}${it.satuan?' '+it.satuan:''} x Rp${it.harga_satuan.toLocaleString('id-ID')}</span></span>
+      <span class="jw-menuv">Rp ${it.jumlah.toLocaleString('id-ID')}</span>
+    </div>`).join('');
+
+  document.getElementById('ntp-body').innerHTML = `
+    <div class="pstrip" style="margin-top:0;">
+      <div class="prow"><span>📅 Tanggal</span><span>${fd(tanggal)}</span></div>
+      <div class="prow"><span>🏷️ Kode Unit</span><span>${kodeUnit}</span></div>
+      <div class="prow"><span>💳 Metode Bayar</span><span>${metodeBayar}${card?' ('+card+')':''}</span></div>
+      ${noRef?`<div class="prow"><span>📎 No. Ref</span><span>${noRef}</span></div>`:''}
+      <div class="prow"><span>📌 Status</span><span>${status}</span></div>
+    </div>
+    <div class="stitle" style="font-size:13px;margin-top:14px;">🧾 Item (${NOTA_ITEMS.length})</div>
+    <div class="jw-menulist">${itemsHtml}</div>
+    <div class="pstrip">
+      <div class="prow tot"><span>Total Nota</span><span>Rp ${total.toLocaleString('id-ID')}</span></div>
+    </div>
+  `;
+  document.getElementById('nota-preview-modal').classList.remove('hide');
+}
+function closeNotaPreview(){
+  document.getElementById('nota-preview-modal').classList.add('hide');
+}
+
+async function konfirmasiSimpanNota(){
+  const btn = document.getElementById('ntp-btn-konfirmasi');
+  if(btn.disabled) return;
+  btn.disabled = true;
+
   const payload = {
     action: 'simpanNota',
-    tanggal,
+    tanggal: document.getElementById('nt-tanggal').value,
     kode_unit: document.getElementById('nt-unit').value,
     metode_bayar: document.getElementById('nt-metode-bayar').value,
     card: document.getElementById('nt-card').value.trim(),
@@ -4573,11 +4669,12 @@ async function simpanNotaFinal(){
     const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
     if(!j.success) throw new Error(j.message);
     toast(`Nota ${j.no_nota} tersimpan ✓ (${j.jumlah_item} item, total Rp${j.total_nota.toLocaleString('id-ID')}) — catat nomor ini di nota kertas.`,'ok');
+    closeNotaPreview();
     closeNotaModal();
     loadJurnalData();
   }catch(e){
     toast('Gagal: '+e.message,'err');
-  }finally{ hideOvl(); }
+  }finally{ hideOvl(); btn.disabled=false; }
 }
 
 async function loadJurnalData(){
