@@ -150,6 +150,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   <button class="tbtn" id="tab-grafik" onclick="goTab('grafik',this)">📊 Grafik</button>
   <button class="tbtn" id="tab-absensi" onclick="goTab('absensi',this)">🕐 Absensi</button>
   <button class="tbtn" id="tab-laporan" onclick="goTab('laporan',this)">📋 Laporan Keluhan</button>
+  <button class="tbtn hide" id="tab-keuangan" onclick="goTab('keuangan',this)">💰 Keuangan</button>
 </div>
 <div class="ovl hide" id="ovl"><div class="sp"></div><span id="ovl-msg">Memproses…</span></div>
 <div class="toast" id="toast"></div>
@@ -419,6 +420,38 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   <div id="laporan-list"><div class="empty"><div class="eico">📋</div><p>Klik ↻ untuk memuat daftar laporan.</p></div></div>
 </div>
 
+<!-- ═══ KEUANGAN (JURNAL & LABA RUGI) ═══ -->
+<div class="panel" id="panel-keuangan">
+  <div class="lbar">
+    <button class="bico" onclick="openNotaModal()" style="flex:1;background:var(--or);">➕ Buat Nota</button>
+    <button class="bico" onclick="loadJurnalData()">↻</button>
+  </div>
+
+  <div class="sec">
+    <div class="stitle">🔍 Filter Periode</div>
+    <div class="g3">
+      <div class="fld"><label>Dari Tanggal</label><input id="kn-filter-mulai" type="date"></div>
+      <div class="fld"><label>Sampai Tanggal</label><input id="kn-filter-sampai" type="date"></div>
+      <div class="fld"><label>Kode Unit</label>
+        <select id="kn-filter-unit">
+          <option value="">— Semua —</option>
+          <option value="KSM">KSM</option>
+          <option value="ABB">ABB (Alima Boga Batam)</option>
+        </select>
+      </div>
+    </div>
+    <button class="bico" style="width:100%;" onclick="loadJurnalData()">🔍 Terapkan Filter</button>
+  </div>
+
+  <div id="kn-summary" class="pstrip" style="margin-bottom:14px;">
+    <div class="prow"><span>Total Pemasukan</span><span id="kn-total-masuk" style="color:var(--grn);font-weight:700;">Rp 0</span></div>
+    <div class="prow"><span>Total Pengeluaran</span><span id="kn-total-keluar" style="color:var(--red);font-weight:700;">Rp 0</span></div>
+    <div class="prow tot"><span>Laba Bersih</span><span id="kn-laba">Rp 0</span></div>
+  </div>
+
+  <div id="kn-list"><div class="empty"><div class="eico">📒</div><p>Klik ↻ untuk memuat data jurnal.</p></div></div>
+</div>
+
 </main>
 
 <!-- MODAL CUSTOMER (gabungan Tambah Baru + Edit/Revisi) -->
@@ -513,6 +546,80 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 
     <div class="stitle" style="font-size:13px;">📋 Daftar Peralatan</div>
     <div id="prl-list"><div class="empty" style="padding:16px;"><p style="font-size:12px;">⏳ Memuat…</p></div></div>
+  </div>
+</div>
+
+<!-- MODAL BUAT NOTA (multi-item, terhubung Kode Akun) -->
+<div class="modal-bg hide" id="nota-modal">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-head">
+      <h2>🧾 Buat Nota</h2>
+      <button class="modal-close" onclick="closeNotaModal()">×</button>
+    </div>
+    <div style="background:var(--orl);border:1px solid #f7d4bc;border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:11px;color:var(--ord);">
+      ℹ️ 1 nota bisa berisi beberapa item belanja (kode akun boleh beda-beda per item).
+      No. Nota di-generate otomatis setelah disimpan — catat nomor itu di nota kertas fisik sbg arsip.
+    </div>
+
+    <div class="stitle" style="font-size:13px;">📋 Info Nota</div>
+    <div class="g2">
+      <div class="fld"><label>Tanggal <span class="req">*</span></label><input id="nt-tanggal" type="date"></div>
+      <div class="fld"><label>Kode Unit</label>
+        <select id="nt-unit">
+          <option value="KSM">KSM</option>
+          <option value="ABB">ABB (Alima Boga Batam)</option>
+        </select>
+      </div>
+    </div>
+    <div class="g2">
+      <div class="fld"><label>Metode Bayar <span class="req">*</span></label>
+        <select id="nt-metode-bayar" onchange="toggleNtCardField()">
+          <option value="Cash">Cash</option>
+          <option value="Transfer">Transfer</option>
+          <option value="QRIS">QRIS</option>
+          <option value="Debit">Kartu Debit</option>
+          <option value="Kredit">Kartu Kredit</option>
+        </select>
+      </div>
+      <div class="fld" id="nt-card-fld">
+        <label>Card (bank/nama kartu)</label>
+        <input id="nt-card" placeholder="Contoh: BCA Debit">
+      </div>
+    </div>
+    <div class="g2">
+      <div class="fld"><label>No. Ref (opsional)</label><input id="nt-no-ref" placeholder="No. kwitansi / referensi transfer"></div>
+      <div class="fld"><label>Status</label>
+        <select id="nt-status">
+          <option value="Lunas">Lunas</option>
+          <option value="Pending">Pending</option>
+          <option value="Batal">Batal</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="stitle" style="font-size:13px;margin-top:6px;">➕ Tambah Item</div>
+    <div class="fld" style="position:relative;">
+      <label>Kode Akun <span class="req">*</span></label>
+      <input id="nt-akun-search" type="text" placeholder="🔍 Cari kode/kategori akun…" autocomplete="off"
+        oninput="filterNtAkun()" onfocus="filterNtAkun()" onblur="setTimeout(hideNtAkunDD,200)">
+      <input id="nt-akun-value" type="hidden">
+      <div id="nt-akun-dd" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--or);border-radius:0 0 8px 8px;max-height:220px;overflow-y:auto;z-index:100;box-shadow:var(--sh);"></div>
+    </div>
+    <div class="fld"><label>Deskripsi <span class="req">*</span></label><input id="nt-deskripsi" placeholder="Contoh: Beras 25kg"></div>
+    <div class="g3">
+      <div class="fld"><label>Qty</label><input id="nt-qty" type="number" min="1" value="1"></div>
+      <div class="fld"><label>Harga Satuan (Rp)</label><input id="nt-harga" type="number" min="0" placeholder="50000"></div>
+      <div class="fld"><label>Jumlah</label><input id="nt-jumlah-preview" type="text" readonly placeholder="Auto"></div>
+    </div>
+    <button class="bico" style="width:100%;margin-bottom:10px;" onclick="tambahItemNota()">➕ Tambah Item ke Nota</button>
+
+    <div id="nt-items-list"></div>
+    <div id="nt-items-empty" class="empty" style="padding:16px;"><p style="font-size:12px;">Belum ada item. Tambahkan minimal 1 item di atas.</p></div>
+    <div id="nt-total-strip" class="pstrip hide" style="margin-bottom:14px;">
+      <div class="prow tot"><span>Total Nota</span><span id="nt-total-text">Rp 0</span></div>
+    </div>
+
+    <button class="bsub" onclick="simpanNotaFinal()">💾 Simpan Nota</button>
   </div>
 </div>
 
@@ -1258,9 +1365,10 @@ async function handleGoogleCredential(resp){
     document.getElementById('app-content').classList.remove('hide');
     document.getElementById('who-badge').textContent = `${CURRENT_USER.nama} · ${CURRENT_USER.role}`;
 
-    // Tombol Quotation cuma utk role admin/finance/sales
+    // Tombol Quotation & tab Keuangan cuma utk role admin/finance/sales
     if (['admin','finance','sales'].includes(CURRENT_USER.role)) {
       document.getElementById('btn-quotation').classList.remove('hide');
+      document.getElementById('tab-keuangan').classList.remove('hide');
     }
 
     if (isFullAccessRole(CURRENT_USER.role)) {
@@ -1855,7 +1963,7 @@ function renderQProdukDropdownKeepSelection(){
     qOnProduk();
     if(prevPaket){
       const paketSel = document.getElementById('q-paket');
-      const opt = Array.from(paketSel.options).find(o=>o.value===prevPaket);
+      const opt = Array.from(paketSel.options).find(o => o.value === prevPaket);
       if(opt){ paketSel.value = prevPaket; qOnPaket(); }
     }
   }
@@ -3952,6 +4060,15 @@ function goTab(id,btn){
   if(id==='grafik'){ loadGrafik(); loadGrafikHarian(); }
   if(id==='absensi'){ initAbsensiTab(); if(CURRENT_USER && isFullAccessRole(CURRENT_USER.role)) loadStatusTim(); }
   if(id==='laporan'){ loadLaporanList(); }
+  if(id==='keuangan'){
+    if(!document.getElementById('kn-filter-mulai').value){
+      const now = new Date();
+      const awalBulan = new Date(now.getFullYear(), now.getMonth(), 1);
+      document.getElementById('kn-filter-mulai').value = awalBulan.toISOString().split('T')[0];
+      document.getElementById('kn-filter-sampai').value = now.toISOString().split('T')[0];
+    }
+    loadJurnalData();
+  }
 }
 function resetForm(){
   ['f-cid','f-gol','f-produk','f-qty','f-hjual','f-fee','f-hksm','f-hmin','f-del','f-ket','f-pen','f-hp','f-adr','f-krd','f-inv-bayar','f-mirip','f-jam','edit-search-no'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
@@ -4262,6 +4379,259 @@ async function bukaLaporanUntukEdit(noLaporan){
     toast('Gagal memuat laporan: '+e.message,'err');
     closeLaporanModal();
   }
+}
+
+// ══ KEUANGAN / JURNAL (skema Nota multi-item + Kode Akun) ══════════════
+let KODE_AKUN_DATA = [];      // [{kode,kelompok,sub_kelompok,kategori,jenis}, ...]
+let NOTA_ITEMS = [];          // item yang sudah ditambahkan ke nota yang sedang dibuat
+
+async function loadKodeAkunData(){
+  if(KODE_AKUN_DATA.length) return; // cache di memori, sekali per sesi cukup (chart of accounts jarang berubah)
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=getKodeAkun&t=' + Date.now());
+    if(j.success && j.data) KODE_AKUN_DATA = j.data;
+  }catch(e){ console.warn('Gagal load Kode Akun:', e.message); }
+}
+
+function toggleNtCardField(){
+  const metode = document.getElementById('nt-metode-bayar').value;
+  const fld = document.getElementById('nt-card-fld');
+  fld.style.display = (metode === 'Debit' || metode === 'Kredit') ? 'block' : 'none';
+}
+
+async function openNotaModal(){
+  document.getElementById('nt-tanggal').value = new Date().toISOString().split('T')[0];
+  document.getElementById('nt-unit').value = 'KSM';
+  document.getElementById('nt-metode-bayar').value = 'Cash';
+  document.getElementById('nt-card').value = '';
+  document.getElementById('nt-no-ref').value = '';
+  document.getElementById('nt-status').value = 'Lunas';
+  document.getElementById('nt-akun-search').value = '';
+  document.getElementById('nt-akun-value').value = '';
+  document.getElementById('nt-deskripsi').value = '';
+  document.getElementById('nt-qty').value = 1;
+  document.getElementById('nt-harga').value = '';
+  document.getElementById('nt-jumlah-preview').value = '';
+  toggleNtCardField();
+  NOTA_ITEMS = [];
+  renderNotaItemsList();
+  document.getElementById('nota-modal').classList.remove('hide');
+  await loadKodeAkunData();
+}
+function closeNotaModal(){
+  document.getElementById('nota-modal').classList.add('hide');
+}
+
+// ── Cari Kode Akun (dropdown custom, searchable — >100 akun jadi wajib bisa dicari) ──
+function filterNtAkun(){
+  const q = document.getElementById('nt-akun-search').value.toLowerCase().trim();
+  const dd = document.getElementById('nt-akun-dd');
+  document.getElementById('nt-akun-value').value = ''; // ketik ulang -> reset pilihan lama
+
+  const filtered = (q.length < 1 ? KODE_AKUN_DATA.slice(0, 25) : KODE_AKUN_DATA.filter(a =>
+    a.kode.toLowerCase().includes(q) ||
+    a.kategori.toLowerCase().includes(q) ||
+    a.sub_kelompok.toLowerCase().includes(q) ||
+    a.kelompok.toLowerCase().includes(q)
+  )).slice(0, 40);
+
+  if(!filtered.length){
+    dd.innerHTML = '<div style="padding:9px 12px;font-size:12px;color:var(--inks);">Tidak ada hasil</div>';
+    dd.style.display = 'block';
+    return;
+  }
+  const jenisBadge = { 'Kas Masuk':'bs', 'Kas Keluar':'bx', 'Double':'bb' };
+  dd.innerHTML = filtered.map(a => `
+    <div onclick="pilihNtAkun('${a.kode}')"
+      style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--bdr);font-size:12px;"
+      onmouseover="this.style.background='var(--orl)'" onmouseout="this.style.background=''">
+      <strong>${a.kode}</strong> — ${a.kategori}
+      <span class="badge ${jenisBadge[a.jenis]||'bb'}" style="margin-left:6px;font-size:9px;">${a.jenis}</span>
+      <br><span style="color:var(--inks);font-size:10px;">${a.kelompok} · ${a.sub_kelompok}</span>
+    </div>`).join('');
+  dd.style.display = 'block';
+}
+function hideNtAkunDD(){ document.getElementById('nt-akun-dd').style.display = 'none'; }
+function pilihNtAkun(kode){
+  const a = KODE_AKUN_DATA.find(x => x.kode === kode);
+  if(!a) return;
+  document.getElementById('nt-akun-value').value = a.kode;
+  document.getElementById('nt-akun-search').value = a.kode + ' — ' + a.kategori;
+  document.getElementById('nt-akun-dd').style.display = 'none';
+}
+
+function recalcNtJumlahPreview(){
+  const qty = parseFloat(document.getElementById('nt-qty').value) || 0;
+  const harga = parseFloat(document.getElementById('nt-harga').value) || 0;
+  document.getElementById('nt-jumlah-preview').value = 'Rp ' + (qty*harga).toLocaleString('id-ID');
+}
+document.addEventListener('input', (e) => {
+  if(e.target && (e.target.id === 'nt-qty' || e.target.id === 'nt-harga')) recalcNtJumlahPreview();
+});
+
+function tambahItemNota(){
+  const kodeAkun = document.getElementById('nt-akun-value').value;
+  const deskripsi = document.getElementById('nt-deskripsi').value.trim();
+  const qty = parseFloat(document.getElementById('nt-qty').value) || 0;
+  const harga = parseFloat(document.getElementById('nt-harga').value) || 0;
+
+  if(!kodeAkun){ toast('Pilih Kode Akun dulu (cari dari kotak di atas).','err'); return; }
+  if(!deskripsi){ toast('Isi Deskripsi item.','err'); return; }
+  if(!qty || qty<=0){ toast('Qty harus lebih dari 0.','err'); return; }
+  if(!harga || harga<=0){ toast('Harga Satuan harus lebih dari 0.','err'); return; }
+
+  const akunInfo = KODE_AKUN_DATA.find(a => a.kode === kodeAkun) || {};
+  NOTA_ITEMS.push({
+    kode_akun: kodeAkun, kategori_akun: akunInfo.kategori || kodeAkun,
+    deskripsi, qty, harga_satuan: harga, jumlah: qty*harga
+  });
+  renderNotaItemsList();
+
+  // Reset mini-form item (kecuali Kode Akun — sering belanja beberapa item dari akun yg sama berturut-turut)
+  document.getElementById('nt-deskripsi').value = '';
+  document.getElementById('nt-qty').value = 1;
+  document.getElementById('nt-harga').value = '';
+  document.getElementById('nt-jumlah-preview').value = '';
+  toast('Item ditambahkan ✓','ok');
+}
+function hapusItemNota(idx){
+  NOTA_ITEMS.splice(idx,1);
+  renderNotaItemsList();
+}
+function renderNotaItemsList(){
+  const box = document.getElementById('nt-items-list');
+  const empty = document.getElementById('nt-items-empty');
+  const totStrip = document.getElementById('nt-total-strip');
+  if(!NOTA_ITEMS.length){
+    box.innerHTML = '';
+    empty.style.display = 'block';
+    totStrip.classList.add('hide');
+    return;
+  }
+  empty.style.display = 'none';
+  box.innerHTML = NOTA_ITEMS.map((it,i) => `
+    <div style="border:1px solid var(--bdr);border-radius:8px;padding:8px 10px;margin-bottom:8px;">
+      <div class="prow">
+        <span>${it.deskripsi}<br><span style="color:var(--inks);font-size:10px;">${it.kode_akun} — ${it.kategori_akun} · ${it.qty} x Rp${it.harga_satuan.toLocaleString('en-US')}</span></span>
+        <span style="display:flex;align-items:flex-start;gap:8px;">
+          Rp${it.jumlah.toLocaleString('en-US')}
+          <button onclick="hapusItemNota(${i})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;">🗑️</button>
+        </span>
+      </div>
+    </div>`).join('');
+  const total = NOTA_ITEMS.reduce((s,it)=>s+it.jumlah,0);
+  document.getElementById('nt-total-text').textContent = 'Rp ' + total.toLocaleString('id-ID');
+  totStrip.classList.remove('hide');
+}
+
+async function simpanNotaFinal(){
+  if(!NOTA_ITEMS.length){ toast('Tambahkan minimal 1 item dulu.','err'); return; }
+  const tanggal = document.getElementById('nt-tanggal').value;
+  if(!tanggal){ toast('Tanggal wajib diisi.','err'); return; }
+
+  const payload = {
+    action: 'simpanNota',
+    tanggal,
+    kode_unit: document.getElementById('nt-unit').value,
+    metode_bayar: document.getElementById('nt-metode-bayar').value,
+    card: document.getElementById('nt-card').value.trim(),
+    no_ref: document.getElementById('nt-no-ref').value.trim(),
+    status: document.getElementById('nt-status').value,
+    items: JSON.stringify(NOTA_ITEMS.map(it => ({
+      deskripsi: it.deskripsi, kode_akun: it.kode_akun, qty: it.qty, harga_satuan: it.harga_satuan
+    })))
+  };
+
+  showOvl('Menyimpan nota…');
+  try{
+    const qs = new URLSearchParams(payload).toString();
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+    toast(`Nota ${j.no_nota} tersimpan ✓ (${j.jumlah_item} item, total Rp${j.total_nota.toLocaleString('id-ID')}) — catat nomor ini di nota kertas.`,'ok');
+    closeNotaModal();
+    loadJurnalData();
+  }catch(e){
+    toast('Gagal: '+e.message,'err');
+  }finally{ hideOvl(); }
+}
+
+async function loadJurnalData(){
+  const wrap = document.getElementById('kn-list');
+  if(!wrap) return;
+  wrap.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat data…</div>';
+  const mulai  = document.getElementById('kn-filter-mulai').value;
+  const sampai = document.getElementById('kn-filter-sampai').value;
+  const unit   = document.getElementById('kn-filter-unit').value;
+  try{
+    const qs = new URLSearchParams({action:'getJurnal', mulai, sampai, kode_unit:unit}).toString();
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+
+    document.getElementById('kn-total-masuk').textContent  = 'Rp ' + (j.total_masuk||0).toLocaleString('id-ID');
+    document.getElementById('kn-total-keluar').textContent = 'Rp ' + (j.total_keluar||0).toLocaleString('id-ID');
+    document.getElementById('kn-laba').textContent         = 'Rp ' + (j.laba||0).toLocaleString('id-ID');
+
+    if(!j.data || !j.data.length){
+      wrap.innerHTML = '<div class="empty"><div class="eico">📒</div><p>Tidak ada transaksi di periode ini.</p></div>';
+      return;
+    }
+
+    // Kelompokkan baris per No. Nota supaya item2 dalam 1 nota tampil menyatu
+    const grup = {};
+    const urutanNota = [];
+    j.data.forEach(t => {
+      if(!grup[t.no_nota]){ grup[t.no_nota] = []; urutanNota.push(t.no_nota); }
+      grup[t.no_nota].push(t);
+    });
+
+    wrap.innerHTML = urutanNota.map(noNota => {
+      const items = grup[noNota];
+      const head = items[0];
+      const totalNota = items.reduce((s,t)=>s+t.jumlah,0);
+      const jenisWarna = { 'Kas Masuk':'var(--grn)', 'Kas Keluar':'var(--red)', 'Double':'var(--inkm)' };
+      const itemsHtml = items.map(t => {
+        const bisaHapus = t.sumber === 'Manual' && CURRENT_USER && CURRENT_USER.role === 'admin';
+        return `<div class="jw-menurow">
+          <span class="jw-menuk">${t.deskripsi}<br><span style="font-size:10px;color:var(--inks);">${t.kode_akun} · ${t.kategori}</span></span>
+          <span class="jw-menuv" style="color:${jenisWarna[t.jenis_akun]||'var(--ink)'};display:flex;align-items:center;gap:6px;">
+            Rp ${t.jumlah.toLocaleString('id-ID')}
+            ${bisaHapus?`<button onclick="hapusJurnalBaris(${t.row_index})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;">🗑️</button>`:''}
+          </span>
+        </div>`;
+      }).join('');
+      return `
+      <div class="ocard">
+        <div class="och">
+          <div>
+            <div class="ono" style="font-size:14px;">${noNota}</div>
+            <div class="odt">${fd(head.tanggal)} · ${head.metode_bayar}${head.card?' ('+head.card+')':''} · ${head.kode_unit}</div>
+          </div>
+          <span class="badge ${head.sumber==='Auto-Invoice'?'bb':(head.status==='Lunas'?'bs':head.status==='Batal'?'bx':'bp')}">${head.status}</span>
+        </div>
+        <div class="jw-menulist">${itemsHtml}</div>
+        <div class="ofoot" style="margin-top:8px;">
+          <span style="font-size:11px;color:var(--inks);">${head.no_ref?'Ref: '+head.no_ref:''}</span>
+          <span class="otot">Rp ${totalNota.toLocaleString('id-ID')}</span>
+        </div>
+      </div>`;
+    }).join('');
+  }catch(e){
+    wrap.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>Gagal memuat: ${e.message}</p></div>`;
+  }
+}
+
+async function hapusJurnalBaris(rowIndex){
+  if(!confirm('Hapus item ini dari nota secara permanen?')) return;
+  showOvl('Menghapus…');
+  try{
+    const qs = new URLSearchParams({action:'hapusJurnalBaris', row_index:rowIndex}).toString();
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+    toast('Item dihapus ✓','ok');
+    loadJurnalData();
+  }catch(e){
+    toast('Gagal: '+e.message,'err');
+  }finally{ hideOvl(); }
 }
 
 // ══ PRINT MENU KE PRINTER BLUETOOTH 58MM (font diperbesar) ══
