@@ -709,9 +709,10 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       <button class="modal-close" onclick="closePermintaanModal()">×</button>
     </div>
     <div class="g2">
-      <div class="fld"><label>Tanggal Dibutuhkan</label><input id="pm-tanggal" type="date"></div>
+      <div class="fld"><label>Tanggal Dibutuhkan</label><input id="pm-tanggal" type="date" onchange="onPmTanggalChange()"></div>
       <div class="fld"><label>Nomor Order (opsional)</label><input id="pm-catatan" placeholder="Contoh: 10528, 10530 — utk korelasi jumlah order"></div>
     </div>
+    <div id="pm-order-suggest" class="hide" style="margin:-6px 0 12px;"></div>
 
     <div style="display:flex;justify-content:space-between;align-items:center;margin:10px 0 6px;">
       <div style="font-family:'Playfair Display',serif;font-size:13px;font-weight:700;color:var(--ord);">✅ Centang Bahan yang Dibutuhkan</div>
@@ -4942,6 +4943,8 @@ let PERMINTAAN_SELECTED = {}; // key "kategori|nama" -> {kategori,nama_bahan,sat
 async function openPermintaanModal(){
   document.getElementById('pm-tanggal').value = new Date().toISOString().split('T')[0];
   document.getElementById('pm-catatan').value = '';
+  document.getElementById('pm-order-suggest').classList.add('hide');
+  document.getElementById('pm-order-suggest').innerHTML = '';
   document.getElementById('pm-search-checklist').value = '';
   PERMINTAAN_SELECTED = {};
   PM_KATEGORI_TERBUKA = new Set(); // semua kategori mulai tertutup tiap buka modal
@@ -4949,6 +4952,45 @@ async function openPermintaanModal(){
   document.getElementById('pm-checklist').innerHTML = '<div class="empty" style="padding:16px;"><div class="sp" style="margin:0 auto 8px;"></div><p style="font-size:12px;">Memuat daftar bahan…</p></div>';
   await loadBahanBakuData(true); // selalu refresh dari server tiap buka modal, hindari data basi
   renderPermintaanChecklist();
+  onPmTanggalChange(); // langsung cek order di tanggal default (hari ini)
+}
+
+// Begitu Tanggal Dibutuhkan diisi/diganti, tampilkan No Order yang jadwal kirimnya sama
+// persis dengan tanggal itu — supaya jumlah bahan yang diminta bisa dikorelasikan dengan
+// jumlah pax order yang sesungguhnya, tinggal tap utk menambahkan ke kolom Nomor Order.
+async function onPmTanggalChange(){
+  const tgl = document.getElementById('pm-tanggal').value;
+  const box = document.getElementById('pm-order-suggest');
+  if(!tgl){ box.classList.add('hide'); box.innerHTML = ''; return; }
+
+  if(!allOrders.length){
+    box.innerHTML = '<div style="font-size:11px;color:var(--inks);">⏳ Memuat data order…</div>';
+    box.classList.remove('hide');
+    await loadOrders();
+  }
+
+  const cocok = allOrders.filter(o =>
+    String(o.tanggal_kirim||o.tgl_kirim||'').slice(0,10) === tgl && o.status !== 'Batal'
+  );
+  if(!cocok.length){
+    box.innerHTML = '<div style="font-size:11px;color:var(--inks);">Tidak ada order dengan jadwal kirim tanggal ini.</div>';
+    box.classList.remove('hide');
+    return;
+  }
+  box.innerHTML = '<div style="font-size:10px;color:var(--inks);margin-bottom:5px;">📦 Order dgn jadwal kirim tanggal ini — tap utk tambah ke Nomor Order:</div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:6px;">' +
+    cocok.map(o => `<span onclick="tambahNoOrderKePm('${o.no_order}')" class="pill" style="cursor:pointer;">${o.no_order} · ${o.qty||0} pax</span>`).join('') +
+    '</div>';
+  box.classList.remove('hide');
+}
+function tambahNoOrderKePm(noOrder){
+  const el = document.getElementById('pm-catatan');
+  const existing = el.value.split(',').map(s=>s.trim()).filter(Boolean);
+  if(!existing.includes(noOrder)){
+    existing.push(noOrder);
+    el.value = existing.join(', ');
+    toast(`No Order ${noOrder} ditambahkan ✓`,'ok');
+  }
 }
 function closePermintaanModal(){
   document.getElementById('permintaan-modal').classList.add('hide');
