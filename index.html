@@ -151,7 +151,6 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   <button class="tbtn" id="tab-absensi" onclick="goTab('absensi',this)">🕐 Absensi</button>
   <button class="tbtn" id="tab-laporan" onclick="goTab('laporan',this)">📋 Laporan Keluhan</button>
   <button class="tbtn hide" id="tab-keuangan" onclick="goTab('keuangan',this)">💰 Keuangan</button>
-  <button class="tbtn hide" id="tab-bahan" onclick="goTab('bahan',this)">🥕 Bahan Baku</button>
 </div>
 <div class="ovl hide" id="ovl"><div class="sp"></div><span id="ovl-msg">Memproses…</span></div>
 <div class="toast" id="toast"></div>
@@ -423,73 +422,80 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 
 <!-- ═══ KEUANGAN (JURNAL & LABA RUGI) ═══ -->
 <div class="panel" id="panel-keuangan">
-  <div class="lbar">
-    <button class="bico" id="kn-btn-buat-nota" onclick="openNotaModal()" style="flex:1;background:var(--or);">➕ Buat Nota</button>
-    <button class="bico" id="kn-btn-refresh" onclick="loadJurnalData()">↻</button>
+  <div class="tabs" id="keuangan-subtabs" style="position:static;border-radius:8px;overflow:hidden;margin-bottom:14px;box-shadow:var(--sh);">
+    <button class="tbtn hide" id="ksub-tab-jurnal" onclick="goKeuanganSub('jurnal',this)">📒 Jurnal</button>
+    <button class="tbtn hide" id="ksub-tab-bahan" onclick="goKeuanganSub('bahan',this)">🥕 Bahan Baku</button>
   </div>
 
-  <div id="kn-input-only-note" class="empty hide" style="padding:24px 16px;">
-    <div class="eico">✍️</div>
-    <p>Akses Anda: <strong>Input saja</strong> — Anda bisa menambahkan nota pembelian, tapi tidak bisa melihat rekap/jurnal keuangan.</p>
+  <div id="ksub-panel-jurnal">
+    <div class="lbar">
+      <button class="bico" id="kn-btn-buat-nota" onclick="openNotaModal()" style="flex:1;background:var(--or);">➕ Buat Nota</button>
+      <button class="bico" id="kn-btn-refresh" onclick="loadJurnalData()">↻</button>
+    </div>
+
+    <div id="kn-input-only-note" class="empty hide" style="padding:24px 16px;">
+      <div class="eico">✍️</div>
+      <p>Akses Anda: <strong>Input saja</strong> — Anda bisa menambahkan nota pembelian, tapi tidak bisa melihat rekap/jurnal keuangan.</p>
+    </div>
+
+    <div id="kn-view-section">
+      <div class="sec">
+        <div class="stitle">🔍 Filter Periode</div>
+        <div class="g3">
+          <div class="fld"><label>Dari Tanggal</label><input id="kn-filter-mulai" type="date"></div>
+          <div class="fld"><label>Sampai Tanggal</label><input id="kn-filter-sampai" type="date"></div>
+          <div class="fld"><label>Kode Unit</label>
+            <select id="kn-filter-unit">
+              <option value="">— Semua —</option>
+              <option value="KSM">KSM</option>
+              <option value="KKB">KKB</option>
+              <option value="KCI">KCI</option>
+              <option value="BGN0">BGN0</option>
+              <option value="BGN1">BGN1</option>
+              <option value="BGN2">BGN2</option>
+              <option value="BGN3">BGN3</option>
+              <option value="BGN4">BGN4</option>
+              <option value="BGN5">BGN5</option>
+            </select>
+          </div>
+        </div>
+        <button class="bico" style="width:100%;" onclick="loadJurnalData()">🔍 Terapkan Filter</button>
+      </div>
+
+      <div id="kn-summary" class="pstrip" style="margin-bottom:14px;">
+        <div class="prow"><span>Total Pemasukan</span><span id="kn-total-masuk" style="color:var(--grn);font-weight:700;">Rp 0</span></div>
+        <div class="prow"><span>Total Pengeluaran</span><span id="kn-total-keluar" style="color:var(--red);font-weight:700;">Rp 0</span></div>
+        <div class="prow tot"><span>Laba Bersih</span><span id="kn-laba">Rp 0</span></div>
+      </div>
+
+      <div id="kn-list"><div class="empty"><div class="eico">📒</div><p>Klik ↻ untuk memuat data jurnal.</p></div></div>
+    </div>
   </div>
 
-  <div id="kn-view-section">
+  <!-- ═══ SUB-TAB: BAHAN BAKU (Permintaan Leader Dapur → Diproses Pembelian) ═══ -->
+  <div class="hide" id="ksub-panel-bahan">
+    <div class="lbar">
+      <button class="bico hide" id="bb-btn-buat-permintaan" onclick="openPermintaanModal()" style="flex:1;background:var(--or);">➕ Buat Permintaan Bahan</button>
+      <button class="bico" onclick="loadPermintaanList()">↻</button>
+    </div>
+
     <div class="sec">
-      <div class="stitle">🔍 Filter Periode</div>
-      <div class="g3">
-        <div class="fld"><label>Dari Tanggal</label><input id="kn-filter-mulai" type="date"></div>
-        <div class="fld"><label>Sampai Tanggal</label><input id="kn-filter-sampai" type="date"></div>
-        <div class="fld"><label>Kode Unit</label>
-          <select id="kn-filter-unit">
+      <div class="stitle">🔍 Filter</div>
+      <div class="g2">
+        <div class="fld"><label>Status</label>
+          <select id="bb-filter-status" onchange="loadPermintaanList()">
             <option value="">— Semua —</option>
-            <option value="KSM">KSM</option>
-            <option value="KKB">KKB</option>
-            <option value="KCI">KCI</option>
-            <option value="BGN0">BGN0</option>
-            <option value="BGN1">BGN1</option>
-            <option value="BGN2">BGN2</option>
-            <option value="BGN3">BGN3</option>
-            <option value="BGN4">BGN4</option>
-            <option value="BGN5">BGN5</option>
+            <option value="Diminta">Diminta (belum diproses)</option>
+            <option value="Diproses">Diproses (sudah ada harga)</option>
+            <option value="Selesai">Selesai</option>
           </select>
         </div>
+        <div class="fld"><label>Tanggal (opsional)</label><input id="bb-filter-tanggal" type="date" onchange="loadPermintaanList()"></div>
       </div>
-      <button class="bico" style="width:100%;" onclick="loadJurnalData()">🔍 Terapkan Filter</button>
     </div>
 
-    <div id="kn-summary" class="pstrip" style="margin-bottom:14px;">
-      <div class="prow"><span>Total Pemasukan</span><span id="kn-total-masuk" style="color:var(--grn);font-weight:700;">Rp 0</span></div>
-      <div class="prow"><span>Total Pengeluaran</span><span id="kn-total-keluar" style="color:var(--red);font-weight:700;">Rp 0</span></div>
-      <div class="prow tot"><span>Laba Bersih</span><span id="kn-laba">Rp 0</span></div>
-    </div>
-
-    <div id="kn-list"><div class="empty"><div class="eico">📒</div><p>Klik ↻ untuk memuat data jurnal.</p></div></div>
+    <div id="bb-list"><div class="empty"><div class="eico">🥕</div><p>Klik ↻ untuk memuat daftar permintaan.</p></div></div>
   </div>
-</div>
-
-<!-- ═══ BAHAN BAKU (Permintaan Dapur → Diproses Pembelian) ═══ -->
-<div class="panel" id="panel-bahan">
-  <div class="lbar">
-    <button class="bico hide" id="bb-btn-buat-permintaan" onclick="openPermintaanModal()" style="flex:1;background:var(--or);">➕ Buat Permintaan Bahan</button>
-    <button class="bico" onclick="loadPermintaanList()">↻</button>
-  </div>
-
-  <div class="sec">
-    <div class="stitle">🔍 Filter</div>
-    <div class="g2">
-      <div class="fld"><label>Status</label>
-        <select id="bb-filter-status" onchange="loadPermintaanList()">
-          <option value="">— Semua —</option>
-          <option value="Diminta">Diminta (belum diproses)</option>
-          <option value="Diproses">Diproses (sudah ada harga)</option>
-          <option value="Selesai">Selesai</option>
-        </select>
-      </div>
-      <div class="fld"><label>Tanggal (opsional)</label><input id="bb-filter-tanggal" type="date" onchange="loadPermintaanList()"></div>
-    </div>
-  </div>
-
-  <div id="bb-list"><div class="empty"><div class="eico">🥕</div><p>Klik ↻ untuk memuat daftar permintaan.</p></div></div>
 </div>
 
 </main>
@@ -691,7 +697,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   </div>
 </div>
 
-<!-- MODAL BUAT PERMINTAAN BAHAN BAKU (Dapur) -->
+<!-- MODAL BUAT PERMINTAAN BAHAN BAKU (Leader Dapur) — centang dari daftar master -->
 <div class="modal-bg hide" id="permintaan-modal">
   <div class="modal" style="max-width:560px;">
     <div class="modal-head">
@@ -703,9 +709,31 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       <div class="fld"><label>Catatan (opsional)</label><input id="pm-catatan" placeholder="Contoh: utk acara 500 pax"></div>
     </div>
 
-    <div class="stitle" style="font-size:13px;">➕ Tambah Bahan</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:10px 0 6px;">
+      <div style="font-family:'Playfair Display',serif;font-size:13px;font-weight:700;color:var(--ord);">✅ Centang Bahan yang Dibutuhkan</div>
+      <button type="button" onclick="openKelolaBahanBakuModal()" title="Kelola Bahan Baku"
+        style="background:var(--sur);border:1.5px solid var(--bdr);border-radius:6px;padding:5px 9px;font-size:12px;cursor:pointer;color:var(--inkm);flex-shrink:0;">⚙️ Kelola</button>
+    </div>
+    <div class="fld">
+      <input id="pm-search-checklist" type="text" placeholder="🔍 Cari nama bahan…" oninput="renderPermintaanChecklist()">
+    </div>
+    <div id="pm-checklist"><div class="empty" style="padding:16px;"><p style="font-size:12px;">⏳ Memuat daftar bahan…</p></div></div>
+
+    <button class="bsub" onclick="previewPermintaan()" style="margin-top:14px;">👁️ Preview &amp; Kirim Permintaan</button>
+  </div>
+</div>
+
+<!-- MODAL KELOLA BAHAN BAKU (tambah item baru ke master: nama, satuan, kode akun) -->
+<div class="modal-bg hide" id="kelola-bahan-modal">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-head">
+      <h2>⚙️ Kelola Bahan Baku</h2>
+      <button class="modal-close" onclick="closeKelolaBahanBakuModal()">×</button>
+    </div>
+
+    <div class="stitle" style="font-size:13px;">➕ Tambah Bahan Baru</div>
     <div class="fld"><label>Kategori <span class="req">*</span></label>
-      <select id="pm-kategori" onchange="onPmKategoriChange()">
+      <select id="kb-kategori">
         <option value="">— Pilih Kategori —</option>
         <option value="Karbo">Karbo</option>
         <option value="Lauk Utama">Lauk Utama</option>
@@ -715,33 +743,19 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
         <option value="Bumbu">Bumbu</option>
       </select>
     </div>
+    <div class="fld"><label>Nama Bahan <span class="req">*</span></label><input id="kb-nama" placeholder="Contoh: Bayam"></div>
+    <div class="fld"><label>Satuan <span class="req">*</span></label><input id="kb-satuan" placeholder="kg/ikat/pcs"></div>
     <div class="fld" style="position:relative;">
-      <label>Nama Bahan <span class="req">*</span></label>
-      <input id="pm-bahan-search" type="text" placeholder="🔍 Cari bahan, atau ketik nama baru…" autocomplete="off"
-        oninput="filterPmBahan()" onfocus="filterPmBahan()" onblur="setTimeout(hidePmBahanDD,200)">
-      <input id="pm-bahan-value" type="hidden">
-      <div id="pm-bahan-dd" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--or);border-radius:0 0 8px 8px;max-height:200px;overflow-y:auto;z-index:100;box-shadow:var(--sh);"></div>
+      <label>Kode Akun <span class="req">*</span></label>
+      <input id="kb-akun-search" type="text" placeholder="🔍 Cari kode/kategori akun…" autocomplete="off"
+        oninput="filterKbAkun()" onfocus="filterKbAkun()" onblur="setTimeout(hideKbAkunDD,200)">
+      <input id="kb-akun-value" type="hidden">
+      <div id="kb-akun-dd" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--or);border-radius:0 0 8px 8px;max-height:200px;overflow-y:auto;z-index:100;box-shadow:var(--sh);"></div>
     </div>
-    <div id="pm-bahan-baru-box" class="hide" style="background:var(--orl);border:1px solid #f7d4bc;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:11px;color:var(--ord);">
-      ℹ️ Bahan "<strong id="pm-bahan-baru-nama"></strong>" belum ada di daftar — lengkapi Kode Akun di bawah supaya otomatis ditambahkan ke master bahan baku (kategori <strong id="pm-bahan-baru-kategori"></strong>).
-      <div class="fld" style="position:relative;margin:8px 0 0;">
-        <label style="font-size:10px;">Kode Akun <span class="req">*</span></label>
-        <input id="pm-akun-search" type="text" placeholder="🔍 Cari kode/kategori akun…" autocomplete="off"
-          oninput="filterPmAkun()" onfocus="filterPmAkun()" onblur="setTimeout(hidePmAkunDD,200)" style="font-size:12px;padding:7px 9px;">
-        <input id="pm-akun-value" type="hidden">
-        <div id="pm-akun-dd" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--or);border-radius:0 0 8px 8px;max-height:180px;overflow-y:auto;z-index:100;box-shadow:var(--sh);"></div>
-      </div>
-    </div>
-    <div class="g2">
-      <div class="fld"><label>Qty <span class="req">*</span></label><input id="pm-qty" type="number" min="0" step="0.1" placeholder="5"></div>
-      <div class="fld"><label>Satuan <span class="req">*</span></label><input id="pm-satuan" placeholder="kg/ikat/pcs"></div>
-    </div>
-    <button class="bico" style="width:100%;margin-bottom:10px;" onclick="tambahItemPermintaan()">➕ Tambah ke Daftar</button>
+    <button class="bico" style="width:100%;margin-bottom:16px;" onclick="simpanBahanBakuBaru()">💾 Tambah ke Master</button>
 
-    <div id="pm-items-list"></div>
-    <div id="pm-items-empty" class="empty" style="padding:16px;"><p style="font-size:12px;">Belum ada bahan. Tambahkan minimal 1 di atas.</p></div>
-
-    <button class="bsub" onclick="previewPermintaan()">👁️ Preview &amp; Kirim Permintaan</button>
+    <div class="stitle" style="font-size:13px;">📋 Daftar Bahan Baku</div>
+    <div id="kb-list"><div class="empty" style="padding:16px;"><p style="font-size:12px;">⏳ Memuat…</p></div></div>
   </div>
 </div>
 
@@ -1525,18 +1539,22 @@ async function handleGoogleCredential(resp){
     if (['admin','finance','sales'].includes(CURRENT_USER.role)) {
       document.getElementById('btn-quotation').classList.remove('hide');
     }
-    // Tab Keuangan HANYA muncul kalau ada level akses yang disetujui admin (admin sendiri selalu
-    // otomatis "Semua" — lihat ambilLevelAksesKeuangan_ di AkuntansiBackend.gs). Tampilan di dalam
-    // tab-nya sendiri juga menyesuaikan level (Lihat/Input/Semua) — lihat applyKeuanganLevelUI().
-    if (CURRENT_USER.aksesKeuanganLevel) {
+    // Tab Keuangan sekarang mencakup 2 sub-bagian: Jurnal (akuntansi) & Bahan Baku
+    // (permintaan dapur → pembelian). Tab utama muncul kalau punya SALAH SATU dari
+    // kedua akses ini; masing-masing sub-tab baru muncul sendiri sesuai haknya.
+    const bisaJurnal = !!CURRENT_USER.aksesKeuanganLevel; // lihat ambilLevelAksesKeuangan_ di AkuntansiBackend.gs
+    const bisaBahanBaku = ['leader dapur','pembelian','admin'].includes(CURRENT_USER.role);
+    if (bisaJurnal || bisaBahanBaku) {
       document.getElementById('tab-keuangan').classList.remove('hide');
+    }
+    if (bisaJurnal) {
+      document.getElementById('ksub-tab-jurnal').classList.remove('hide');
       applyKeuanganLevelUI();
     }
-    // Tab Bahan Baku muncul utk role dapur/pembelian/admin. Tombol "Buat Permintaan"
-    // hanya utk dapur/admin — pembelian cuma memproses, bukan bikin permintaan baru.
-    if (['dapur','pembelian','admin'].includes(CURRENT_USER.role)) {
-      document.getElementById('tab-bahan').classList.remove('hide');
-      if (['dapur','admin'].includes(CURRENT_USER.role)) {
+    if (bisaBahanBaku) {
+      document.getElementById('ksub-tab-bahan').classList.remove('hide');
+      // Tombol "Buat Permintaan" hanya utk leader dapur/admin — pembelian cuma memproses.
+      if (['leader dapur','admin'].includes(CURRENT_USER.role)) {
         document.getElementById('bb-btn-buat-permintaan').classList.remove('hide');
       }
     }
@@ -4232,6 +4250,28 @@ function goTab(id,btn){
   if(id==='laporan'){ loadLaporanList(); }
   if(id==='keuangan'){
     const level = CURRENT_USER ? CURRENT_USER.aksesKeuanganLevel : '';
+    const bisaBahan = CURRENT_USER && ['leader dapur','pembelian','admin'].includes(CURRENT_USER.role);
+    if(!KEUANGAN_CURRENT_SUB){
+      KEUANGAN_CURRENT_SUB = level ? 'jurnal' : (bisaBahan ? 'bahan' : 'jurnal');
+    }
+    goKeuanganSub(KEUANGAN_CURRENT_SUB, document.getElementById('ksub-tab-'+KEUANGAN_CURRENT_SUB));
+  }
+}
+
+// Sub-navigasi di dalam tab Keuangan: "Jurnal" (akuntansi) vs "Bahan Baku" (permintaan dapur).
+// Masing-masing tetap tunduk pada aturan aksesnya sendiri — lihat applyKeuanganLevelUI() utk Jurnal
+// dan role leader-dapur/pembelian/admin utk Bahan Baku.
+let KEUANGAN_CURRENT_SUB = null;
+function goKeuanganSub(id, btn){
+  KEUANGAN_CURRENT_SUB = id;
+  document.querySelectorAll('#keuangan-subtabs .tbtn').forEach(b=>b.classList.remove('on'));
+  document.getElementById('ksub-panel-jurnal').classList.add('hide');
+  document.getElementById('ksub-panel-bahan').classList.add('hide');
+  document.getElementById('ksub-panel-'+id).classList.remove('hide');
+  if(btn) btn.classList.add('on');
+
+  if(id==='jurnal'){
+    const level = CURRENT_USER ? CURRENT_USER.aksesKeuanganLevel : '';
     if(level === 'Lihat' || level === 'Semua'){
       if(!document.getElementById('kn-filter-mulai').value){
         const now = new Date();
@@ -4879,9 +4919,8 @@ async function hapusJurnalBaris(rowIndex){
   }finally{ hideOvl(); }
 }
 
-// ══ BAHAN BAKU — Permintaan Dapur → Diproses Pembelian ══════════════════
-let BAHAN_BAKU_DATA = [];   // [{nama,kategori,satuan_default}, ...] — master, di-cache per sesi
-let PERMINTAAN_ITEMS = [];  // item yang sedang disusun dapur utk permintaan baru
+// ══ BAHAN BAKU — Permintaan Leader Dapur → Diproses Pembelian ══════════════════
+let BAHAN_BAKU_DATA = [];   // [{nama,kategori,satuan_default,kode_akun}, ...] — master, di-cache per sesi
 let PERMINTAAN_CACHE = [];  // hasil getPermintaan terakhir (flat), dipakai utk buka detail proses
 const KATEGORI_BAHAN_LIST_ = ['Karbo','Lauk Utama','Lauk Tambahan','Sayur','Sambal','Bumbu'];
 
@@ -4893,207 +4932,90 @@ async function loadBahanBakuData(force){
   }catch(e){ console.warn('Gagal load Bahan Baku:', e.message); }
 }
 
-// ── Buat Permintaan (Dapur) ──────────────────────────────────────────
+// ── Buat Permintaan (Leader Dapur) — centang dari daftar master, isi Qty per item ──
+let PERMINTAAN_SELECTED = {}; // key "kategori|nama" -> {kategori,nama_bahan,satuan,kode_akun,qty}
+
 async function openPermintaanModal(){
   document.getElementById('pm-tanggal').value = new Date().toISOString().split('T')[0];
   document.getElementById('pm-catatan').value = '';
-  document.getElementById('pm-kategori').value = '';
-  document.getElementById('pm-bahan-search').value = '';
-  document.getElementById('pm-bahan-value').value = '';
-  document.getElementById('pm-bahan-baru-box').classList.add('hide');
-  document.getElementById('pm-akun-search').value = '';
-  document.getElementById('pm-akun-value').value = '';
-  document.getElementById('pm-qty').value = '';
-  document.getElementById('pm-satuan').value = '';
-  PERMINTAAN_ITEMS = [];
-  renderPermintaanItemsList();
+  document.getElementById('pm-search-checklist').value = '';
+  PERMINTAAN_SELECTED = {};
   document.getElementById('permintaan-modal').classList.remove('hide');
-  await loadBahanBakuData();
-  await loadKodeAkunData(); // dipakai kalau perlu tambah bahan baru (sudah ada dr fitur Keuangan)
+  document.getElementById('pm-checklist').innerHTML = '<div class="empty" style="padding:16px;"><div class="sp" style="margin:0 auto 8px;"></div><p style="font-size:12px;">Memuat daftar bahan…</p></div>';
+  await loadBahanBakuData(true); // selalu refresh dari server tiap buka modal, hindari data basi
+  renderPermintaanChecklist();
 }
 function closePermintaanModal(){
   document.getElementById('permintaan-modal').classList.add('hide');
 }
-function onPmKategoriChange(){
-  document.getElementById('pm-bahan-search').value = '';
-  document.getElementById('pm-bahan-value').value = '';
-  document.getElementById('pm-bahan-baru-box').classList.add('hide');
-  document.getElementById('pm-akun-search').value = '';
-  document.getElementById('pm-akun-value').value = '';
-  document.getElementById('pm-satuan').value = '';
-}
 
-// ── Kode Akun utk bahan baru (dropdown searchable, pakai KODE_AKUN_DATA yg sama dgn fitur Nota) ──
-function filterPmAkun(){
-  const q = document.getElementById('pm-akun-search').value.toLowerCase().trim();
-  const dd = document.getElementById('pm-akun-dd');
-  document.getElementById('pm-akun-value').value = '';
-
-  const filtered = (q.length < 1 ? KODE_AKUN_DATA.slice(0, 25) : KODE_AKUN_DATA.filter(a =>
-    a.kode.toLowerCase().includes(q) ||
-    a.kategori.toLowerCase().includes(q) ||
-    a.sub_kelompok.toLowerCase().includes(q) ||
-    a.kelompok.toLowerCase().includes(q)
-  )).slice(0, 40);
-
-  if(!filtered.length){
-    dd.innerHTML = '<div style="padding:9px 12px;font-size:12px;color:var(--inks);">Tidak ada hasil</div>';
-    dd.style.display = 'block';
-    return;
-  }
-  dd.innerHTML = filtered.map(a => `
-    <div onclick="pilihPmAkun('${a.kode}')"
-      style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--bdr);font-size:12px;"
-      onmouseover="this.style.background='var(--orl)'" onmouseout="this.style.background=''">
-      <strong>${a.kode}</strong> — ${a.kategori}
-      <br><span style="color:var(--inks);font-size:10px;">${a.kelompok} · ${a.sub_kelompok}</span>
-    </div>`).join('');
-  dd.style.display = 'block';
-}
-function hidePmAkunDD(){ document.getElementById('pm-akun-dd').style.display = 'none'; }
-function pilihPmAkun(kode){
-  const a = KODE_AKUN_DATA.find(x => x.kode === kode);
-  if(!a) return;
-  document.getElementById('pm-akun-value').value = a.kode;
-  document.getElementById('pm-akun-search').value = a.kode + ' — ' + a.kategori;
-  document.getElementById('pm-akun-dd').style.display = 'none';
-}
-
-function filterPmBahan(){
-  const kategori = document.getElementById('pm-kategori').value;
-  const dd = document.getElementById('pm-bahan-dd');
-  if(!kategori){
-    dd.innerHTML = '<div style="padding:9px 12px;font-size:12px;color:var(--inks);">Pilih Kategori dulu di atas</div>';
-    dd.style.display = 'block';
-    return;
-  }
-  const q = document.getElementById('pm-bahan-search').value.toLowerCase().trim();
-  document.getElementById('pm-bahan-value').value = '';
-  document.getElementById('pm-bahan-baru-box').classList.add('hide');
-
-  const kandidat = BAHAN_BAKU_DATA.filter(b => b.kategori === kategori);
-  const filtered = q ? kandidat.filter(b => b.nama.toLowerCase().includes(q)) : kandidat.slice(0,25);
-
-  let html = filtered.map(b => `
-    <div onclick="pilihPmBahan('${b.nama.replace(/'/g,"\\'")}')"
-      style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--bdr);font-size:13px;"
-      onmouseover="this.style.background='var(--orl)'" onmouseout="this.style.background=''">
-      ${b.nama} <span style="color:var(--inks);font-size:10px;">(${b.satuan_default||'—'})</span>
-    </div>`).join('');
-
-  // Kalau tidak ada yang cocok persis & user sudah ketik sesuatu -> tawarkan sbg bahan baru
-  const cocokPersis = kandidat.some(b => b.nama.toLowerCase() === q);
-  if(q && !cocokPersis){
-    html += `<div onclick="pilihPmBahanBaru('${q.replace(/'/g,"\\'")}')"
-      style="padding:9px 12px;cursor:pointer;font-size:13px;color:var(--ord);font-weight:600;background:var(--orl);">
-      ➕ Tambah bahan baru: "${q}"
-    </div>`;
-  }
-  if(!html){
-    html = '<div style="padding:9px 12px;font-size:12px;color:var(--inks);">Ketik nama bahan…</div>';
-  }
-  dd.innerHTML = html;
-  dd.style.display = 'block';
-}
-function hidePmBahanDD(){ document.getElementById('pm-bahan-dd').style.display = 'none'; }
-function pilihPmBahan(nama){
-  const kategori = document.getElementById('pm-kategori').value;
-  const b = BAHAN_BAKU_DATA.find(x => x.nama === nama && x.kategori === kategori);
-  document.getElementById('pm-bahan-search').value = nama;
-  document.getElementById('pm-bahan-value').value = nama;
-  document.getElementById('pm-satuan').value = (b && b.satuan_default) || '';
-  document.getElementById('pm-bahan-baru-box').classList.add('hide');
-  document.getElementById('pm-akun-search').value = '';
-  document.getElementById('pm-akun-value').value = '';
-  document.getElementById('pm-bahan-dd').style.display = 'none';
-}
-function pilihPmBahanBaru(nama){
-  const kategori = document.getElementById('pm-kategori').value;
-  document.getElementById('pm-bahan-search').value = nama;
-  document.getElementById('pm-bahan-value').value = nama;
-  document.getElementById('pm-bahan-baru-nama').textContent = nama;
-  document.getElementById('pm-bahan-baru-kategori').textContent = kategori;
-  document.getElementById('pm-akun-search').value = '';
-  document.getElementById('pm-akun-value').value = '';
-  document.getElementById('pm-bahan-baru-box').classList.remove('hide');
-  document.getElementById('pm-bahan-dd').style.display = 'none';
-}
-
-function tambahItemPermintaan(){
-  const kategori = document.getElementById('pm-kategori').value;
-  const namaBahan = document.getElementById('pm-bahan-value').value.trim() || document.getElementById('pm-bahan-search').value.trim();
-  const qty = parseFloat(document.getElementById('pm-qty').value) || 0;
-  const satuan = document.getElementById('pm-satuan').value.trim();
-
-  if(!kategori){ toast('Pilih Kategori dulu.','err'); return; }
-  if(!namaBahan){ toast('Isi/pilih Nama Bahan dulu.','err'); return; }
-  if(!qty || qty<=0){ toast('Qty harus lebih dari 0.','err'); return; }
-  if(!satuan){ toast('Isi Satuan.','err'); return; }
-
-  const sudahAdaDiMaster = BAHAN_BAKU_DATA.some(b => b.nama.toLowerCase()===namaBahan.toLowerCase() && b.kategori===kategori);
-  let kodeAkun = '';
-  if(!sudahAdaDiMaster){
-    kodeAkun = document.getElementById('pm-akun-value').value;
-    if(!kodeAkun){ toast('Pilih Kode Akun dulu untuk bahan baru ini.','err'); return; }
-  }
-
-  PERMINTAAN_ITEMS.push({ kategori, nama_bahan: namaBahan, qty, satuan, bahan_baru: !sudahAdaDiMaster, kode_akun: kodeAkun });
-  if(!sudahAdaDiMaster){
-    BAHAN_BAKU_DATA.push({ nama: namaBahan, kategori, satuan_default: satuan, kode_akun: kodeAkun }); // langsung masuk cache lokal juga
-  }
-  renderPermintaanItemsList();
-
-  document.getElementById('pm-bahan-search').value = '';
-  document.getElementById('pm-bahan-value').value = '';
-  document.getElementById('pm-bahan-baru-box').classList.add('hide');
-  document.getElementById('pm-akun-search').value = '';
-  document.getElementById('pm-akun-value').value = '';
-  document.getElementById('pm-qty').value = '';
-  document.getElementById('pm-satuan').value = '';
-  toast('Bahan ditambahkan ✓','ok');
-}
-function hapusItemPermintaan(idx){
-  PERMINTAAN_ITEMS.splice(idx,1);
-  renderPermintaanItemsList();
-}
-function renderPermintaanItemsList(){
-  const box = document.getElementById('pm-items-list');
-  const empty = document.getElementById('pm-items-empty');
-  if(!PERMINTAAN_ITEMS.length){
-    box.innerHTML = '';
-    empty.style.display = 'block';
-    return;
-  }
-  empty.style.display = 'none';
-  // Kelompokkan tampilan per kategori sesuai urutan tetap
+function renderPermintaanChecklist(){
+  const q = (document.getElementById('pm-search-checklist').value||'').toLowerCase().trim();
+  const wrap = document.getElementById('pm-checklist');
   let html = '';
   KATEGORI_BAHAN_LIST_.forEach(kat => {
-    const items = PERMINTAAN_ITEMS.map((it,i)=>({...it, idx:i})).filter(it => it.kategori===kat);
+    let items = BAHAN_BAKU_DATA.filter(b => b.kategori === kat);
+    if(q) items = items.filter(b => b.nama.toLowerCase().includes(q));
     if(!items.length) return;
-    html += `<div style="font-size:11px;font-weight:700;color:var(--ord);margin:8px 0 4px;">${kat}</div>`;
-    items.forEach(it => {
-      html += `<div style="border:1px solid var(--bdr);border-radius:8px;padding:7px 10px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">
-        <span style="font-size:12px;">${it.nama_bahan}${it.bahan_baru?' <span class="badge bp" style="font-size:9px;">Baru · '+it.kode_akun+'</span>':''}<br><span style="color:var(--inks);font-size:10px;">${it.qty} ${it.satuan}</span></span>
-        <button onclick="hapusItemPermintaan(${it.idx})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;">🗑️</button>
+    html += `<div style="font-size:11px;font-weight:700;color:var(--ord);margin:10px 0 4px;">${kat}</div>`;
+    html += `<div style="border:1px solid var(--bdr);border-radius:8px;overflow:hidden;">`;
+    items.forEach((b,i) => {
+      const key = kat + '|' + b.nama;
+      const sel = PERMINTAAN_SELECTED[key];
+      const dicentang = !!sel;
+      html += `<div style="display:flex;align-items:center;gap:8px;padding:9px 10px;border-bottom:${i<items.length-1?'1px solid var(--bdr)':'none'};">
+        <input type="checkbox" onchange="togglePermintaanItem('${kat}','${b.nama.replace(/'/g,"\\'")}', this.checked)" ${dicentang?'checked':''}
+          style="-webkit-appearance:checkbox!important;appearance:checkbox!important;width:17px!important;height:17px!important;
+                 min-width:17px!important;padding:0!important;margin:0!important;border:1px solid #999!important;
+                 border-radius:3px!important;background:#fff!important;flex-shrink:0;">
+        <span style="flex:1;font-size:13px;">${b.nama} <span style="color:var(--inks);font-size:10px;">(${b.satuan_default||'—'})</span></span>
+        <input type="number" min="0" step="0.1" placeholder="Qty" value="${sel?sel.qty:''}"
+          oninput="ubahQtyPermintaanItem('${kat}','${b.nama.replace(/'/g,"\\'")}', this.value)"
+          style="width:72px;padding:5px 6px;font-size:12px;text-align:center;${dicentang?'':'visibility:hidden;'}">
       </div>`;
     });
+    html += `</div>`;
   });
-  box.innerHTML = html;
+  if(!html){
+    html = '<div class="empty" style="padding:16px;"><p style="font-size:12px;">Tidak ada bahan yang cocok. Cari kata kunci lain, atau tambah bahan baru lewat ⚙️ Kelola.</p></div>';
+  }
+  wrap.innerHTML = html;
+}
+function togglePermintaanItem(kat, nama, dicentang){
+  const key = kat + '|' + nama;
+  if(dicentang){
+    const b = BAHAN_BAKU_DATA.find(x => x.kategori===kat && x.nama===nama);
+    PERMINTAAN_SELECTED[key] = {
+      kategori: kat, nama_bahan: nama,
+      satuan: (b && b.satuan_default) || '', kode_akun: (b && b.kode_akun) || '',
+      qty: PERMINTAAN_SELECTED[key] ? PERMINTAAN_SELECTED[key].qty : ''
+    };
+  } else {
+    delete PERMINTAAN_SELECTED[key];
+  }
+  renderPermintaanChecklist();
+}
+function ubahQtyPermintaanItem(kat, nama, qty){
+  const key = kat + '|' + nama;
+  if(PERMINTAAN_SELECTED[key]) PERMINTAAN_SELECTED[key].qty = qty;
 }
 
 function previewPermintaan(){
-  if(!PERMINTAAN_ITEMS.length){ toast('Tambahkan minimal 1 bahan dulu.','err'); return; }
+  const items = Object.values(PERMINTAAN_SELECTED);
+  if(!items.length){ toast('Centang minimal 1 bahan dulu.','err'); return; }
   const tanggal = document.getElementById('pm-tanggal').value;
   if(!tanggal){ toast('Tanggal wajib diisi.','err'); return; }
+  const itemTanpaQty = items.find(it => !it.qty || Number(it.qty) <= 0);
+  if(itemTanpaQty){ toast(`Isi Qty untuk "${itemTanpaQty.nama_bahan}".`,'err'); return; }
   const catatan = document.getElementById('pm-catatan').value.trim();
 
   let itemsHtml = '';
   KATEGORI_BAHAN_LIST_.forEach(kat => {
-    const items = PERMINTAAN_ITEMS.filter(it => it.kategori===kat);
-    if(!items.length) return;
+    const rows = items.filter(it => it.kategori===kat);
+    if(!rows.length) return;
     itemsHtml += `<div style="font-size:11px;font-weight:700;color:var(--ord);margin:8px 0 4px;">${kat}</div>`;
-    itemsHtml += `<div class="jw-menulist">${items.map(it=>`
-      <div class="jw-menurow"><span class="jw-menuk">${it.nama_bahan}${it.bahan_baru?' (bahan baru)':''}</span><span class="jw-menuv">${it.qty} ${it.satuan}</span></div>
+    itemsHtml += `<div class="jw-menulist">${rows.map(it=>`
+      <div class="jw-menurow"><span class="jw-menuk">${it.nama_bahan}</span><span class="jw-menuv">${it.qty} ${it.satuan}</span></div>
     `).join('')}</div>`;
   });
 
@@ -5101,7 +5023,7 @@ function previewPermintaan(){
     <div class="pstrip" style="margin-top:0;">
       <div class="prow"><span>📅 Tanggal Dibutuhkan</span><span>${fd(tanggal)}</span></div>
       ${catatan?`<div class="prow"><span>📝 Catatan</span><span>${catatan}</span></div>`:''}
-      <div class="prow"><span>🧾 Jumlah Bahan</span><span>${PERMINTAAN_ITEMS.length} item</span></div>
+      <div class="prow"><span>🧾 Jumlah Bahan</span><span>${items.length} item</span></div>
     </div>
     ${itemsHtml}
   `;
@@ -5115,11 +5037,12 @@ async function konfirmasiKirimPermintaan(){
   if(btn.disabled) return;
   btn.disabled = true;
 
+  const items = Object.values(PERMINTAAN_SELECTED);
   const payload = {
     action: 'simpanPermintaan',
     tanggal: document.getElementById('pm-tanggal').value,
     catatan: document.getElementById('pm-catatan').value.trim(),
-    items: JSON.stringify(PERMINTAAN_ITEMS.map(it => ({
+    items: JSON.stringify(items.map(it => ({
       nama_bahan: it.nama_bahan, kategori: it.kategori, qty: it.qty, satuan: it.satuan, kode_akun: it.kode_akun||''
     })))
   };
@@ -5137,6 +5060,102 @@ async function konfirmasiKirimPermintaan(){
     toast('Gagal: '+e.message,'err');
   }finally{ hideOvl(); btn.disabled=false; }
 }
+
+// ── Kelola Bahan Baku (tambah item baru ke master: kategori, nama, satuan, kode akun) ──
+async function openKelolaBahanBakuModal(){
+  document.getElementById('kb-kategori').value = '';
+  document.getElementById('kb-nama').value = '';
+  document.getElementById('kb-satuan').value = '';
+  document.getElementById('kb-akun-search').value = '';
+  document.getElementById('kb-akun-value').value = '';
+  document.getElementById('kelola-bahan-modal').classList.remove('hide');
+  await loadKodeAkunData();
+  renderKelolaBahanBakuList();
+}
+function closeKelolaBahanBakuModal(){
+  document.getElementById('kelola-bahan-modal').classList.add('hide');
+}
+function renderKelolaBahanBakuList(){
+  const wrap = document.getElementById('kb-list');
+  if(!BAHAN_BAKU_DATA.length){
+    wrap.innerHTML = '<div class="empty" style="padding:16px;"><p style="font-size:12px;">Belum ada bahan baku di master.</p></div>';
+    return;
+  }
+  let html = '';
+  KATEGORI_BAHAN_LIST_.forEach(kat => {
+    const items = BAHAN_BAKU_DATA.filter(b => b.kategori===kat);
+    if(!items.length) return;
+    html += `<div style="font-size:11px;font-weight:700;color:var(--ord);margin:8px 0 4px;">${kat}</div>`;
+    items.forEach(b => {
+      html += `<div style="display:flex;justify-content:space-between;padding:6px 4px;border-bottom:1px solid var(--bdr);font-size:12px;">
+        <span>${b.nama} <span style="color:var(--inks);">(${b.satuan_default||'—'})</span></span>
+        <span style="color:var(--inks);">${b.kode_akun||'—'}</span>
+      </div>`;
+    });
+  });
+  wrap.innerHTML = html || '<div class="empty" style="padding:16px;"><p style="font-size:12px;">Belum ada bahan baku di master.</p></div>';
+}
+function filterKbAkun(){
+  const q = document.getElementById('kb-akun-search').value.toLowerCase().trim();
+  const dd = document.getElementById('kb-akun-dd');
+  document.getElementById('kb-akun-value').value = '';
+  const filtered = (q.length < 1 ? KODE_AKUN_DATA.slice(0, 25) : KODE_AKUN_DATA.filter(a =>
+    a.kode.toLowerCase().includes(q) ||
+    a.kategori.toLowerCase().includes(q) ||
+    a.sub_kelompok.toLowerCase().includes(q) ||
+    a.kelompok.toLowerCase().includes(q)
+  )).slice(0, 40);
+  if(!filtered.length){
+    dd.innerHTML = '<div style="padding:9px 12px;font-size:12px;color:var(--inks);">Tidak ada hasil</div>';
+    dd.style.display = 'block';
+    return;
+  }
+  dd.innerHTML = filtered.map(a => `
+    <div onclick="pilihKbAkun('${a.kode}')"
+      style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--bdr);font-size:12px;"
+      onmouseover="this.style.background='var(--orl)'" onmouseout="this.style.background=''">
+      <strong>${a.kode}</strong> — ${a.kategori}
+      <br><span style="color:var(--inks);font-size:10px;">${a.kelompok} · ${a.sub_kelompok}</span>
+    </div>`).join('');
+  dd.style.display = 'block';
+}
+function hideKbAkunDD(){ document.getElementById('kb-akun-dd').style.display = 'none'; }
+function pilihKbAkun(kode){
+  const a = KODE_AKUN_DATA.find(x => x.kode === kode);
+  if(!a) return;
+  document.getElementById('kb-akun-value').value = a.kode;
+  document.getElementById('kb-akun-search').value = a.kode + ' — ' + a.kategori;
+  document.getElementById('kb-akun-dd').style.display = 'none';
+}
+async function simpanBahanBakuBaru(){
+  const kategori = document.getElementById('kb-kategori').value;
+  const nama = document.getElementById('kb-nama').value.trim();
+  const satuan = document.getElementById('kb-satuan').value.trim();
+  const kodeAkun = document.getElementById('kb-akun-value').value;
+
+  if(!kategori){ toast('Pilih kategori dulu.','err'); return; }
+  if(!nama){ toast('Isi nama bahan.','err'); return; }
+  if(!satuan){ toast('Isi satuan.','err'); return; }
+  if(!kodeAkun){ toast('Pilih Kode Akun dulu (cari dari kotak di atas).','err'); return; }
+
+  showOvl('Menyimpan…');
+  try{
+    const qs = new URLSearchParams({action:'tambahBahanBaku', nama, kategori, satuan, kode_akun:kodeAkun}).toString();
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+    toast(j.sudah_ada ? `"${nama}" sudah ada di master.` : `"${nama}" ditambahkan ke master ✓`, 'ok');
+    document.getElementById('kb-nama').value = '';
+    document.getElementById('kb-satuan').value = '';
+    document.getElementById('kb-akun-search').value = '';
+    document.getElementById('kb-akun-value').value = '';
+    await loadBahanBakuData(true);
+    renderKelolaBahanBakuList();
+    renderPermintaanChecklist(); // kalau modal Permintaan sedang kebuka di belakang, ikut ter-refresh
+  }catch(e){
+    toast('Gagal: '+e.message,'err');
+  }finally{ hideOvl(); }
+}
+
 
 // ── Daftar Permintaan (dilihat Dapur & Pembelian, beda hak proses) ──────
 async function loadPermintaanList(){
