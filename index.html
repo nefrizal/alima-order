@@ -151,6 +151,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   <button class="tbtn" id="tab-absensi" onclick="goTab('absensi',this)">🕐 Absensi</button>
   <button class="tbtn" id="tab-laporan" onclick="goTab('laporan',this)">📋 Laporan Keluhan</button>
   <button class="tbtn hide" id="tab-keuangan" onclick="goTab('keuangan',this)">💰 Keuangan</button>
+  <button class="tbtn hide" id="tab-bahan" onclick="goTab('bahan',this)">🥕 Bahan Baku</button>
 </div>
 <div class="ovl hide" id="ovl"><div class="sp"></div><span id="ovl-msg">Memproses…</span></div>
 <div class="toast" id="toast"></div>
@@ -466,6 +467,31 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   </div>
 </div>
 
+<!-- ═══ BAHAN BAKU (Permintaan Dapur → Diproses Pembelian) ═══ -->
+<div class="panel" id="panel-bahan">
+  <div class="lbar">
+    <button class="bico hide" id="bb-btn-buat-permintaan" onclick="openPermintaanModal()" style="flex:1;background:var(--or);">➕ Buat Permintaan Bahan</button>
+    <button class="bico" onclick="loadPermintaanList()">↻</button>
+  </div>
+
+  <div class="sec">
+    <div class="stitle">🔍 Filter</div>
+    <div class="g2">
+      <div class="fld"><label>Status</label>
+        <select id="bb-filter-status" onchange="loadPermintaanList()">
+          <option value="">— Semua —</option>
+          <option value="Diminta">Diminta (belum diproses)</option>
+          <option value="Diproses">Diproses (sudah ada harga)</option>
+          <option value="Selesai">Selesai</option>
+        </select>
+      </div>
+      <div class="fld"><label>Tanggal (opsional)</label><input id="bb-filter-tanggal" type="date" onchange="loadPermintaanList()"></div>
+    </div>
+  </div>
+
+  <div id="bb-list"><div class="empty"><div class="eico">🥕</div><p>Klik ↻ untuk memuat daftar permintaan.</p></div></div>
+</div>
+
 </main>
 
 <!-- MODAL CUSTOMER (gabungan Tambah Baru + Edit/Revisi) -->
@@ -661,6 +687,94 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     <div style="display:flex;gap:8px;margin-top:16px;">
       <button class="bico" style="flex:1;background:var(--inkm);" onclick="closeNotaPreview()">✏️ Edit Lagi</button>
       <button class="bsub" id="ntp-btn-konfirmasi" style="flex:1;margin-top:0;" onclick="konfirmasiSimpanNota()">✅ Ya, Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL BUAT PERMINTAAN BAHAN BAKU (Dapur) -->
+<div class="modal-bg hide" id="permintaan-modal">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-head">
+      <h2>🥕 Buat Permintaan Bahan Baku</h2>
+      <button class="modal-close" onclick="closePermintaanModal()">×</button>
+    </div>
+    <div class="g2">
+      <div class="fld"><label>Tanggal Dibutuhkan</label><input id="pm-tanggal" type="date"></div>
+      <div class="fld"><label>Catatan (opsional)</label><input id="pm-catatan" placeholder="Contoh: utk acara 500 pax"></div>
+    </div>
+
+    <div class="stitle" style="font-size:13px;">➕ Tambah Bahan</div>
+    <div class="fld"><label>Kategori <span class="req">*</span></label>
+      <select id="pm-kategori" onchange="onPmKategoriChange()">
+        <option value="">— Pilih Kategori —</option>
+        <option value="Karbo">Karbo</option>
+        <option value="Lauk Utama">Lauk Utama</option>
+        <option value="Lauk Tambahan">Lauk Tambahan</option>
+        <option value="Sayur">Sayur</option>
+        <option value="Sambal">Sambal</option>
+        <option value="Bumbu">Bumbu</option>
+      </select>
+    </div>
+    <div class="fld" style="position:relative;">
+      <label>Nama Bahan <span class="req">*</span></label>
+      <input id="pm-bahan-search" type="text" placeholder="🔍 Cari bahan, atau ketik nama baru…" autocomplete="off"
+        oninput="filterPmBahan()" onfocus="filterPmBahan()" onblur="setTimeout(hidePmBahanDD,200)">
+      <input id="pm-bahan-value" type="hidden">
+      <div id="pm-bahan-dd" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--or);border-radius:0 0 8px 8px;max-height:200px;overflow-y:auto;z-index:100;box-shadow:var(--sh);"></div>
+    </div>
+    <div id="pm-bahan-baru-box" class="hide" style="background:var(--orl);border:1px solid #f7d4bc;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:11px;color:var(--ord);">
+      ℹ️ Bahan "<strong id="pm-bahan-baru-nama"></strong>" belum ada di daftar — lengkapi Kode Akun di bawah supaya otomatis ditambahkan ke master bahan baku (kategori <strong id="pm-bahan-baru-kategori"></strong>).
+      <div class="fld" style="position:relative;margin:8px 0 0;">
+        <label style="font-size:10px;">Kode Akun <span class="req">*</span></label>
+        <input id="pm-akun-search" type="text" placeholder="🔍 Cari kode/kategori akun…" autocomplete="off"
+          oninput="filterPmAkun()" onfocus="filterPmAkun()" onblur="setTimeout(hidePmAkunDD,200)" style="font-size:12px;padding:7px 9px;">
+        <input id="pm-akun-value" type="hidden">
+        <div id="pm-akun-dd" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--or);border-radius:0 0 8px 8px;max-height:180px;overflow-y:auto;z-index:100;box-shadow:var(--sh);"></div>
+      </div>
+    </div>
+    <div class="g2">
+      <div class="fld"><label>Qty <span class="req">*</span></label><input id="pm-qty" type="number" min="0" step="0.1" placeholder="5"></div>
+      <div class="fld"><label>Satuan <span class="req">*</span></label><input id="pm-satuan" placeholder="kg/ikat/pcs"></div>
+    </div>
+    <button class="bico" style="width:100%;margin-bottom:10px;" onclick="tambahItemPermintaan()">➕ Tambah ke Daftar</button>
+
+    <div id="pm-items-list"></div>
+    <div id="pm-items-empty" class="empty" style="padding:16px;"><p style="font-size:12px;">Belum ada bahan. Tambahkan minimal 1 di atas.</p></div>
+
+    <button class="bsub" onclick="previewPermintaan()">👁️ Preview &amp; Kirim Permintaan</button>
+  </div>
+</div>
+
+<!-- MODAL PREVIEW PERMINTAAN BAHAN (sebelum benar-benar dikirim ke Pembelian) -->
+<div class="modal-bg hide" id="permintaan-preview-modal">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-head">
+      <h2>👁️ Preview Permintaan</h2>
+      <button class="modal-close" onclick="closePermintaanPreview()">×</button>
+    </div>
+    <div style="background:var(--orl);border:1px solid #f7d4bc;border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:11px;color:var(--ord);">
+      ℹ️ Cek dulu sebelum dikirim — No. Permintaan baru di-generate setelah Bapak/Ibu tekan "Ya, Kirim".
+    </div>
+    <div id="pmp-body"></div>
+    <div style="display:flex;gap:8px;margin-top:16px;">
+      <button class="bico" style="flex:1;background:var(--inkm);" onclick="closePermintaanPreview()">✏️ Edit Lagi</button>
+      <button class="bsub" id="pmp-btn-konfirmasi" style="flex:1;margin-top:0;" onclick="konfirmasiKirimPermintaan()">✅ Ya, Kirim ke Pembelian</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PROSES PERMINTAAN (Pembelian) — edit qty/harga, tandai selesai, cetak nota -->
+<div class="modal-bg hide" id="proses-permintaan-modal">
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-head">
+      <h2>🛒 Proses Permintaan — <span id="pp-no-permintaan"></span></h2>
+      <button class="modal-close" onclick="closeProsesPermintaanModal()">×</button>
+    </div>
+    <div id="pp-body"></div>
+    <button class="bico" style="width:100%;margin-top:10px;" onclick="simpanSemuaProsesPermintaan()">💾 Simpan Semua Perubahan</button>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <button class="bico" style="flex:1;background:#1565C0;" onclick="cetakNotaPembelian()">🖨️ Cetak Nota Pembelian</button>
+      <button class="bsub" style="flex:1;margin-top:0;" onclick="tandaiSelesaiPermintaan()">✅ Tandai Selesai</button>
     </div>
   </div>
 </div>
@@ -1417,6 +1531,14 @@ async function handleGoogleCredential(resp){
     if (CURRENT_USER.aksesKeuanganLevel) {
       document.getElementById('tab-keuangan').classList.remove('hide');
       applyKeuanganLevelUI();
+    }
+    // Tab Bahan Baku muncul utk role dapur/pembelian/admin. Tombol "Buat Permintaan"
+    // hanya utk dapur/admin — pembelian cuma memproses, bukan bikin permintaan baru.
+    if (['dapur','pembelian','admin'].includes(CURRENT_USER.role)) {
+      document.getElementById('tab-bahan').classList.remove('hide');
+      if (['dapur','admin'].includes(CURRENT_USER.role)) {
+        document.getElementById('bb-btn-buat-permintaan').classList.remove('hide');
+      }
     }
 
     if (isFullAccessRole(CURRENT_USER.role)) {
@@ -4120,6 +4242,7 @@ function goTab(id,btn){
       loadJurnalData();
     }
   }
+  if(id==='bahan'){ loadPermintaanList(); }
 }
 
 // Sesuaikan tampilan tab Keuangan dengan level akses ('Lihat' / 'Input' / 'Semua'):
@@ -4753,6 +4876,410 @@ async function hapusJurnalBaris(rowIndex){
     loadJurnalData();
   }catch(e){
     toast('Gagal: '+e.message,'err');
+  }finally{ hideOvl(); }
+}
+
+// ══ BAHAN BAKU — Permintaan Dapur → Diproses Pembelian ══════════════════
+let BAHAN_BAKU_DATA = [];   // [{nama,kategori,satuan_default}, ...] — master, di-cache per sesi
+let PERMINTAAN_ITEMS = [];  // item yang sedang disusun dapur utk permintaan baru
+let PERMINTAAN_CACHE = [];  // hasil getPermintaan terakhir (flat), dipakai utk buka detail proses
+const KATEGORI_BAHAN_LIST_ = ['Karbo','Lauk Utama','Lauk Tambahan','Sayur','Sambal','Bumbu'];
+
+async function loadBahanBakuData(force){
+  if(BAHAN_BAKU_DATA.length && !force) return;
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=getBahanBaku&t=' + Date.now());
+    if(j.success && j.data) BAHAN_BAKU_DATA = j.data;
+  }catch(e){ console.warn('Gagal load Bahan Baku:', e.message); }
+}
+
+// ── Buat Permintaan (Dapur) ──────────────────────────────────────────
+async function openPermintaanModal(){
+  document.getElementById('pm-tanggal').value = new Date().toISOString().split('T')[0];
+  document.getElementById('pm-catatan').value = '';
+  document.getElementById('pm-kategori').value = '';
+  document.getElementById('pm-bahan-search').value = '';
+  document.getElementById('pm-bahan-value').value = '';
+  document.getElementById('pm-bahan-baru-box').classList.add('hide');
+  document.getElementById('pm-akun-search').value = '';
+  document.getElementById('pm-akun-value').value = '';
+  document.getElementById('pm-qty').value = '';
+  document.getElementById('pm-satuan').value = '';
+  PERMINTAAN_ITEMS = [];
+  renderPermintaanItemsList();
+  document.getElementById('permintaan-modal').classList.remove('hide');
+  await loadBahanBakuData();
+  await loadKodeAkunData(); // dipakai kalau perlu tambah bahan baru (sudah ada dr fitur Keuangan)
+}
+function closePermintaanModal(){
+  document.getElementById('permintaan-modal').classList.add('hide');
+}
+function onPmKategoriChange(){
+  document.getElementById('pm-bahan-search').value = '';
+  document.getElementById('pm-bahan-value').value = '';
+  document.getElementById('pm-bahan-baru-box').classList.add('hide');
+  document.getElementById('pm-akun-search').value = '';
+  document.getElementById('pm-akun-value').value = '';
+  document.getElementById('pm-satuan').value = '';
+}
+
+// ── Kode Akun utk bahan baru (dropdown searchable, pakai KODE_AKUN_DATA yg sama dgn fitur Nota) ──
+function filterPmAkun(){
+  const q = document.getElementById('pm-akun-search').value.toLowerCase().trim();
+  const dd = document.getElementById('pm-akun-dd');
+  document.getElementById('pm-akun-value').value = '';
+
+  const filtered = (q.length < 1 ? KODE_AKUN_DATA.slice(0, 25) : KODE_AKUN_DATA.filter(a =>
+    a.kode.toLowerCase().includes(q) ||
+    a.kategori.toLowerCase().includes(q) ||
+    a.sub_kelompok.toLowerCase().includes(q) ||
+    a.kelompok.toLowerCase().includes(q)
+  )).slice(0, 40);
+
+  if(!filtered.length){
+    dd.innerHTML = '<div style="padding:9px 12px;font-size:12px;color:var(--inks);">Tidak ada hasil</div>';
+    dd.style.display = 'block';
+    return;
+  }
+  dd.innerHTML = filtered.map(a => `
+    <div onclick="pilihPmAkun('${a.kode}')"
+      style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--bdr);font-size:12px;"
+      onmouseover="this.style.background='var(--orl)'" onmouseout="this.style.background=''">
+      <strong>${a.kode}</strong> — ${a.kategori}
+      <br><span style="color:var(--inks);font-size:10px;">${a.kelompok} · ${a.sub_kelompok}</span>
+    </div>`).join('');
+  dd.style.display = 'block';
+}
+function hidePmAkunDD(){ document.getElementById('pm-akun-dd').style.display = 'none'; }
+function pilihPmAkun(kode){
+  const a = KODE_AKUN_DATA.find(x => x.kode === kode);
+  if(!a) return;
+  document.getElementById('pm-akun-value').value = a.kode;
+  document.getElementById('pm-akun-search').value = a.kode + ' — ' + a.kategori;
+  document.getElementById('pm-akun-dd').style.display = 'none';
+}
+
+function filterPmBahan(){
+  const kategori = document.getElementById('pm-kategori').value;
+  const dd = document.getElementById('pm-bahan-dd');
+  if(!kategori){
+    dd.innerHTML = '<div style="padding:9px 12px;font-size:12px;color:var(--inks);">Pilih Kategori dulu di atas</div>';
+    dd.style.display = 'block';
+    return;
+  }
+  const q = document.getElementById('pm-bahan-search').value.toLowerCase().trim();
+  document.getElementById('pm-bahan-value').value = '';
+  document.getElementById('pm-bahan-baru-box').classList.add('hide');
+
+  const kandidat = BAHAN_BAKU_DATA.filter(b => b.kategori === kategori);
+  const filtered = q ? kandidat.filter(b => b.nama.toLowerCase().includes(q)) : kandidat.slice(0,25);
+
+  let html = filtered.map(b => `
+    <div onclick="pilihPmBahan('${b.nama.replace(/'/g,"\\'")}')"
+      style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--bdr);font-size:13px;"
+      onmouseover="this.style.background='var(--orl)'" onmouseout="this.style.background=''">
+      ${b.nama} <span style="color:var(--inks);font-size:10px;">(${b.satuan_default||'—'})</span>
+    </div>`).join('');
+
+  // Kalau tidak ada yang cocok persis & user sudah ketik sesuatu -> tawarkan sbg bahan baru
+  const cocokPersis = kandidat.some(b => b.nama.toLowerCase() === q);
+  if(q && !cocokPersis){
+    html += `<div onclick="pilihPmBahanBaru('${q.replace(/'/g,"\\'")}')"
+      style="padding:9px 12px;cursor:pointer;font-size:13px;color:var(--ord);font-weight:600;background:var(--orl);">
+      ➕ Tambah bahan baru: "${q}"
+    </div>`;
+  }
+  if(!html){
+    html = '<div style="padding:9px 12px;font-size:12px;color:var(--inks);">Ketik nama bahan…</div>';
+  }
+  dd.innerHTML = html;
+  dd.style.display = 'block';
+}
+function hidePmBahanDD(){ document.getElementById('pm-bahan-dd').style.display = 'none'; }
+function pilihPmBahan(nama){
+  const kategori = document.getElementById('pm-kategori').value;
+  const b = BAHAN_BAKU_DATA.find(x => x.nama === nama && x.kategori === kategori);
+  document.getElementById('pm-bahan-search').value = nama;
+  document.getElementById('pm-bahan-value').value = nama;
+  document.getElementById('pm-satuan').value = (b && b.satuan_default) || '';
+  document.getElementById('pm-bahan-baru-box').classList.add('hide');
+  document.getElementById('pm-akun-search').value = '';
+  document.getElementById('pm-akun-value').value = '';
+  document.getElementById('pm-bahan-dd').style.display = 'none';
+}
+function pilihPmBahanBaru(nama){
+  const kategori = document.getElementById('pm-kategori').value;
+  document.getElementById('pm-bahan-search').value = nama;
+  document.getElementById('pm-bahan-value').value = nama;
+  document.getElementById('pm-bahan-baru-nama').textContent = nama;
+  document.getElementById('pm-bahan-baru-kategori').textContent = kategori;
+  document.getElementById('pm-akun-search').value = '';
+  document.getElementById('pm-akun-value').value = '';
+  document.getElementById('pm-bahan-baru-box').classList.remove('hide');
+  document.getElementById('pm-bahan-dd').style.display = 'none';
+}
+
+function tambahItemPermintaan(){
+  const kategori = document.getElementById('pm-kategori').value;
+  const namaBahan = document.getElementById('pm-bahan-value').value.trim() || document.getElementById('pm-bahan-search').value.trim();
+  const qty = parseFloat(document.getElementById('pm-qty').value) || 0;
+  const satuan = document.getElementById('pm-satuan').value.trim();
+
+  if(!kategori){ toast('Pilih Kategori dulu.','err'); return; }
+  if(!namaBahan){ toast('Isi/pilih Nama Bahan dulu.','err'); return; }
+  if(!qty || qty<=0){ toast('Qty harus lebih dari 0.','err'); return; }
+  if(!satuan){ toast('Isi Satuan.','err'); return; }
+
+  const sudahAdaDiMaster = BAHAN_BAKU_DATA.some(b => b.nama.toLowerCase()===namaBahan.toLowerCase() && b.kategori===kategori);
+  let kodeAkun = '';
+  if(!sudahAdaDiMaster){
+    kodeAkun = document.getElementById('pm-akun-value').value;
+    if(!kodeAkun){ toast('Pilih Kode Akun dulu untuk bahan baru ini.','err'); return; }
+  }
+
+  PERMINTAAN_ITEMS.push({ kategori, nama_bahan: namaBahan, qty, satuan, bahan_baru: !sudahAdaDiMaster, kode_akun: kodeAkun });
+  if(!sudahAdaDiMaster){
+    BAHAN_BAKU_DATA.push({ nama: namaBahan, kategori, satuan_default: satuan, kode_akun: kodeAkun }); // langsung masuk cache lokal juga
+  }
+  renderPermintaanItemsList();
+
+  document.getElementById('pm-bahan-search').value = '';
+  document.getElementById('pm-bahan-value').value = '';
+  document.getElementById('pm-bahan-baru-box').classList.add('hide');
+  document.getElementById('pm-akun-search').value = '';
+  document.getElementById('pm-akun-value').value = '';
+  document.getElementById('pm-qty').value = '';
+  document.getElementById('pm-satuan').value = '';
+  toast('Bahan ditambahkan ✓','ok');
+}
+function hapusItemPermintaan(idx){
+  PERMINTAAN_ITEMS.splice(idx,1);
+  renderPermintaanItemsList();
+}
+function renderPermintaanItemsList(){
+  const box = document.getElementById('pm-items-list');
+  const empty = document.getElementById('pm-items-empty');
+  if(!PERMINTAAN_ITEMS.length){
+    box.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  // Kelompokkan tampilan per kategori sesuai urutan tetap
+  let html = '';
+  KATEGORI_BAHAN_LIST_.forEach(kat => {
+    const items = PERMINTAAN_ITEMS.map((it,i)=>({...it, idx:i})).filter(it => it.kategori===kat);
+    if(!items.length) return;
+    html += `<div style="font-size:11px;font-weight:700;color:var(--ord);margin:8px 0 4px;">${kat}</div>`;
+    items.forEach(it => {
+      html += `<div style="border:1px solid var(--bdr);border-radius:8px;padding:7px 10px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:12px;">${it.nama_bahan}${it.bahan_baru?' <span class="badge bp" style="font-size:9px;">Baru · '+it.kode_akun+'</span>':''}<br><span style="color:var(--inks);font-size:10px;">${it.qty} ${it.satuan}</span></span>
+        <button onclick="hapusItemPermintaan(${it.idx})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;">🗑️</button>
+      </div>`;
+    });
+  });
+  box.innerHTML = html;
+}
+
+function previewPermintaan(){
+  if(!PERMINTAAN_ITEMS.length){ toast('Tambahkan minimal 1 bahan dulu.','err'); return; }
+  const tanggal = document.getElementById('pm-tanggal').value;
+  if(!tanggal){ toast('Tanggal wajib diisi.','err'); return; }
+  const catatan = document.getElementById('pm-catatan').value.trim();
+
+  let itemsHtml = '';
+  KATEGORI_BAHAN_LIST_.forEach(kat => {
+    const items = PERMINTAAN_ITEMS.filter(it => it.kategori===kat);
+    if(!items.length) return;
+    itemsHtml += `<div style="font-size:11px;font-weight:700;color:var(--ord);margin:8px 0 4px;">${kat}</div>`;
+    itemsHtml += `<div class="jw-menulist">${items.map(it=>`
+      <div class="jw-menurow"><span class="jw-menuk">${it.nama_bahan}${it.bahan_baru?' (bahan baru)':''}</span><span class="jw-menuv">${it.qty} ${it.satuan}</span></div>
+    `).join('')}</div>`;
+  });
+
+  document.getElementById('pmp-body').innerHTML = `
+    <div class="pstrip" style="margin-top:0;">
+      <div class="prow"><span>📅 Tanggal Dibutuhkan</span><span>${fd(tanggal)}</span></div>
+      ${catatan?`<div class="prow"><span>📝 Catatan</span><span>${catatan}</span></div>`:''}
+      <div class="prow"><span>🧾 Jumlah Bahan</span><span>${PERMINTAAN_ITEMS.length} item</span></div>
+    </div>
+    ${itemsHtml}
+  `;
+  document.getElementById('permintaan-preview-modal').classList.remove('hide');
+}
+function closePermintaanPreview(){
+  document.getElementById('permintaan-preview-modal').classList.add('hide');
+}
+async function konfirmasiKirimPermintaan(){
+  const btn = document.getElementById('pmp-btn-konfirmasi');
+  if(btn.disabled) return;
+  btn.disabled = true;
+
+  const payload = {
+    action: 'simpanPermintaan',
+    tanggal: document.getElementById('pm-tanggal').value,
+    catatan: document.getElementById('pm-catatan').value.trim(),
+    items: JSON.stringify(PERMINTAAN_ITEMS.map(it => ({
+      nama_bahan: it.nama_bahan, kategori: it.kategori, qty: it.qty, satuan: it.satuan, kode_akun: it.kode_akun||''
+    })))
+  };
+
+  showOvl('Mengirim permintaan…');
+  try{
+    const qs = new URLSearchParams(payload).toString();
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+    toast(`Permintaan ${j.no_permintaan} terkirim ✓ (${j.jumlah_item} bahan) — Pembelian akan memprosesnya.`,'ok');
+    closePermintaanPreview();
+    closePermintaanModal();
+    loadPermintaanList();
+  }catch(e){
+    toast('Gagal: '+e.message,'err');
+  }finally{ hideOvl(); btn.disabled=false; }
+}
+
+// ── Daftar Permintaan (dilihat Dapur & Pembelian, beda hak proses) ──────
+async function loadPermintaanList(){
+  const wrap = document.getElementById('bb-list');
+  if(!wrap) return;
+  wrap.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat data…</div>';
+  const status = document.getElementById('bb-filter-status').value;
+  const tanggal = document.getElementById('bb-filter-tanggal').value;
+  try{
+    const qs = new URLSearchParams({action:'getPermintaan', mulai:tanggal, sampai:tanggal, status}).toString();
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+    PERMINTAAN_CACHE = j.data || [];
+
+    if(!PERMINTAAN_CACHE.length){
+      wrap.innerHTML = '<div class="empty"><div class="eico">🥕</div><p>Tidak ada permintaan.</p></div>';
+      return;
+    }
+
+    const grup = {};
+    const urutan = [];
+    PERMINTAAN_CACHE.forEach(t => {
+      if(!grup[t.no_permintaan]){ grup[t.no_permintaan] = []; urutan.push(t.no_permintaan); }
+      grup[t.no_permintaan].push(t);
+    });
+
+    const bisaProses = CURRENT_USER && ['pembelian','admin'].includes(CURRENT_USER.role);
+    const bc = { Diminta:'bp', Diproses:'bb', Selesai:'bs' };
+
+    wrap.innerHTML = urutan.map(noPermintaan => {
+      const items = grup[noPermintaan];
+      const head = items[0];
+      const totalNota = items.reduce((s,t)=>s+(t.jumlah||0),0);
+      const itemsHtml = items.map(t => `
+        <div class="jw-menurow">
+          <span class="jw-menuk">${t.nama_bahan}<br><span style="font-size:10px;color:var(--inks);">${t.kategori} · ${t.qty_dibeli||t.qty_diminta} ${t.satuan}</span></span>
+          <span class="jw-menuv">${t.harga_satuan?('Rp '+t.jumlah.toLocaleString('id-ID')):'—'}</span>
+        </div>`).join('');
+      return `
+      <div class="ocard">
+        <div class="och">
+          <div>
+            <div class="ono" style="font-size:14px;">${noPermintaan}</div>
+            <div class="odt">${fd(head.tanggal)} · dibuat oleh ${head.dibuat_oleh||'—'}</div>
+          </div>
+          <span class="badge ${bc[head.status]||'bb'}">${head.status}</span>
+        </div>
+        <div class="jw-menulist">${itemsHtml}</div>
+        <div class="ofoot" style="margin-top:8px;">
+          <span style="font-size:11px;color:var(--inks);">${head.catatan||''}</span>
+          <span class="otot">${totalNota>0?'Rp '+totalNota.toLocaleString('id-ID'):''}</span>
+        </div>
+        ${bisaProses ? `<button class="bico" style="width:100%;margin-top:10px;" onclick="openProsesPermintaanModal('${noPermintaan}')">🛒 Proses / Lihat Detail</button>` : ''}
+      </div>`;
+    }).join('');
+  }catch(e){
+    wrap.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>Gagal memuat: ${e.message}</p></div>`;
+  }
+}
+
+// ── Proses Permintaan (Pembelian): edit qty/harga per item, tandai selesai, cetak ──
+let PROSES_NO_PERMINTAAN_AKTIF = '';
+function openProsesPermintaanModal(noPermintaan){
+  PROSES_NO_PERMINTAAN_AKTIF = noPermintaan;
+  document.getElementById('pp-no-permintaan').textContent = noPermintaan;
+  const items = PERMINTAAN_CACHE.filter(t => t.no_permintaan === noPermintaan);
+
+  let html = '';
+  KATEGORI_BAHAN_LIST_.forEach(kat => {
+    const rows = items.filter(t => t.kategori === kat);
+    if(!rows.length) return;
+    html += `<div style="font-size:11px;font-weight:700;color:var(--ord);margin:10px 0 4px;">${kat}</div>`;
+    rows.forEach(t => {
+      html += `<div style="border:1px solid var(--bdr);border-radius:8px;padding:9px 10px;margin-bottom:8px;" data-row="${t.row_index}">
+        <div style="font-size:12px;font-weight:600;margin-bottom:6px;">${t.nama_bahan} <span style="color:var(--inks);font-weight:400;">(diminta: ${t.qty_diminta} ${t.satuan})</span></div>
+        <div class="g2">
+          <div class="fld" style="margin:0;"><label style="font-size:10px;">Qty Dibeli</label>
+            <input type="number" min="0" step="0.1" class="pp-qty-input" value="${t.qty_dibeli||t.qty_diminta}" style="padding:6px 8px;font-size:12px;">
+          </div>
+          <div class="fld" style="margin:0;"><label style="font-size:10px;">Harga Satuan (Rp)</label>
+            <input type="number" min="0" class="pp-harga-input" value="${t.harga_satuan||''}" placeholder="0" style="padding:6px 8px;font-size:12px;">
+          </div>
+        </div>
+      </div>`;
+    });
+  });
+  document.getElementById('pp-body').innerHTML = html;
+  document.getElementById('proses-permintaan-modal').classList.remove('hide');
+}
+function closeProsesPermintaanModal(){
+  document.getElementById('proses-permintaan-modal').classList.add('hide');
+  PROSES_NO_PERMINTAAN_AKTIF = '';
+}
+async function simpanSemuaProsesPermintaan(){
+  const blok = document.querySelectorAll('#pp-body [data-row]');
+  if(!blok.length){ toast('Tidak ada item.','err'); return; }
+  showOvl('Menyimpan perubahan…');
+  let gagal = 0;
+  for(const el of blok){
+    const rowIndex = el.dataset.row;
+    const qty = el.querySelector('.pp-qty-input').value;
+    const harga = el.querySelector('.pp-harga-input').value;
+    try{
+      const qs = new URLSearchParams({action:'updatePermintaanItem', row_index:rowIndex, qty_dibeli:qty, harga_satuan:harga}).toString();
+      const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+      if(!j.success) gagal++;
+    }catch(e){ gagal++; }
+  }
+  hideOvl();
+  toast(gagal ? `Tersimpan, tapi ${gagal} item gagal.` : 'Semua perubahan tersimpan ✓', gagal?'err':'ok');
+  loadPermintaanList();
+}
+async function tandaiSelesaiPermintaan(){
+  if(!PROSES_NO_PERMINTAAN_AKTIF) return;
+  if(!confirm(`Tandai permintaan ${PROSES_NO_PERMINTAAN_AKTIF} sebagai Selesai?`)) return;
+  showOvl('Memproses…');
+  try{
+    const qs = new URLSearchParams({action:'selesaikanPermintaan', no_permintaan:PROSES_NO_PERMINTAAN_AKTIF}).toString();
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+    toast('Permintaan ditandai Selesai ✓','ok');
+    closeProsesPermintaanModal();
+    loadPermintaanList();
+  }catch(e){
+    toast('Gagal: '+e.message,'err');
+  }finally{ hideOvl(); }
+}
+async function cetakNotaPembelian(){
+  if(!PROSES_NO_PERMINTAAN_AKTIF) return;
+  showOvl('Membuat PDF nota…');
+  try{
+    const qs = new URLSearchParams({action:'generateNotaPembelianPdf', no_permintaan:PROSES_NO_PERMINTAAN_AKTIF}).toString();
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+    const byteChars = atob(j.base64);
+    const byteNumbers = new Array(byteChars.length);
+    for(let i=0;i<byteChars.length;i++) byteNumbers[i]=byteChars.charCodeAt(i);
+    const blob = new Blob([new Uint8Array(byteNumbers)], {type:'application/pdf'});
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    toast('PDF nota pembelian dibuat ✓','ok');
+  }catch(e){
+    toast('Gagal buat PDF: '+e.message,'err');
   }finally{ hideOvl(); }
 }
 
