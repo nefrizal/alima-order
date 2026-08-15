@@ -111,6 +111,10 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 .modal-head h2{font-family:'Playfair Display',serif;font-size:17px;font-weight:700;color:var(--ord);}
 .modal-close{background:var(--bdr);border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:18px;color:var(--inkm);display:flex;align-items:center;justify-content:center;}
 .sales-hint{font-size:11px;color:var(--inks);margin-top:4px;}
+.bb-cat-group{margin-bottom:6px;}
+.bb-cat-summary{cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-size:11px;font-weight:700;color:var(--ord);padding:8px 4px;border-radius:6px;user-select:none;}
+.bb-cat-summary:hover{background:var(--orl);}
+.bb-cat-arrow{display:inline-block;transition:transform .2s;color:var(--inks);font-size:10px;}
 @media(max-width:480px){.g2,.g3,.mgrid{grid-template-columns:1fr;}header{height:50px;}.tabs{top:50px;}}
 </style>
 </head>
@@ -706,7 +710,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     </div>
     <div class="g2">
       <div class="fld"><label>Tanggal Dibutuhkan</label><input id="pm-tanggal" type="date"></div>
-      <div class="fld"><label>Catatan (opsional)</label><input id="pm-catatan" placeholder="Contoh: utk acara 500 pax"></div>
+      <div class="fld"><label>Nomor Order (opsional)</label><input id="pm-catatan" placeholder="Contoh: 10528, 10530 — utk korelasi jumlah order"></div>
     </div>
 
     <div style="display:flex;justify-content:space-between;align-items:center;margin:10px 0 6px;">
@@ -4940,6 +4944,7 @@ async function openPermintaanModal(){
   document.getElementById('pm-catatan').value = '';
   document.getElementById('pm-search-checklist').value = '';
   PERMINTAAN_SELECTED = {};
+  PM_KATEGORI_TERBUKA = new Set(); // semua kategori mulai tertutup tiap buka modal
   document.getElementById('permintaan-modal').classList.remove('hide');
   document.getElementById('pm-checklist').innerHTML = '<div class="empty" style="padding:16px;"><div class="sp" style="margin:0 auto 8px;"></div><p style="font-size:12px;">Memuat daftar bahan…</p></div>';
   await loadBahanBakuData(true); // selalu refresh dari server tiap buka modal, hindari data basi
@@ -4947,6 +4952,25 @@ async function openPermintaanModal(){
 }
 function closePermintaanModal(){
   document.getElementById('permintaan-modal').classList.add('hide');
+}
+
+let PM_KATEGORI_TERBUKA = new Set(); // kategori mana yang lagi expand — direset tiap buka modal
+
+// Baris 1 item (dipakai bareng utk item yang sudah dicentang maupun belum)
+function pmItemRowHtml_(kat, b, adaBorder){
+  const key = kat + '|' + b.nama;
+  const sel = PERMINTAAN_SELECTED[key];
+  const dicentang = !!sel;
+  return `<div style="display:flex;align-items:center;gap:8px;padding:9px 10px;${adaBorder?'border-bottom:1px solid var(--bdr);':''}">
+    <input type="checkbox" onchange="togglePermintaanItem('${kat}','${b.nama.replace(/'/g,"\\'")}', this.checked)" ${dicentang?'checked':''}
+      style="-webkit-appearance:checkbox!important;appearance:checkbox!important;width:17px!important;height:17px!important;
+             min-width:17px!important;padding:0!important;margin:0!important;border:1px solid #999!important;
+             border-radius:3px!important;background:#fff!important;flex-shrink:0;">
+    <span style="flex:1;font-size:13px;">${b.nama} <span style="color:var(--inks);font-size:10px;">(${b.satuan_default||'—'})</span></span>
+    <input type="number" min="0" step="0.1" placeholder="Qty" value="${sel?sel.qty:''}"
+      oninput="ubahQtyPermintaanItem('${kat}','${b.nama.replace(/'/g,"\\'")}', this.value)"
+      style="width:72px;padding:5px 6px;font-size:12px;text-align:center;${dicentang?'':'visibility:hidden;'}">
+  </div>`;
 }
 
 function renderPermintaanChecklist(){
@@ -4957,29 +4981,39 @@ function renderPermintaanChecklist(){
     let items = BAHAN_BAKU_DATA.filter(b => b.kategori === kat);
     if(q) items = items.filter(b => b.nama.toLowerCase().includes(q));
     if(!items.length) return;
-    html += `<div style="font-size:11px;font-weight:700;color:var(--ord);margin:10px 0 4px;">${kat}</div>`;
-    html += `<div style="border:1px solid var(--bdr);border-radius:8px;overflow:hidden;">`;
-    items.forEach((b,i) => {
-      const key = kat + '|' + b.nama;
-      const sel = PERMINTAAN_SELECTED[key];
-      const dicentang = !!sel;
-      html += `<div style="display:flex;align-items:center;gap:8px;padding:9px 10px;border-bottom:${i<items.length-1?'1px solid var(--bdr)':'none'};">
-        <input type="checkbox" onchange="togglePermintaanItem('${kat}','${b.nama.replace(/'/g,"\\'")}', this.checked)" ${dicentang?'checked':''}
-          style="-webkit-appearance:checkbox!important;appearance:checkbox!important;width:17px!important;height:17px!important;
-                 min-width:17px!important;padding:0!important;margin:0!important;border:1px solid #999!important;
-                 border-radius:3px!important;background:#fff!important;flex-shrink:0;">
-        <span style="flex:1;font-size:13px;">${b.nama} <span style="color:var(--inks);font-size:10px;">(${b.satuan_default||'—'})</span></span>
-        <input type="number" min="0" step="0.1" placeholder="Qty" value="${sel?sel.qty:''}"
-          oninput="ubahQtyPermintaanItem('${kat}','${b.nama.replace(/'/g,"\\'")}', this.value)"
-          style="width:72px;padding:5px 6px;font-size:12px;text-align:center;${dicentang?'':'visibility:hidden;'}">
+
+    // Item yang SUDAH dicentang tetap tampil terus, biarpun kategorinya ditutup.
+    // Yang belum dicentang cuma tampil kalau kategorinya sedang dibuka.
+    const checkedItems = items.filter(b => PERMINTAAN_SELECTED[kat+'|'+b.nama]);
+    const uncheckedItems = items.filter(b => !PERMINTAAN_SELECTED[kat+'|'+b.nama]);
+    const terbuka = q ? true : PM_KATEGORI_TERBUKA.has(kat); // waktu lagi cari, otomatis expand biar ketemu
+
+    html += `<div class="bb-cat-group">
+      <div class="bb-cat-summary" onclick="onPmKategoriToggle('${kat}')">
+        <span>${kat} <span style="color:var(--inks);font-weight:500;">(${items.length}${checkedItems.length?' · '+checkedItems.length+' dipilih':''})</span></span>
+        <span class="bb-cat-arrow" style="${terbuka?'transform:rotate(90deg);':''}">▶</span>
       </div>`;
-    });
+
+    if(checkedItems.length){
+      html += `<div style="border:1px solid var(--bdr);border-radius:8px;overflow:hidden;margin-top:6px;">`;
+      html += checkedItems.map((b,i) => pmItemRowHtml_(kat, b, i < checkedItems.length-1)).join('');
+      html += `</div>`;
+    }
+    if(uncheckedItems.length){
+      html += `<div class="${terbuka?'':'hide'}" style="border:1px solid var(--bdr);border-radius:8px;overflow:hidden;margin-top:6px;">`;
+      html += uncheckedItems.map((b,i) => pmItemRowHtml_(kat, b, i < uncheckedItems.length-1)).join('');
+      html += `</div>`;
+    }
     html += `</div>`;
   });
   if(!html){
     html = '<div class="empty" style="padding:16px;"><p style="font-size:12px;">Tidak ada bahan yang cocok. Cari kata kunci lain, atau tambah bahan baru lewat ⚙️ Kelola.</p></div>';
   }
   wrap.innerHTML = html;
+}
+function onPmKategoriToggle(kat){
+  if(PM_KATEGORI_TERBUKA.has(kat)) PM_KATEGORI_TERBUKA.delete(kat); else PM_KATEGORI_TERBUKA.add(kat);
+  renderPermintaanChecklist();
 }
 function togglePermintaanItem(kat, nama, dicentang){
   const key = kat + '|' + nama;
@@ -5022,7 +5056,7 @@ function previewPermintaan(){
   document.getElementById('pmp-body').innerHTML = `
     <div class="pstrip" style="margin-top:0;">
       <div class="prow"><span>📅 Tanggal Dibutuhkan</span><span>${fd(tanggal)}</span></div>
-      ${catatan?`<div class="prow"><span>📝 Catatan</span><span>${catatan}</span></div>`:''}
+      ${catatan?`<div class="prow"><span>🧾 No Order</span><span>${catatan}</span></div>`:''}
       <div class="prow"><span>🧾 Jumlah Bahan</span><span>${items.length} item</span></div>
     </div>
     ${itemsHtml}
@@ -5205,7 +5239,7 @@ async function loadPermintaanList(){
         </div>
         <div class="jw-menulist">${itemsHtml}</div>
         <div class="ofoot" style="margin-top:8px;">
-          <span style="font-size:11px;color:var(--inks);">${head.catatan||''}</span>
+          <span style="font-size:11px;color:var(--inks);">${head.catatan?'No Order: '+head.catatan:''}</span>
           <span class="otot">${totalNota>0?'Rp '+totalNota.toLocaleString('id-ID'):''}</span>
         </div>
         ${bisaProses ? `<button class="bico" style="width:100%;margin-top:10px;" onclick="openProsesPermintaanModal('${noPermintaan}')">🛒 Proses / Lihat Detail</button>` : ''}
