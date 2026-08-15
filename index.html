@@ -3686,6 +3686,7 @@ async function kirimNotifKeStaf(pesan){
     for(const hp of j.data){
       try{ await fPost(hp, pesan); }
       catch(e){ console.warn('Gagal kirim notif staf ke '+hp+':', e.message); }
+      await sleep(700); // jeda antar kirim, jaga2 kalau Fonnte membatasi kirim terlalu cepat beruntun
     }
   }catch(e){
     console.warn('Gagal ambil daftar penerima notifikasi staf:', e.message);
@@ -3708,13 +3709,14 @@ async function kirimInvoiceViaWA(){
       `No Order: ${LAST_INVOICE_RESULT.no_orders}\n\n` +
       `Dikirim oleh: ${CURRENT_USER.nama}`;
 
-    let gagal = 0;
+    let gagalDetail = [];
     for(const hp of j.data){
       try{ await fPostFile(hp, LAST_INVOICE_RESULT.pdf_url, caption); }
-      catch(e){ gagal++; console.warn('Gagal kirim invoice ke '+hp+':', e.message); }
+      catch(e){ gagalDetail.push(hp+': '+e.message); console.warn('Gagal kirim invoice ke '+hp+':', e.message); }
+      await sleep(700); // jeda antar kirim, jaga2 kalau Fonnte membatasi kirim terlalu cepat beruntun
     }
     hideOvl();
-    toast(gagal ? `PDF terkirim, tapi ${gagal} nomor gagal.` : 'PDF invoice terkirim ke semua Admin/Sales/Finance ✓', gagal ? 'err' : 'ok');
+    toast(gagalDetail.length ? `PDF terkirim, tapi ${gagalDetail.length} nomor gagal: ${gagalDetail[0]}` : 'PDF invoice terkirim ke semua Admin/Sales/Finance ✓', gagalDetail.length ? 'err' : 'ok');
   }catch(e){
     hideOvl();
     toast('Gagal kirim: '+e.message,'err');
@@ -4128,13 +4130,14 @@ async function kirimQuotationViaWA(){
       `Kepada: ${LAST_QUOTATION_RESULT.customer_nama || '—'}\n\n` +
       `Dikirim oleh: ${CURRENT_USER.nama}`;
 
-    let gagal = 0;
+    let gagalDetail = [];
     for(const hp of j.data){
       try{ await fPostFile(hp, LAST_QUOTATION_RESULT.pdf_url, caption); }
-      catch(e){ gagal++; console.warn('Gagal kirim quotation ke '+hp+':', e.message); }
+      catch(e){ gagalDetail.push(hp+': '+e.message); console.warn('Gagal kirim quotation ke '+hp+':', e.message); }
+      await sleep(700); // jeda antar kirim, jaga2 kalau Fonnte membatasi kirim terlalu cepat beruntun
     }
     hideOvl();
-    toast(gagal ? `PDF terkirim, tapi ${gagal} nomor gagal.` : 'PDF quotation terkirim ke semua Admin/Sales/Finance ✓', gagal ? 'err' : 'ok');
+    toast(gagalDetail.length ? `PDF terkirim, tapi ${gagalDetail.length} nomor gagal: ${gagalDetail[0]}` : 'PDF quotation terkirim ke semua Admin/Sales/Finance ✓', gagalDetail.length ? 'err' : 'ok');
   }catch(e){
     hideOvl();
     toast('Gagal kirim: '+e.message,'err');
@@ -5206,12 +5209,17 @@ async function kirimPermintaanViaWA(){
     const j = await gasFetch(APP.GAS_URL + '?action=getNotifRecipientsPembelian&t=' + Date.now());
     if(!j.success || !j.data || !j.data.length){ toast('Tidak ada nomor Pembelian/Admin terdaftar.','err'); return; }
     const pesan = bangunPesanPermintaanWA_(LAST_PERMINTAAN_RESULT);
-    let gagal = 0;
+    const gagalDetail = [];
     for(const hp of j.data){
       try{ await fPost(hp, pesan); }
-      catch(e){ gagal++; console.warn('Gagal kirim WA ke '+hp+':', e.message); }
+      catch(e){ gagalDetail.push(hp+': '+e.message); console.warn('Gagal kirim WA ke '+hp+':', e.message); }
+      await sleep(700); // jeda antar kirim, jaga2 kalau Fonnte membatasi kirim terlalu cepat beruntun
     }
-    toast(gagal ? `Terkirim, tapi ${gagal} nomor gagal.` : 'WA terkirim ke Pembelian ✓', gagal?'err':'ok');
+    if(gagalDetail.length){
+      toast(`Terkirim, tapi ${gagalDetail.length} nomor gagal: ${gagalDetail[0]}${gagalDetail.length>1?' (+'+(gagalDetail.length-1)+' lainnya, cek console)':''}`,'err');
+    } else {
+      toast('WA terkirim ke Pembelian ✓','ok');
+    }
   }catch(e){
     toast('Gagal: '+e.message,'err');
   }finally{ hideOvl(); }
