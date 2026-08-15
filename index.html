@@ -424,14 +424,11 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   <div id="laporan-list"><div class="empty"><div class="eico">📋</div><p>Klik ↻ untuk memuat daftar laporan.</p></div></div>
 </div>
 
-<!-- ═══ KEUANGAN (JURNAL & LABA RUGI) ═══ -->
+<!-- ═══ KEUANGAN (JURNAL + BAHAN BAKU, tampil bertumpuk sesuai hak akses) ═══ -->
 <div class="panel" id="panel-keuangan">
-  <div class="tabs" id="keuangan-subtabs" style="position:static;border-radius:8px;overflow:hidden;margin-bottom:14px;box-shadow:var(--sh);">
-    <button class="tbtn hide" id="ksub-tab-jurnal" onclick="goKeuanganSub('jurnal',this)">📒 Jurnal</button>
-    <button class="tbtn hide" id="ksub-tab-bahan" onclick="goKeuanganSub('bahan',this)">🥕 Bahan Baku</button>
-  </div>
 
-  <div id="ksub-panel-jurnal">
+  <div id="ksub-panel-jurnal" class="hide">
+    <div style="font-family:'Playfair Display',serif;font-size:14px;font-weight:700;color:var(--ord);margin-bottom:10px;">📒 Jurnal</div>
     <div class="lbar">
       <button class="bico" id="kn-btn-buat-nota" onclick="openNotaModal()" style="flex:1;background:var(--or);">➕ Buat Nota</button>
       <button class="bico" id="kn-btn-refresh" onclick="loadJurnalData()">↻</button>
@@ -443,6 +440,9 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     </div>
 
     <div id="kn-view-section">
+      <div id="kn-scope-note" class="hide" style="background:var(--orl);border:1px solid #f7d4bc;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:11px;color:var(--ord);">
+        ℹ️ Anda cuma bisa lihat transaksi yang Anda input sendiri. Untuk lihat seluruh jurnal, hubungi admin/finance/sales.
+      </div>
       <div class="sec">
         <div class="stitle">🔍 Filter Periode</div>
         <div class="g3">
@@ -476,8 +476,9 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     </div>
   </div>
 
-  <!-- ═══ SUB-TAB: BAHAN BAKU (Permintaan Leader Dapur → Diproses Pembelian) ═══ -->
+  <!-- ═══ BAHAN BAKU (Permintaan Leader Dapur → Diproses Pembelian) ═══ -->
   <div class="hide" id="ksub-panel-bahan">
+    <div style="font-family:'Playfair Display',serif;font-size:14px;font-weight:700;color:var(--ord);margin:20px 0 10px;padding-top:16px;border-top:1px solid var(--bdr);">🥕 Bahan Baku</div>
     <div class="lbar">
       <button class="bico hide" id="bb-btn-buat-permintaan" onclick="openPermintaanModal()" style="flex:1;background:var(--or);">➕ Buat Permintaan Bahan</button>
       <button class="bico" onclick="loadPermintaanList()">↻</button>
@@ -1550,20 +1551,21 @@ async function handleGoogleCredential(resp){
     if (['admin','finance','sales'].includes(CURRENT_USER.role)) {
       document.getElementById('btn-quotation').classList.remove('hide');
     }
-    // Tab Keuangan sekarang mencakup 2 sub-bagian: Jurnal (akuntansi) & Bahan Baku
-    // (permintaan dapur → pembelian). Tab utama muncul kalau punya SALAH SATU dari
-    // kedua akses ini; masing-masing sub-tab baru muncul sendiri sesuai haknya.
+    // Tab Keuangan sekarang mencakup 2 bagian yang tampil BERTUMPUK (bukan sub-tab
+    // terpisah lagi): Jurnal (akuntansi) & Bahan Baku (permintaan dapur → pembelian).
+    // Tab utama muncul kalau punya SALAH SATU dari kedua akses ini; masing-masing
+    // bagian baru muncul sendiri sesuai haknya.
     const bisaJurnal = !!CURRENT_USER.aksesKeuanganLevel; // lihat ambilLevelAksesKeuangan_ di AkuntansiBackend.gs
     const bisaBahanBaku = ['leader dapur','pembelian','admin'].includes(CURRENT_USER.role);
     if (bisaJurnal || bisaBahanBaku) {
       document.getElementById('tab-keuangan').classList.remove('hide');
     }
     if (bisaJurnal) {
-      document.getElementById('ksub-tab-jurnal').classList.remove('hide');
+      document.getElementById('ksub-panel-jurnal').classList.remove('hide');
       applyKeuanganLevelUI();
     }
     if (bisaBahanBaku) {
-      document.getElementById('ksub-tab-bahan').classList.remove('hide');
+      document.getElementById('ksub-panel-bahan').classList.remove('hide');
       // Tombol "Buat Permintaan" hanya utk leader dapur/admin — pembelian cuma memproses.
       if (['leader dapur','admin'].includes(CURRENT_USER.role)) {
         document.getElementById('bb-btn-buat-permintaan').classList.remove('hide');
@@ -4276,28 +4278,6 @@ function goTab(id,btn){
   if(id==='laporan'){ loadLaporanList(); }
   if(id==='keuangan'){
     const level = CURRENT_USER ? CURRENT_USER.aksesKeuanganLevel : '';
-    const bisaBahan = CURRENT_USER && ['leader dapur','pembelian','admin'].includes(CURRENT_USER.role);
-    if(!KEUANGAN_CURRENT_SUB){
-      KEUANGAN_CURRENT_SUB = level ? 'jurnal' : (bisaBahan ? 'bahan' : 'jurnal');
-    }
-    goKeuanganSub(KEUANGAN_CURRENT_SUB, document.getElementById('ksub-tab-'+KEUANGAN_CURRENT_SUB));
-  }
-}
-
-// Sub-navigasi di dalam tab Keuangan: "Jurnal" (akuntansi) vs "Bahan Baku" (permintaan dapur).
-// Masing-masing tetap tunduk pada aturan aksesnya sendiri — lihat applyKeuanganLevelUI() utk Jurnal
-// dan role leader-dapur/pembelian/admin utk Bahan Baku.
-let KEUANGAN_CURRENT_SUB = null;
-function goKeuanganSub(id, btn){
-  KEUANGAN_CURRENT_SUB = id;
-  document.querySelectorAll('#keuangan-subtabs .tbtn').forEach(b=>b.classList.remove('on'));
-  document.getElementById('ksub-panel-jurnal').classList.add('hide');
-  document.getElementById('ksub-panel-bahan').classList.add('hide');
-  document.getElementById('ksub-panel-'+id).classList.remove('hide');
-  if(btn) btn.classList.add('on');
-
-  if(id==='jurnal'){
-    const level = CURRENT_USER ? CURRENT_USER.aksesKeuanganLevel : '';
     if(level === 'Lihat' || level === 'Semua'){
       if(!document.getElementById('kn-filter-mulai').value){
         const now = new Date();
@@ -4307,8 +4287,9 @@ function goKeuanganSub(id, btn){
       }
       loadJurnalData();
     }
+    const bisaBahan = CURRENT_USER && ['leader dapur','pembelian','admin'].includes(CURRENT_USER.role);
+    if(bisaBahan){ loadPermintaanList(); }
   }
-  if(id==='bahan'){ loadPermintaanList(); }
 }
 
 // Sesuaikan tampilan tab Keuangan dengan level akses ('Lihat' / 'Input' / 'Semua'):
@@ -4317,10 +4298,12 @@ function goKeuanganSub(id, btn){
 // - Semua  : tampilkan semuanya
 function applyKeuanganLevelUI(){
   const level = CURRENT_USER ? CURRENT_USER.aksesKeuanganLevel : '';
+  const role  = CURRENT_USER ? CURRENT_USER.role : '';
   const btnBuatNota = document.getElementById('kn-btn-buat-nota');
   const btnRefresh  = document.getElementById('kn-btn-refresh');
   const viewSection = document.getElementById('kn-view-section');
   const inputNote   = document.getElementById('kn-input-only-note');
+  const scopeNote   = document.getElementById('kn-scope-note');
 
   if(level === 'Input'){
     btnBuatNota.classList.remove('hide');
@@ -4337,6 +4320,18 @@ function applyKeuanganLevelUI(){
     btnRefresh.classList.remove('hide');
     viewSection.classList.remove('hide');
     inputNote.classList.add('hide');
+  }
+
+  // Cuma admin, finance, & sales yang lihat SELURUH jurnal — role lain (pembelian dst)
+  // otomatis dibatasi server cuma lihat transaksi yg mereka input sendiri (lihat
+  // getJurnalObj di AkuntansiBackend.gs). Kasih tahu di layar biar tidak dikira data hilang.
+  if(scopeNote){
+    const bisaLihatSemua = ['admin','finance','sales'].includes(role);
+    if((level === 'Lihat' || level === 'Semua') && !bisaLihatSemua){
+      scopeNote.classList.remove('hide');
+    } else {
+      scopeNote.classList.add('hide');
+    }
   }
 }
 function resetForm(){
