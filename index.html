@@ -5328,21 +5328,23 @@ function closeProsesPermintaanModal(){
 async function simpanSemuaProsesPermintaan(){
   const blok = document.querySelectorAll('#pp-body [data-row]');
   if(!blok.length){ toast('Tidak ada item.','err'); return; }
+
+  const items = Array.from(blok).map(el => ({
+    row_index: el.dataset.row,
+    qty_dibeli: el.querySelector('.pp-qty-input').value,
+    harga_satuan: el.querySelector('.pp-harga-input').value
+  }));
+
   showOvl('Menyimpan perubahan…');
-  let gagal = 0;
-  for(const el of blok){
-    const rowIndex = el.dataset.row;
-    const qty = el.querySelector('.pp-qty-input').value;
-    const harga = el.querySelector('.pp-harga-input').value;
-    try{
-      const qs = new URLSearchParams({action:'updatePermintaanItem', row_index:rowIndex, qty_dibeli:qty, harga_satuan:harga}).toString();
-      const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
-      if(!j.success) gagal++;
-    }catch(e){ gagal++; }
-  }
-  hideOvl();
-  toast(gagal ? `Tersimpan, tapi ${gagal} item gagal.` : 'Semua perubahan tersimpan ✓', gagal?'err':'ok');
-  loadPermintaanList();
+  try{
+    const qs = new URLSearchParams({action:'updatePermintaanBatch', items: JSON.stringify(items)}).toString();
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+    toast(`${j.jumlah_baris} item tersimpan ✓`,'ok');
+    loadPermintaanList();
+  }catch(e){
+    toast('Gagal: '+e.message,'err');
+  }finally{ hideOvl(); }
 }
 async function tandaiSelesaiPermintaan(){
   if(!PROSES_NO_PERMINTAAN_AKTIF) return;
