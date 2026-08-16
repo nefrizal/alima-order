@@ -94,7 +94,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 .swrap{text-align:center;padding:40px;}
 .sp{width:30px;height:30px;border:3px solid var(--bdr);border-top-color:var(--or);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 10px;}
 @keyframes spin{to{transform:rotate(360deg)}}
-.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--ink);color:#fff;padding:10px 20px;border-radius:30px;font-size:12px;font-weight:600;z-index:999;transition:transform .3s cubic-bezier(.34,1.56,.64,1);white-space:nowrap;max-width:92vw;text-align:center;}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--ink);color:#fff;padding:10px 20px;border-radius:16px;font-size:12px;font-weight:600;z-index:999;transition:transform .3s cubic-bezier(.34,1.56,.64,1);white-space:normal;width:92vw;max-width:420px;text-align:center;line-height:1.5;}
 .toast.show{transform:translateX(-50%) translateY(0);}.toast.ok{background:var(--grn);}.toast.err{background:var(--red);}
 .ovl{position:fixed;inset:0;background:rgba(255,251,247,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:500;gap:12px;font-size:13px;color:var(--inkm);font-weight:500;}
 .ovl.hide{display:none;}
@@ -4268,7 +4268,7 @@ function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 function showOvl(m){document.getElementById('ovl-msg').textContent=m;document.getElementById('ovl').classList.remove('hide');}
 function updOvl(m){document.getElementById('ovl-msg').textContent=m;}
 function hideOvl(){document.getElementById('ovl').classList.add('hide');}
-function toast(msg,type=''){const el=document.getElementById('toast');el.textContent=msg;el.className='toast'+(type?' '+type:'');el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),3200);}
+function toast(msg,type=''){const el=document.getElementById('toast');el.textContent=msg;el.className='toast'+(type?' '+type:'');el.classList.add('show');clearTimeout(el._t);const durasi=(type==='err' && msg.length>60)?7000:3200;el._t=setTimeout(()=>el.classList.remove('show'),durasi);}
 function goTab(id,btn){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('on'));
