@@ -1615,9 +1615,9 @@ function applyKaryawanAccess(){
   document.getElementById('tab-laporan').classList.add('hide');
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('on'));
-  document.getElementById('panel-absensi').classList.add('on');
-  document.getElementById('tab-absensi').classList.add('on');
-  initAbsensiTab();
+  document.getElementById('panel-jadwal').classList.add('on');
+  document.getElementById('tab-jadwal').classList.add('on');
+  loadOrders().then(renderJadwal);
 }
 
 // Role "snack": HANYA tab Jadwal yang tampil (semua tab lain disembunyikan, termasuk Absensi).
@@ -5408,11 +5408,33 @@ async function loadPermintaanList(){
     }
 
     const grup = {};
-    const urutan = [];
+    let urutan = [];
     PERMINTAAN_CACHE.forEach(t => {
       if(!grup[t.no_permintaan]){ grup[t.no_permintaan] = []; urutan.push(t.no_permintaan); }
       grup[t.no_permintaan].push(t);
     });
+
+    // Tampilan DEFAULT (tanpa filter eksplisit) sengaja menyembunyikan SELURUH permintaan yang:
+    // - tanggalnya SUDAH LEWAT (kalau tidak sedang cari tanggal tertentu)
+    // - SEMUA itemnya sudah Batal (kalau tidak sedang cari khusus status Batal)
+    // Item yang batal krn revisi TAPI permintaannya masih ada item aktif lain TETAP ditampilkan
+    // (dicoret) — itu riwayat revisi yg masih relevan, beda dgn permintaan yg 100% sudah batal.
+    if(!tanggal || !status){
+      const hariIni = new Date().toISOString().split('T')[0];
+      urutan = urutan.filter(noPermintaan => {
+        const items = grup[noPermintaan];
+        const semuaBatal = items.every(t => t.status === 'Batal');
+        const sudahLewat = items[0].tanggal < hariIni;
+        if(!status && semuaBatal) return false;
+        if(!tanggal && sudahLewat) return false;
+        return true;
+      });
+    }
+
+    if(!urutan.length){
+      wrap.innerHTML = '<div class="empty"><div class="eico">🥕</div><p>Tidak ada permintaan aktif. Gunakan filter Status/Tanggal utk lihat riwayat lama.</p></div>';
+      return;
+    }
 
     const bisaProses = CURRENT_USER && ['pembelian','admin'].includes(CURRENT_USER.role);
     const bc = { Diminta:'bp', Diproses:'bb', Selesai:'bs', Batal:'bx' };
