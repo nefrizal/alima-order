@@ -5116,7 +5116,7 @@ function previewPermintaan(){
   });
 
   document.getElementById('pmp-body').innerHTML = `
-    ${EDIT_MODE_NO_PERMINTAAN_LAMA ? `<div style="background:var(--orl);border:1px solid #f7d4bc;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:var(--ord);">✏️ Mode Edit — permintaan <strong>${EDIT_MODE_NO_PERMINTAAN_LAMA}</strong> akan otomatis dibatalkan begitu permintaan pengganti ini terkirim.</div>` : ''}
+    ${EDIT_MODE_NO_PERMINTAAN_LAMA ? `<div style="background:var(--orl);border:1px solid #f7d4bc;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:var(--ord);">✏️ Mode Revisi — permintaan <strong>${EDIT_MODE_NO_PERMINTAAN_LAMA}</strong> akan DIPERBARUI (nomor tetap sama). Bahan yang dihapus dari centangan akan ditandai batal per-item; progres Qty Dibeli/Harga yang sudah diisi Pembelian utk bahan lain TIDAK akan hilang.</div>` : ''}
     <div class="pstrip" style="margin-top:0;">
       <div class="prow"><span>📅 Tanggal Dibutuhkan</span><span>${fd(tanggal)}</span></div>
       ${catatan?`<div class="prow"><span>🧾 No Order</span><span>${catatan}</span></div>`:''}
@@ -5143,42 +5143,33 @@ async function konfirmasiKirimPermintaan(){
   const items = Object.values(PERMINTAAN_SELECTED);
   const tanggal = document.getElementById('pm-tanggal').value;
   const noOrder = document.getElementById('pm-catatan').value.trim();
-  const payload = {
-    action: 'simpanPermintaan',
-    tanggal,
-    catatan: noOrder,
-    items: JSON.stringify(items.map(it => ({
-      nama_bahan: it.nama_bahan, kategori: it.kategori, qty: it.qty, satuan: it.satuan, kode_akun: it.kode_akun||''
-    })))
-  };
+  const itemsJson = JSON.stringify(items.map(it => ({
+    nama_bahan: it.nama_bahan, kategori: it.kategori, qty: it.qty, satuan: it.satuan, kode_akun: it.kode_akun||''
+  })));
 
-  showOvl('Mengirim permintaan…');
+  const modeEdit = !!EDIT_MODE_NO_PERMINTAAN_LAMA;
+  const payload = modeEdit
+    ? { action:'revisiPermintaan', no_permintaan:EDIT_MODE_NO_PERMINTAAN_LAMA, tanggal, catatan:noOrder, items:itemsJson }
+    : { action:'simpanPermintaan', tanggal, catatan:noOrder, items:itemsJson };
+
+  showOvl(modeEdit ? 'Menyimpan revisi…' : 'Mengirim permintaan…');
   try{
     const qs = new URLSearchParams(payload).toString();
     const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
     if(!j.success) throw new Error(j.message);
 
-    // Simpan hasilnya — kalau ada permintaan lain lagi di tanggal yg sama sebelumnya, yg tersimpan
-    // di sini CUMA item yg baru dicentang barusan (PERMINTAAN_SELECTED selalu direset tiap modal
-    // dibuka), jadi WA yg dikirim otomatis cuma berisi tambahannya saja, bukan mengulang yg lama.
-    LAST_PERMINTAAN_RESULT = { no_permintaan: j.no_permintaan, tanggal, no_order: noOrder, items: items.slice() };
+    // No. Permintaan TETAP SAMA kalau ini revisi (bukan bikin nomor baru) — item yg dihapus
+    // dari centangan cuma ditandai Batal PADA BARIS ITU SAJA, item yg tetap ada progres
+    // Qty Dibeli/Harga Satuan yg sudah diisi Pembelian TIDAK IKUT HILANG.
+    const noPermintaanFinal = modeEdit ? EDIT_MODE_NO_PERMINTAAN_LAMA : j.no_permintaan;
+    LAST_PERMINTAAN_RESULT = { no_permintaan: noPermintaanFinal, tanggal, no_order: noOrder, items: items.slice() };
+    EDIT_MODE_NO_PERMINTAAN_LAMA = null;
 
-    // Mode EDIT: permintaan pengganti sudah berhasil dibuat -> otomatis batalkan yg lama.
-    // Kalau pembatalan lamanya gagal (mis. sudah keburu diproses pembelian di saat bersamaan),
-    // beri tahu tapi TIDAK menganggap keseluruhan proses gagal — yg baru toh sudah aman tersimpan.
-    let pesanEdit = '';
-    if(EDIT_MODE_NO_PERMINTAAN_LAMA){
-      try{
-        const qsLama = new URLSearchParams({action:'batalkanPermintaan', no_permintaan:EDIT_MODE_NO_PERMINTAAN_LAMA}).toString();
-        const jLama = await gasFetch(APP.GAS_URL + '?' + qsLama + '&t=' + Date.now());
-        if(!jLama.success) pesanEdit = ` (permintaan lama ${EDIT_MODE_NO_PERMINTAAN_LAMA} gagal dibatalkan otomatis: ${jLama.message} — batalkan manual)`;
-      }catch(e){ pesanEdit = ` (permintaan lama ${EDIT_MODE_NO_PERMINTAAN_LAMA} gagal dibatalkan otomatis — batalkan manual)`; }
-      EDIT_MODE_NO_PERMINTAAN_LAMA = null;
-    }
-
-    toast(`Permintaan ${j.no_permintaan} terkirim ✓ (${j.jumlah_item} bahan)${pesanEdit}`, pesanEdit?'err':'ok');
+    toast(modeEdit
+      ? `Permintaan ${noPermintaanFinal} berhasil direvisi ✓ (${j.jumlah_item} bahan aktif)`
+      : `Permintaan ${noPermintaanFinal} terkirim ✓ (${j.jumlah_item} bahan)`, 'ok');
     document.getElementById('pmp-aksi-row').classList.add('hide');
-    document.getElementById('pmp-hasil-no').textContent = j.no_permintaan;
+    document.getElementById('pmp-hasil-no').textContent = noPermintaanFinal;
     document.getElementById('pmp-hasil-box').classList.remove('hide');
     loadPermintaanList();
   }catch(e){
@@ -5353,15 +5344,31 @@ async function loadPermintaanList(){
       const items = grup[noPermintaan];
       const head = items[0];
       const totalNota = items.reduce((s,t)=>s+(t.jumlah||0),0);
-      const itemsHtml = items.map(t => `
-        <div class="jw-menurow">
-          <span class="jw-menuk">${t.nama_bahan}<br><span style="font-size:10px;color:var(--inks);">${t.kategori} · ${t.qty_dibeli||t.qty_diminta} ${t.satuan}</span></span>
-          <span class="jw-menuv">${t.harga_satuan?('Rp '+t.jumlah.toLocaleString('id-ID')):'—'}</span>
-        </div>`).join('');
 
-      // Edit/Batalkan HANYA muncul utk pembuatnya sendiri (atau admin), DAN belum Selesai/Batal —
-      // sekali sudah dibeli pembelian atau sudah dibatalkan, tidak bisa diapa-apakan lagi dari sini.
-      const bisaBatal = CURRENT_USER && !['Selesai','Batal'].includes(head.status) &&
+      // 1 No. Permintaan sekarang bisa berisi CAMPURAN status per item (mis. sebagian dibatalkan
+      // lewat revisi, sebagian masih aktif) — hitung status keseluruhan dari SEMUA item, bukan
+      // cuma item pertama, supaya badge & hak edit/proses akurat.
+      const adaSelesai = items.some(t => t.status === 'Selesai');
+      const semuaBatal = items.every(t => t.status === 'Batal');
+      const adaDiproses = items.some(t => t.status === 'Diproses');
+      let statusTampil;
+      if(semuaBatal) statusTampil = 'Batal';
+      else if(adaSelesai) statusTampil = 'Selesai';
+      else if(adaDiproses) statusTampil = 'Diproses';
+      else statusTampil = 'Diminta';
+
+      const itemsHtml = items.map(t => {
+        const dibatalkan = t.status === 'Batal';
+        return `
+        <div class="jw-menurow" style="${dibatalkan?'opacity:.5;':''}">
+          <span class="jw-menuk" style="${dibatalkan?'text-decoration:line-through;':''}">${t.nama_bahan}${dibatalkan?' <span style="font-size:9px;">(batal)</span>':''}<br><span style="font-size:10px;color:var(--inks);">${t.kategori} · ${t.qty_dibeli||t.qty_diminta} ${t.satuan}</span></span>
+          <span class="jw-menuv">${t.harga_satuan?('Rp '+t.jumlah.toLocaleString('id-ID')):'—'}</span>
+        </div>`;
+      }).join('');
+
+      // Edit/Batalkan HANYA muncul utk pembuatnya sendiri (atau admin), DAN belum ada item Selesai
+      // & belum semuanya Batal — sekali ada item sudah dibeli pembelian, tidak bisa direvisi lagi.
+      const bisaBatal = CURRENT_USER && !adaSelesai && !semuaBatal &&
         (CURRENT_USER.role === 'admin' || (CURRENT_USER.email||'').toLowerCase() === (head.dibuat_oleh||'').toLowerCase());
 
       return `
@@ -5371,7 +5378,7 @@ async function loadPermintaanList(){
             <div class="ono" style="font-size:14px;">${noPermintaan}</div>
             <div class="odt">${fd(head.tanggal)} · dibuat oleh ${head.dibuat_oleh||'—'}</div>
           </div>
-          <span class="badge ${bc[head.status]||'bb'}">${head.status}</span>
+          <span class="badge ${bc[statusTampil]||'bb'}">${statusTampil}</span>
         </div>
         <div class="jw-menulist">${itemsHtml}</div>
         <div class="ofoot" style="margin-top:8px;">
@@ -5381,7 +5388,7 @@ async function loadPermintaanList(){
         ${bisaProses ? `<button class="bico" style="width:100%;margin-top:10px;" onclick="openProsesPermintaanModal('${noPermintaan}')">🛒 Proses / Lihat Detail</button>` : ''}
         ${bisaBatal ? `<div style="display:flex;gap:8px;margin-top:8px;">
           <button class="bico" style="flex:1;background:var(--inkm);" onclick="editPermintaan('${noPermintaan}')">✏️ Edit</button>
-          <button class="bico" style="flex:1;background:var(--red);" onclick="batalkanPermintaan('${noPermintaan}')">🗑️ Batalkan</button>
+          <button class="bico" style="flex:1;background:var(--red);" onclick="batalkanPermintaan('${noPermintaan}')">🗑️ Batalkan Semua</button>
         </div>` : ''}
       </div>`;
     }).join('');
@@ -5410,8 +5417,8 @@ async function batalkanPermintaan(noPermintaan){
 // jejak audit yang jelas, bukan menimpa data lama diam-diam.
 let EDIT_MODE_NO_PERMINTAAN_LAMA = null;
 async function editPermintaan(noPermintaan){
-  const items = PERMINTAAN_CACHE.filter(t => t.no_permintaan === noPermintaan);
-  if(!items.length){ toast('Data permintaan tidak ditemukan, coba refresh dulu.','err'); return; }
+  const items = PERMINTAAN_CACHE.filter(t => t.no_permintaan === noPermintaan && t.status !== 'Batal');
+  if(!items.length){ toast('Tidak ada item aktif di permintaan ini (semua sudah dibatalkan), coba refresh dulu.','err'); return; }
 
   await openPermintaanModal(); // reset + load data master seperti biasa
 
@@ -5430,7 +5437,7 @@ async function editPermintaan(noPermintaan){
     PM_KATEGORI_TERBUKA.add(t.kategori); // biar langsung kelihatan kategorinya, tidak perlu klik2 lagi
   });
   renderPermintaanChecklist();
-  toast(`Mode edit ${noPermintaan} — ubah seperlunya lalu Preview & Kirim. Permintaan lama otomatis dibatalkan.`,'ok');
+  toast(`Mode revisi ${noPermintaan} — ubah seperlunya lalu Preview & Kirim. Nomor permintaan tetap sama, progres Pembelian tidak hilang.`,'ok');
 }
 
 // ── Proses Permintaan (Pembelian): edit qty/harga per item, tandai selesai, cetak ──
@@ -5438,7 +5445,13 @@ let PROSES_NO_PERMINTAAN_AKTIF = '';
 function openProsesPermintaanModal(noPermintaan){
   PROSES_NO_PERMINTAAN_AKTIF = noPermintaan;
   document.getElementById('pp-no-permintaan').textContent = noPermintaan;
-  const items = PERMINTAAN_CACHE.filter(t => t.no_permintaan === noPermintaan);
+  const items = PERMINTAAN_CACHE.filter(t => t.no_permintaan === noPermintaan && t.status !== 'Batal');
+
+  if(!items.length){
+    document.getElementById('pp-body').innerHTML = '<div class="empty" style="padding:16px;"><p style="font-size:12px;">Semua item di permintaan ini sudah dibatalkan, tidak ada yang perlu diproses.</p></div>';
+    document.getElementById('proses-permintaan-modal').classList.remove('hide');
+    return;
+  }
 
   let html = '';
   KATEGORI_BAHAN_LIST_.forEach(kat => {
