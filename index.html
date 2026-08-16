@@ -4968,6 +4968,7 @@ async function openPermintaanModal(){
   PERMINTAAN_SELECTED = {};
   PM_KATEGORI_TERBUKA = new Set(); // semua kategori mulai tertutup tiap buka modal
   EDIT_MODE_NO_PERMINTAAN_LAMA = null; // reset mode edit — kalau ini dari editPermintaan(), di-set lagi SESUDAH ini
+  EDIT_MODE_ITEMS_LAMA = null;
   document.getElementById('permintaan-modal').classList.remove('hide');
   document.getElementById('pm-checklist').innerHTML = '<div class="empty" style="padding:16px;"><div class="sp" style="margin:0 auto 8px;"></div><p style="font-size:12px;">Memuat daftar bahan…</p></div>';
   await loadBahanBakuData(true); // selalu refresh dari server tiap buka modal, hindari data basi
@@ -5162,8 +5163,18 @@ async function konfirmasiKirimPermintaan(){
     // dari centangan cuma ditandai Batal PADA BARIS ITU SAJA, item yg tetap ada progres
     // Qty Dibeli/Harga Satuan yg sudah diisi Pembelian TIDAK IKUT HILANG.
     const noPermintaanFinal = modeEdit ? EDIT_MODE_NO_PERMINTAAN_LAMA : j.no_permintaan;
-    LAST_PERMINTAAN_RESULT = { no_permintaan: noPermintaanFinal, tanggal, no_order: noOrder, items: items.slice() };
+
+    if(modeEdit){
+      // Bandingkan kondisi SEBELUM (EDIT_MODE_ITEMS_LAMA) vs SESUDAH (items) — WA yang nanti
+      // dikirim cuma berisi PERUBAHANNYA saja (ditambah/diubah qty/dibatalkan), bukan
+      // mengulang semua item spt pengiriman awal.
+      const perubahan = hitungPerubahanPermintaan_(EDIT_MODE_ITEMS_LAMA || [], items);
+      LAST_PERMINTAAN_RESULT = { no_permintaan: noPermintaanFinal, tanggal, no_order: noOrder, mode:'revisi', perubahan };
+    } else {
+      LAST_PERMINTAAN_RESULT = { no_permintaan: noPermintaanFinal, tanggal, no_order: noOrder, mode:'baru', items: items.slice() };
+    }
     EDIT_MODE_NO_PERMINTAAN_LAMA = null;
+    EDIT_MODE_ITEMS_LAMA = null;
 
     toast(modeEdit
       ? `Permintaan ${noPermintaanFinal} berhasil direvisi ✓ (${j.jumlah_item} bahan aktif)`
@@ -5177,7 +5188,36 @@ async function konfirmasiKirimPermintaan(){
   }finally{ hideOvl(); btn.disabled=false; }
 }
 
+// Bandingkan daftar item SEBELUM vs SESUDAH revisi, hasilkan daftar perubahan saja:
+// { jenis:'Ditambahkan'|'Diubah'|'Dibatalkan', kategori, nama_bahan, satuan, qtyLama, qtyBaru }
+function hitungPerubahanPermintaan_(itemsLama, itemsBaru){
+  const petaLama = {}; itemsLama.forEach(it => { petaLama[it.kategori+'|'+it.nama_bahan] = it; });
+  const petaBaru = {}; itemsBaru.forEach(it => { petaBaru[it.kategori+'|'+it.nama_bahan] = it; });
+  const perubahan = [];
+
+  Object.keys(petaLama).forEach(key => {
+    if(!petaBaru[key]){
+      const it = petaLama[key];
+      perubahan.push({ jenis:'Dibatalkan', kategori:it.kategori, nama_bahan:it.nama_bahan, satuan:it.satuan, qtyLama:it.qty, qtyBaru:null });
+    }
+  });
+  Object.keys(petaBaru).forEach(key => {
+    const baru = petaBaru[key];
+    const lama = petaLama[key];
+    if(!lama){
+      perubahan.push({ jenis:'Ditambahkan', kategori:baru.kategori, nama_bahan:baru.nama_bahan, satuan:baru.satuan, qtyLama:null, qtyBaru:baru.qty });
+    } else if(String(lama.qty) !== String(baru.qty)){
+      perubahan.push({ jenis:'Diubah', kategori:baru.kategori, nama_bahan:baru.nama_bahan, satuan:baru.satuan, qtyLama:lama.qty, qtyBaru:baru.qty });
+    }
+    // qty sama persis -> tidak dianggap perubahan, tidak masuk daftar
+  });
+  return perubahan;
+}
+
 function bangunPesanPermintaanWA_(hasil){
+  if(hasil.mode === 'revisi'){
+    return bangunPesanRevisiWA_(hasil);
+  }
   let body = `🥕 *Permintaan Bahan Baku Baru*\n\n`;
   body += `No. Permintaan: ${hasil.no_permintaan}\n`;
   body += `Tanggal Dibutuhkan: ${fd(hasil.tanggal)}\n`;
@@ -5191,6 +5231,43 @@ function bangunPesanPermintaanWA_(hasil){
     body += `\n`;
   });
   body += `Diminta oleh: ${CURRENT_USER ? CURRENT_USER.nama : '—'}`;
+  return body;
+}
+
+// Pesan WA KHUSUS revisi — cuma tampilkan PERUBAHANNYA (ditambah/diubah/dibatalkan),
+// TIDAK mengulang seluruh isi permintaan spt pesan pengiriman awal.
+function bangunPesanRevisiWA_(hasil){
+  const perubahan = hasil.perubahan || [];
+  let body = `✏️ *Revisi Permintaan Bahan Baku*\n\n`;
+  body += `No. Permintaan: ${hasil.no_permintaan}\n`;
+  body += `Tanggal Dibutuhkan: ${fd(hasil.tanggal)}\n`;
+  if(hasil.no_order) body += `No Order Terkait: ${hasil.no_order}\n`;
+  body += `\n`;
+
+  if(!perubahan.length){
+    body += `(Tidak ada perubahan qty/item — cuma info tanggal/no order yang diperbarui)\n\n`;
+  } else {
+    const ditambah = perubahan.filter(p => p.jenis === 'Ditambahkan');
+    const diubah = perubahan.filter(p => p.jenis === 'Diubah');
+    const dibatalkan = perubahan.filter(p => p.jenis === 'Dibatalkan');
+
+    if(ditambah.length){
+      body += `➕ *Ditambahkan*\n`;
+      ditambah.forEach(p => { body += `- ${p.nama_bahan}: ${p.qtyBaru} ${p.satuan}\n`; });
+      body += `\n`;
+    }
+    if(diubah.length){
+      body += `✏️ *Diubah Qty*\n`;
+      diubah.forEach(p => { body += `- ${p.nama_bahan}: ${p.qtyLama} → ${p.qtyBaru} ${p.satuan}\n`; });
+      body += `\n`;
+    }
+    if(dibatalkan.length){
+      body += `❌ *Dibatalkan*\n`;
+      dibatalkan.forEach(p => { body += `- ${p.nama_bahan} (sebelumnya ${p.qtyLama} ${p.satuan})\n`; });
+      body += `\n`;
+    }
+  }
+  body += `Direvisi oleh: ${CURRENT_USER ? CURRENT_USER.nama : '—'}`;
   return body;
 }
 async function kirimPermintaanViaWA(){
@@ -5344,6 +5421,7 @@ async function loadPermintaanList(){
       const items = grup[noPermintaan];
       const head = items[0];
       const totalNota = items.reduce((s,t)=>s+(t.jumlah||0),0);
+      const revisiKe = Math.max(0, ...items.map(t => t.revisi_ke || 0));
 
       // 1 No. Permintaan sekarang bisa berisi CAMPURAN status per item (mis. sebagian dibatalkan
       // lewat revisi, sebagian masih aktif) — hitung status keseluruhan dari SEMUA item, bukan
@@ -5375,7 +5453,7 @@ async function loadPermintaanList(){
       <div class="ocard">
         <div class="och">
           <div>
-            <div class="ono" style="font-size:14px;">${noPermintaan}</div>
+            <div class="ono" style="font-size:14px;">${noPermintaan}${revisiKe>0?` <span style="font-size:10px;font-weight:600;color:var(--inks);">(Revisi ${revisiKe})</span>`:''}</div>
             <div class="odt">${fd(head.tanggal)} · dibuat oleh ${head.dibuat_oleh||'—'}</div>
           </div>
           <span class="badge ${bc[statusTampil]||'bb'}">${statusTampil}</span>
@@ -5416,6 +5494,7 @@ async function batalkanPermintaan(noPermintaan){
 // dibatalkan & permintaan BARU (No. beda) dibuat menggantikannya — supaya selalu ada
 // jejak audit yang jelas, bukan menimpa data lama diam-diam.
 let EDIT_MODE_NO_PERMINTAAN_LAMA = null;
+let EDIT_MODE_ITEMS_LAMA = null; // snapshot item SEBELUM diedit, dipakai bangun pesan WA "hanya yg berubah"
 async function editPermintaan(noPermintaan){
   const items = PERMINTAAN_CACHE.filter(t => t.no_permintaan === noPermintaan && t.status !== 'Batal');
   if(!items.length){ toast('Tidak ada item aktif di permintaan ini (semua sudah dibatalkan), coba refresh dulu.','err'); return; }
@@ -5425,6 +5504,9 @@ async function editPermintaan(noPermintaan){
   document.getElementById('pm-tanggal').value = items[0].tanggal;
   document.getElementById('pm-catatan').value = items[0].catatan || '';
   EDIT_MODE_NO_PERMINTAAN_LAMA = noPermintaan;
+  // Simpan kondisi SEBELUM diedit — dipakai nanti utk bandingkan apa saja yg BENAR2 berubah,
+  // supaya WA yg dikirim setelah revisi cuma berisi perubahannya saja (bukan mengulang semua item).
+  EDIT_MODE_ITEMS_LAMA = items.map(t => ({ kategori: t.kategori, nama_bahan: t.nama_bahan, qty: t.qty_diminta, satuan: t.satuan }));
 
   items.forEach(t => {
     const b = BAHAN_BAKU_DATA.find(x => x.kategori===t.kategori && x.nama===t.nama_bahan);
@@ -5444,7 +5526,9 @@ async function editPermintaan(noPermintaan){
 let PROSES_NO_PERMINTAAN_AKTIF = '';
 function openProsesPermintaanModal(noPermintaan){
   PROSES_NO_PERMINTAAN_AKTIF = noPermintaan;
-  document.getElementById('pp-no-permintaan').textContent = noPermintaan;
+  const semuaItemNo = PERMINTAAN_CACHE.filter(t => t.no_permintaan === noPermintaan);
+  const revisiKeModal = Math.max(0, ...semuaItemNo.map(t => t.revisi_ke || 0));
+  document.getElementById('pp-no-permintaan').textContent = noPermintaan + (revisiKeModal>0 ? ` (Revisi ${revisiKeModal})` : '');
   const items = PERMINTAAN_CACHE.filter(t => t.no_permintaan === noPermintaan && t.status !== 'Batal');
 
   if(!items.length){
