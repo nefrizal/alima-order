@@ -5783,13 +5783,18 @@ function bangunBarisStruk_(o){
 // item dgn font NORMAL (bukan double-width) supaya kolom qty/harga/jumlah bisa muat rapi
 // di kertas 58mm, lalu total, dan penutup "Batam, {tanggal}" + nama & no HP supplier.
 function bangunBarisNotaPembelian_(noPermintaan, items, namaSupplier, noHpSupplier){
-  const W = 14; // lebar baris besar (double-width), dipakai utk header/divider/total
+  const W = 14; // lebar baris besar (double-width), dipakai utk header/divider
   const tglObj = items[0] && items[0].tanggal ? new Date(items[0].tanggal+'T00:00:00') : new Date();
   const tglIndo = tglObj.toLocaleDateString('id-ID', {day:'numeric',month:'long',year:'numeric'});
 
+  // "Nama Akun" di header = nama KATEGORI item yang dicetak (mis. "Sayur"). Kalau item yg
+  // dicentang ternyata campur beberapa kategori sekaligus, gabung namanya dgn "/".
+  const kategoriUnik = Array.from(new Set(items.map(it => it.kategori).filter(Boolean)));
+  const namaAkunLabel = kategoriUnik.length ? kategoriUnik.join(' / ') : '-';
+
   const L = [];
-  L.push({text:'KSM KATERING', bold:true, center:true});
-  L.push({text: tglIndo, center:true});
+  L.push({text: noPermintaan, bold:true, center:true});
+  L.push({text: namaAkunLabel, bold:true, center:true});
   L.push({text:'-'.repeat(W), center:true});
 
   // Rincian: No | Item | Satuan | Qty | Harga | Jumlah — ditulis 2 baris per item krn
@@ -5814,7 +5819,7 @@ function bangunBarisNotaPembelian_(noPermintaan, items, namaSupplier, noHpSuppli
   L.push({cmd:'normal'});
 
   L.push({text:'-'.repeat(W), center:true});
-  L.push({text:'TOTAL: Rp'+total.toLocaleString('id-ID'), bold:true});
+  L.push({text:'TOTAL: Rp'+total.toLocaleString('id-ID'), bold:true, medium:true}); // ukuran tengah: lebih kecil dari header, lebih besar dari rincian
   L.push({text:'-'.repeat(W), center:true});
   L.push({text:' '});
   L.push({text:'Batam, '+tglIndo, small:true});
@@ -5833,7 +5838,7 @@ function renderKertasPreview_(baris){
   kertas.innerHTML = baris.filter(b=>!b.cmd).map(b => {
     const weight = b.bold ? '700' : '400';
     const align = b.center ? 'center' : 'left';
-    const size = b.small ? '13px' : '21px';
+    const size = b.small ? '13px' : (b.medium ? '17px' : '21px');
     return `<div style="font-size:${size};font-weight:${weight};line-height:1.25;text-align:${align};margin:0;">${b.text||' '}</div>`;
   }).join('');
 }
@@ -5955,7 +5960,9 @@ function bangunByteESCPOS_(baris){
     if (b.cmd === 'normal') { push(0x1B,0x32); return; }    // ESC 2 — kembali ke jarak baris default
     push(0x1B,0x61, b.center ? 0x01 : 0x00); // align
     push(0x1B,0x45, b.bold ? 0x01 : 0x00);   // bold on/off
-    push(0x1D,0x21, b.small ? 0x00 : 0x11);  // GS ! — normal size utk baris bertanda 'small' (mis. rincian Nota Pembelian), selain itu double-height+width spt biasa
+    // GS ! — ukuran huruf: 'small' = normal (rincian), 'medium' = lebar 2x tinggi normal (mis. baris TOTAL,
+    // supaya lebih besar dari rincian tapi tetap lebih kecil dari header/default yg double-height+width penuh)
+    push(0x1D,0x21, b.small ? 0x00 : (b.medium ? 0x01 : 0x11));
     pushText(b.text || ' ');
     push(0x0A); // line feed
   });
