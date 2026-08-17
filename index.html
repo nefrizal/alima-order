@@ -718,56 +718,14 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 
     <div style="display:flex;justify-content:space-between;align-items:center;margin:10px 0 6px;">
       <div style="font-family:'Playfair Display',serif;font-size:13px;font-weight:700;color:var(--ord);">✅ Centang Bahan yang Dibutuhkan</div>
-      <button type="button" onclick="openKelolaBahanBakuModal()" title="Kelola Bahan Baku"
-        style="background:var(--sur);border:1.5px solid var(--bdr);border-radius:6px;padding:5px 9px;font-size:12px;cursor:pointer;color:var(--inkm);flex-shrink:0;">⚙️ Kelola</button>
     </div>
+    <div style="font-size:10px;color:var(--inks);margin:-4px 0 8px;">💡 Tap judul kategori (mis. "Packaging") utk buka/tutup daftar &mdash; di situ juga ada kolom utk tambah bahan baru kalau belum ada.</div>
     <div class="fld">
       <input id="pm-search-checklist" type="text" placeholder="🔍 Cari nama bahan…" oninput="renderPermintaanChecklist()">
     </div>
     <div id="pm-checklist"><div class="empty" style="padding:16px;"><p style="font-size:12px;">⏳ Memuat daftar bahan…</p></div></div>
 
     <button class="bsub" onclick="previewPermintaan()" style="margin-top:14px;">👁️ Preview &amp; Kirim Permintaan</button>
-  </div>
-</div>
-
-<!-- MODAL KELOLA BAHAN BAKU (tambah item baru ke master: nama, satuan, kode akun) -->
-<div class="modal-bg hide" id="kelola-bahan-modal">
-  <div class="modal" style="max-width:480px;">
-    <div class="modal-head">
-      <h2>⚙️ Kelola Bahan Baku</h2>
-      <button class="modal-close" onclick="closeKelolaBahanBakuModal()">×</button>
-    </div>
-
-    <div class="stitle" style="font-size:13px;">➕ Tambah Bahan Baru</div>
-    <div class="fld"><label>Kategori <span class="req">*</span></label>
-      <select id="kb-kategori">
-        <option value="">— Pilih Kategori —</option>
-        <option value="Karbo">Karbo</option>
-        <option value="Lauk Utama">Lauk Utama</option>
-        <option value="Lauk Tambahan">Lauk Tambahan</option>
-        <option value="Sayur">Sayur</option>
-        <option value="Sambal">Sambal</option>
-        <option value="Bumbu">Bumbu</option>
-        <option value="Buah">Buah</option>
-        <option value="Kerupuk">Kerupuk</option>
-        <option value="Air Mineral">Air Mineral</option>
-        <option value="Packaging">Packaging</option>
-        <option value="Beban Bahan Bakar">Beban Bahan Bakar</option>
-      </select>
-    </div>
-    <div class="fld"><label>Nama Bahan <span class="req">*</span></label><input id="kb-nama" placeholder="Contoh: Bayam"></div>
-    <div class="fld"><label>Satuan <span class="req">*</span></label><input id="kb-satuan" placeholder="kg/ikat/pcs"></div>
-    <div class="fld" style="position:relative;">
-      <label>Kode Akun <span class="req">*</span></label>
-      <input id="kb-akun-search" type="text" placeholder="🔍 Cari kode/kategori akun…" autocomplete="off"
-        oninput="filterKbAkun()" onfocus="filterKbAkun()" onblur="setTimeout(hideKbAkunDD,200)">
-      <input id="kb-akun-value" type="hidden">
-      <div id="kb-akun-dd" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--or);border-radius:0 0 8px 8px;max-height:200px;overflow-y:auto;z-index:100;box-shadow:var(--sh);"></div>
-    </div>
-    <button class="bico" style="width:100%;margin-bottom:16px;" onclick="simpanBahanBakuBaru()">💾 Tambah ke Master</button>
-
-    <div class="stitle" style="font-size:13px;">📋 Daftar Bahan Baku</div>
-    <div id="kb-list"><div class="empty" style="padding:16px;"><p style="font-size:12px;">⏳ Memuat…</p></div></div>
   </div>
 </div>
 
@@ -5112,13 +5070,14 @@ function renderPermintaanChecklist(){
   KATEGORI_BAHAN_LIST_.forEach(kat => {
     let items = BAHAN_BAKU_DATA.filter(b => b.kategori === kat);
     if(q) items = items.filter(b => b.nama.toLowerCase().includes(q));
-    if(!items.length) return;
+    if(q && !items.length) return; // lagi nyari & tidak ada hasil di kategori ini -> lewati
 
     // Item yang SUDAH dicentang tetap tampil terus, biarpun kategorinya ditutup.
     // Yang belum dicentang cuma tampil kalau kategorinya sedang dibuka.
     const checkedItems = items.filter(b => PERMINTAAN_SELECTED[kat+'|'+b.nama]);
     const uncheckedItems = items.filter(b => !PERMINTAAN_SELECTED[kat+'|'+b.nama]);
     const terbuka = q ? true : PM_KATEGORI_TERBUKA.has(kat); // waktu lagi cari, otomatis expand biar ketemu
+    const slug = kat.replace(/\s+/g,'_');
 
     html += `<div class="bb-cat-group">
       <div class="bb-cat-summary" onclick="onPmKategoriToggle('${kat}')">
@@ -5131,6 +5090,17 @@ function renderPermintaanChecklist(){
       html += checkedItems.map((b,i) => pmItemRowHtml_(kat, b, i < checkedItems.length-1)).join('');
       html += `</div>`;
     }
+
+    // Form isian inline "Tambah Bahan Baru" — muncul begitu kategori ini dibuka (klik judul),
+    // menggantikan modal "Kelola Bahan Baku" yang lama. Kode Akun tidak perlu diisi manual lagi,
+    // otomatis diambil sesuai kategori (lihat KATEGORI_KODE_AKUN_DEFAULT_ di backend).
+    html += `<div class="${terbuka?'':'hide'}" style="display:flex;gap:6px;margin-top:6px;">
+      <input type="text" id="pm-inline-nama-${slug}" placeholder="+ Nama bahan baru" style="flex:1;padding:6px 8px;font-size:12px;">
+      <input type="text" id="pm-inline-satuan-${slug}" placeholder="Satuan" style="width:66px;padding:6px 8px;font-size:12px;">
+      <button type="button" onclick="tambahBahanInline_('${kat}')"
+        style="background:var(--or);color:#fff;border:none;border-radius:6px;padding:0 12px;font-size:12px;cursor:pointer;flex-shrink:0;">➕</button>
+    </div>`;
+
     if(uncheckedItems.length){
       html += `<div class="${terbuka?'':'hide'}" style="border:1px solid var(--bdr);border-radius:8px;overflow:hidden;margin-top:6px;">`;
       html += uncheckedItems.map((b,i) => pmItemRowHtml_(kat, b, i < uncheckedItems.length-1)).join('');
@@ -5139,7 +5109,7 @@ function renderPermintaanChecklist(){
     html += `</div>`;
   });
   if(!html){
-    html = '<div class="empty" style="padding:16px;"><p style="font-size:12px;">Tidak ada bahan yang cocok. Cari kata kunci lain, atau tambah bahan baru lewat ⚙️ Kelola.</p></div>';
+    html = '<div class="empty" style="padding:16px;"><p style="font-size:12px;">Tidak ada bahan yang cocok dgn kata kunci ini di kategori manapun.</p></div>';
   }
   wrap.innerHTML = html;
 }
@@ -5363,95 +5333,22 @@ async function kirimPermintaanViaWA(){
 }
 
 // ── Kelola Bahan Baku (tambah item baru ke master: kategori, nama, satuan, kode akun) ──
-async function openKelolaBahanBakuModal(){
-  document.getElementById('kb-kategori').value = '';
-  document.getElementById('kb-nama').value = '';
-  document.getElementById('kb-satuan').value = '';
-  document.getElementById('kb-akun-search').value = '';
-  document.getElementById('kb-akun-value').value = '';
-  document.getElementById('kelola-bahan-modal').classList.remove('hide');
-  await loadKodeAkunData();
-  renderKelolaBahanBakuList();
-}
-function closeKelolaBahanBakuModal(){
-  document.getElementById('kelola-bahan-modal').classList.add('hide');
-}
-function renderKelolaBahanBakuList(){
-  const wrap = document.getElementById('kb-list');
-  if(!BAHAN_BAKU_DATA.length){
-    wrap.innerHTML = '<div class="empty" style="padding:16px;"><p style="font-size:12px;">Belum ada bahan baku di master.</p></div>';
-    return;
-  }
-  let html = '';
-  KATEGORI_BAHAN_LIST_.forEach(kat => {
-    const items = BAHAN_BAKU_DATA.filter(b => b.kategori===kat);
-    if(!items.length) return;
-    html += `<div style="font-size:11px;font-weight:700;color:var(--ord);margin:8px 0 4px;">${kat}</div>`;
-    items.forEach(b => {
-      html += `<div style="display:flex;justify-content:space-between;padding:6px 4px;border-bottom:1px solid var(--bdr);font-size:12px;">
-        <span>${b.nama} <span style="color:var(--inks);">(${b.satuan_default||'—'})</span></span>
-        <span style="color:var(--inks);">${b.kode_akun||'—'}</span>
-      </div>`;
-    });
-  });
-  wrap.innerHTML = html || '<div class="empty" style="padding:16px;"><p style="font-size:12px;">Belum ada bahan baku di master.</p></div>';
-}
-function filterKbAkun(){
-  const q = document.getElementById('kb-akun-search').value.toLowerCase().trim();
-  const dd = document.getElementById('kb-akun-dd');
-  document.getElementById('kb-akun-value').value = '';
-  const filtered = (q.length < 1 ? KODE_AKUN_DATA.slice(0, 25) : KODE_AKUN_DATA.filter(a =>
-    a.kode.toLowerCase().includes(q) ||
-    a.kategori.toLowerCase().includes(q) ||
-    a.sub_kelompok.toLowerCase().includes(q) ||
-    a.kelompok.toLowerCase().includes(q)
-  )).slice(0, 40);
-  if(!filtered.length){
-    dd.innerHTML = '<div style="padding:9px 12px;font-size:12px;color:var(--inks);">Tidak ada hasil</div>';
-    dd.style.display = 'block';
-    return;
-  }
-  dd.innerHTML = filtered.map(a => `
-    <div onclick="pilihKbAkun('${a.kode}')"
-      style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--bdr);font-size:12px;"
-      onmouseover="this.style.background='var(--orl)'" onmouseout="this.style.background=''">
-      <strong>${a.kode}</strong> — ${a.kategori}
-      <br><span style="color:var(--inks);font-size:10px;">${a.kelompok} · ${a.sub_kelompok}</span>
-    </div>`).join('');
-  dd.style.display = 'block';
-}
-function hideKbAkunDD(){ document.getElementById('kb-akun-dd').style.display = 'none'; }
-function pilihKbAkun(kode){
-  const a = KODE_AKUN_DATA.find(x => x.kode === kode);
-  if(!a) return;
-  document.getElementById('kb-akun-value').value = a.kode;
-  document.getElementById('kb-akun-search').value = a.kode + ' — ' + a.kategori;
-  document.getElementById('kb-akun-dd').style.display = 'none';
-}
-async function simpanBahanBakuBaru(){
-  const kategori = document.getElementById('kb-kategori').value;
-  const nama = document.getElementById('kb-nama').value.trim();
-  const satuan = document.getElementById('kb-satuan').value.trim();
-  const kodeAkun = document.getElementById('kb-akun-value').value;
+async function tambahBahanInline_(kategori){
+  const slug = kategori.replace(/\s+/g,'_');
+  const nama = (document.getElementById('pm-inline-nama-'+slug)?.value || '').trim();
+  const satuan = (document.getElementById('pm-inline-satuan-'+slug)?.value || '').trim();
+  if(!nama){ toast('Isi nama bahan dulu.','err'); return; }
+  if(!satuan){ toast('Isi satuan dulu.','err'); return; }
 
-  if(!kategori){ toast('Pilih kategori dulu.','err'); return; }
-  if(!nama){ toast('Isi nama bahan.','err'); return; }
-  if(!satuan){ toast('Isi satuan.','err'); return; }
-  if(!kodeAkun){ toast('Pilih Kode Akun dulu (cari dari kotak di atas).','err'); return; }
-
-  showOvl('Menyimpan…');
+  showOvl('Menyimpan bahan baru…');
   try{
-    const qs = new URLSearchParams({action:'tambahBahanBaku', nama, kategori, satuan, kode_akun:kodeAkun}).toString();
+    const qs = new URLSearchParams({action:'tambahBahanBaku', nama, kategori, satuan}).toString();
     const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
     if(!j.success) throw new Error(j.message);
-    toast(j.sudah_ada ? `"${nama}" sudah ada di master.` : `"${nama}" ditambahkan ke master ✓`, 'ok');
-    document.getElementById('kb-nama').value = '';
-    document.getElementById('kb-satuan').value = '';
-    document.getElementById('kb-akun-search').value = '';
-    document.getElementById('kb-akun-value').value = '';
-    await loadBahanBakuData(true);
-    renderKelolaBahanBakuList();
-    renderPermintaanChecklist(); // kalau modal Permintaan sedang kebuka di belakang, ikut ter-refresh
+    if(!j.sudah_ada) BAHAN_BAKU_DATA.push({ nama: j.nama, kategori: j.kategori, satuan_default: j.satuan_default, kode_akun: j.kode_akun });
+    toast(j.sudah_ada ? `"${nama}" sudah ada di daftar.` : `"${nama}" ditambahkan ✓ — tinggal dicentang.`, 'ok');
+    PM_KATEGORI_TERBUKA.add(kategori); // pastikan tetap kebuka stlh render ulang
+    renderPermintaanChecklist();
   }catch(e){
     toast('Gagal: '+e.message,'err');
   }finally{ hideOvl(); }
