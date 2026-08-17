@@ -797,9 +797,18 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       <button class="modal-close" onclick="closeProsesPermintaanModal()">×</button>
     </div>
     <div id="pp-body"></div>
+    <div class="g2" style="margin-top:10px;">
+      <div class="fld" style="margin:0;position:relative;">
+        <label style="font-size:10px;">Nama Supplier <span class="req">*</span></label>
+        <input id="pp-nama-supplier" placeholder="🔍 Cari/ketik nama supplier…" autocomplete="off" style="padding:7px 9px;font-size:12px;"
+          oninput="filterPpSupplier()" onfocus="filterPpSupplier()" onblur="setTimeout(hidePpSupplierDD,200)">
+        <div id="pp-supplier-dd" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--or);border-radius:0 0 8px 8px;max-height:160px;overflow-y:auto;z-index:100;box-shadow:var(--sh);"></div>
+      </div>
+      <div class="fld" style="margin:0;"><label style="font-size:10px;">No. HP Supplier</label><input id="pp-hp-supplier" placeholder="08xxxxxxxxxx" style="padding:7px 9px;font-size:12px;"></div>
+    </div>
     <button class="bico" style="width:100%;margin-top:10px;" onclick="simpanSemuaProsesPermintaan()">💾 Simpan Semua Perubahan</button>
     <div style="display:flex;gap:8px;margin-top:8px;">
-      <button class="bico" style="flex:1;background:#1565C0;" onclick="cetakNotaPembelian()">🖨️ Cetak Nota Pembelian</button>
+      <button class="bico" style="flex:1;background:#1565C0;" onclick="bukaPrintPreviewNota(PROSES_NO_PERMINTAAN_AKTIF)">🖨️ Cetak Nota Pembelian</button>
       <button class="bsub" style="flex:1;margin-top:0;" onclick="tandaiSelesaiPermintaan()">✅ Tandai Selesai</button>
     </div>
   </div>
@@ -4956,6 +4965,60 @@ async function loadBahanBakuData(force){
   }catch(e){ console.warn('Gagal load Bahan Baku:', e.message); }
 }
 
+// ── Supplier (disimpan sbg baris Role="supplier" di sheet Karyawan) — dicari saat isi
+//    Nama Supplier di modal Proses Permintaan, bisa tambah baru langsung dari situ. ──
+let SUPPLIER_DATA = [];
+async function loadSupplierData(force){
+  if(SUPPLIER_DATA.length && !force) return;
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=getSupplierList&t=' + Date.now());
+    if(j.success && j.data) SUPPLIER_DATA = j.data;
+  }catch(e){ console.warn('Gagal load Supplier:', e.message); }
+}
+function filterPpSupplier(){
+  const q = document.getElementById('pp-nama-supplier').value.toLowerCase().trim();
+  const dd = document.getElementById('pp-supplier-dd');
+  const filtered = q ? SUPPLIER_DATA.filter(s => s.nama.toLowerCase().includes(q)) : SUPPLIER_DATA.slice(0,20);
+
+  let html = filtered.map(s => `
+    <div onclick="pilihPpSupplier('${s.nama.replace(/'/g,"\\'")}','${(s.no_hp||'').replace(/'/g,"\\'")}')"
+      style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--bdr);font-size:12px;"
+      onmouseover="this.style.background='var(--orl)'" onmouseout="this.style.background=''">
+      ${s.nama}${s.no_hp?' <span style="color:var(--inks);font-size:10px;">'+s.no_hp+'</span>':''}
+    </div>`).join('');
+
+  const cocokPersis = SUPPLIER_DATA.some(s => s.nama.toLowerCase() === q);
+  if(q && !cocokPersis){
+    html += `<div onclick="tambahSupplierBaru('${q.replace(/'/g,"\\'")}')"
+      style="padding:8px 12px;cursor:pointer;font-size:12px;color:var(--ord);font-weight:600;background:var(--orl);">
+      ➕ Tambah supplier baru: "${q}"
+    </div>`;
+  }
+  dd.innerHTML = html || '<div style="padding:8px 12px;font-size:12px;color:var(--inks);">Ketik nama supplier…</div>';
+  dd.style.display = 'block';
+}
+function hidePpSupplierDD(){ document.getElementById('pp-supplier-dd').style.display = 'none'; }
+function pilihPpSupplier(nama, noHp){
+  document.getElementById('pp-nama-supplier').value = nama;
+  if(noHp) document.getElementById('pp-hp-supplier').value = noHp;
+  document.getElementById('pp-supplier-dd').style.display = 'none';
+}
+async function tambahSupplierBaru(nama){
+  const noHp = document.getElementById('pp-hp-supplier').value.trim();
+  showOvl('Menyimpan supplier…');
+  try{
+    const qs = new URLSearchParams({action:'tambahSupplier', nama, no_hp:noHp}).toString();
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+    SUPPLIER_DATA.push({ nama, no_hp: noHp });
+    document.getElementById('pp-nama-supplier').value = nama;
+    document.getElementById('pp-supplier-dd').style.display = 'none';
+    toast(j.sudah_ada ? `Supplier "${nama}" sudah ada di daftar.` : `Supplier "${nama}" ditambahkan ✓`, 'ok');
+  }catch(e){
+    toast('Gagal: '+e.message,'err');
+  }finally{ hideOvl(); }
+}
+
 // ── Buat Permintaan (Leader Dapur) — centang dari daftar master, isi Qty per item ──
 let PERMINTAAN_SELECTED = {}; // key "kategori|nama" -> {kategori,nama_bahan,satuan,kode_akun,qty}
 
@@ -5551,6 +5614,9 @@ function openProsesPermintaanModal(noPermintaan){
   const semuaItemNo = PERMINTAAN_CACHE.filter(t => t.no_permintaan === noPermintaan);
   const revisiKeModal = Math.max(0, ...semuaItemNo.map(t => t.revisi_ke || 0));
   document.getElementById('pp-no-permintaan').textContent = noPermintaan + (revisiKeModal>0 ? ` (Revisi ${revisiKeModal})` : '');
+  document.getElementById('pp-nama-supplier').value = (semuaItemNo[0] && semuaItemNo[0].nama_supplier) || '';
+  document.getElementById('pp-hp-supplier').value = (semuaItemNo[0] && semuaItemNo[0].no_hp_supplier) || '';
+  loadSupplierData();
   const items = PERMINTAAN_CACHE.filter(t => t.no_permintaan === noPermintaan && t.status !== 'Batal');
 
   if(!items.length){
@@ -5566,7 +5632,13 @@ function openProsesPermintaanModal(noPermintaan){
     html += `<div style="font-size:11px;font-weight:700;color:var(--ord);margin:10px 0 4px;">${kat}</div>`;
     rows.forEach(t => {
       html += `<div style="border:1px solid var(--bdr);border-radius:8px;padding:9px 10px;margin-bottom:8px;" data-row="${t.row_index}">
-        <div style="font-size:12px;font-weight:600;margin-bottom:6px;">${t.nama_bahan} <span style="color:var(--inks);font-weight:400;">(diminta: ${t.qty_diminta} ${t.satuan})</span></div>
+        <label style="display:flex;align-items:flex-start;gap:8px;font-size:12px;font-weight:600;margin-bottom:6px;cursor:pointer;">
+          <input type="checkbox" class="pp-cetak-check" ${t.sudah_dicetak?'checked':''}
+            style="-webkit-appearance:checkbox!important;appearance:checkbox!important;width:17px!important;height:17px!important;
+                   min-width:17px!important;padding:0!important;margin:2px 0 0 0!important;border:1px solid #999!important;
+                   border-radius:3px!important;background:#fff!important;flex-shrink:0;">
+          <span>${t.nama_bahan} <span style="color:var(--inks);font-weight:400;">(diminta: ${t.qty_diminta} ${t.satuan})</span>${t.sudah_dicetak?' <span class="badge bs" style="font-size:9px;">Sudah dicetak</span>':''}</span>
+        </label>
         <div class="g2">
           <div class="fld" style="margin:0;"><label style="font-size:10px;">Qty Dibeli</label>
             <input type="number" min="0" step="0.1" class="pp-qty-input" value="${t.qty_dibeli||t.qty_diminta}" style="padding:6px 8px;font-size:12px;">
@@ -5621,27 +5693,11 @@ async function tandaiSelesaiPermintaan(){
     toast('Gagal: '+e.message,'err');
   }finally{ hideOvl(); }
 }
-async function cetakNotaPembelian(){
-  if(!PROSES_NO_PERMINTAAN_AKTIF) return;
-  showOvl('Membuat PDF nota…');
-  try{
-    const qs = new URLSearchParams({action:'generateNotaPembelianPdf', no_permintaan:PROSES_NO_PERMINTAAN_AKTIF}).toString();
-    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
-    if(!j.success) throw new Error(j.message);
-    const byteChars = atob(j.base64);
-    const byteNumbers = new Array(byteChars.length);
-    for(let i=0;i<byteChars.length;i++) byteNumbers[i]=byteChars.charCodeAt(i);
-    const blob = new Blob([new Uint8Array(byteNumbers)], {type:'application/pdf'});
-    const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
-    toast('PDF nota pembelian dibuat ✓','ok');
-  }catch(e){
-    toast('Gagal buat PDF: '+e.message,'err');
-  }finally{ hideOvl(); }
-}
+// (Fungsi cetakNotaPembelian() lama berbasis PDF sudah tidak dipakai — Cetak Nota Pembelian
+// sekarang lewat printer Bluetooth 58mm, lihat bukaPrintPreviewNota() di bawah.)
 
 // ══ PRINT MENU KE PRINTER BLUETOOTH 58MM (font diperbesar) ══
-const PRINT_STATE = { order:null, characteristic:null, device:null };
+const PRINT_STATE = { jenis:null, data:null, characteristic:null, device:null }; // jenis: 'order' atau 'nota'
 
 // Bungkus teks panjang jadi beberapa baris supaya pas di kertas 58mm
 function wrapTeksPrint_(str, maxChars){
@@ -5723,18 +5779,72 @@ function bangunBarisStruk_(o){
   return L;
 }
 
-function bukaPrintPreview(noOrder){
-  const o = allOrders.find(x => String(x.no_order) === String(noOrder));
-  if(!o){ toast('Data order tidak ditemukan.','err'); return; }
+// Susun baris cetak Nota Pembelian: header ringkas (nama akun + tanggal saja), rincian
+// item dgn font NORMAL (bukan double-width) supaya kolom qty/harga/jumlah bisa muat rapi
+// di kertas 58mm, lalu total, dan penutup "Batam, {tanggal}" + nama & no HP supplier.
+function bangunBarisNotaPembelian_(noPermintaan, items, namaSupplier, noHpSupplier){
+  const W = 14; // lebar baris besar (double-width), dipakai utk header/divider/total
+  const tglObj = items[0] && items[0].tanggal ? new Date(items[0].tanggal+'T00:00:00') : new Date();
+  const tglIndo = tglObj.toLocaleDateString('id-ID', {day:'numeric',month:'long',year:'numeric'});
 
-  PRINT_STATE.order = o;
-  const baris = bangunBarisStruk_(o);
+  const L = [];
+  L.push({text:'KSM KATERING', bold:true, center:true});
+  L.push({text: tglIndo, center:true});
+  L.push({text:'-'.repeat(W), center:true});
+
+  // Rincian: No | Item | Satuan | Qty | Harga | Jumlah — ditulis 2 baris per item krn
+  // font normal 58mm (~32 karakter) tidak muat kalau semua kolom dipaksa 1 baris rata kanan-kiri.
+  L.push({cmd:'tight'});
+  let total = 0;
+  items.forEach((it,i) => {
+    const qty = it.qty_dibeli || it.qty_diminta || 0;
+    const harga = it.harga_satuan || 0;
+    const jumlah = qty * harga;
+    total += jumlah;
+    wrapTeksPrint_(`${i+1}. ${it.nama_bahan}`, 30).forEach(t => L.push({text:t, small:true}));
+    const kiri = `${it.satuan} x${qty} @${harga.toLocaleString('id-ID')}`;
+    const kanan = jumlah.toLocaleString('id-ID');
+    if(kiri.length <= 22){
+      L.push({text: kiri.padEnd(23)+kanan, small:true});
+    } else {
+      L.push({text: kiri, small:true});
+      L.push({text: '   = Rp'+kanan, small:true});
+    }
+  });
+  L.push({cmd:'normal'});
+
+  L.push({text:'-'.repeat(W), center:true});
+  L.push({text:'TOTAL: Rp'+total.toLocaleString('id-ID'), bold:true});
+  L.push({text:'-'.repeat(W), center:true});
+  L.push({text:' '});
+  L.push({text:'Batam, '+tglIndo, small:true});
+  // Ruang kosong utk supplier tanda tangan/stempel langsung di kertas fisik ini
+  // (nota dicetak oleh Pembelian, tinggal diserahkan ke supplier utk ditandatangani/distempel)
+  L.push({text:' ', small:true});
+  L.push({text: namaSupplier || '(nama supplier)', small:true});
+  L.push({text: noHpSupplier || '(no HP supplier)', small:true});
+  return L;
+}
+
+// Render baris (dari bangunBarisStruk_ ATAU bangunBarisNotaPembelian_) ke kertas preview HTML.
+// Baris bertanda 'small' dirender lebih kecil (font normal), sisanya besar spt sebelumnya.
+function renderKertasPreview_(baris){
   const kertas = document.getElementById('print-paper');
   kertas.innerHTML = baris.filter(b=>!b.cmd).map(b => {
     const weight = b.bold ? '700' : '400';
     const align = b.center ? 'center' : 'left';
-    return `<div style="font-size:21px;font-weight:${weight};line-height:1.15;text-align:${align};margin:0;">${b.text||' '}</div>`;
+    const size = b.small ? '13px' : '21px';
+    return `<div style="font-size:${size};font-weight:${weight};line-height:1.25;text-align:${align};margin:0;">${b.text||' '}</div>`;
   }).join('');
+}
+
+function bukaPrintPreview(noOrder){
+  const o = allOrders.find(x => String(x.no_order) === String(noOrder));
+  if(!o){ toast('Data order tidak ditemukan.','err'); return; }
+
+  PRINT_STATE.jenis = 'order';
+  PRINT_STATE.data = o;
+  renderKertasPreview_(bangunBarisStruk_(o));
 
   document.getElementById('print-status').textContent = PRINT_STATE.characteristic
     ? '🔵 Printer sudah terhubung — siap cetak'
@@ -5743,6 +5853,52 @@ function bukaPrintPreview(noOrder){
   document.getElementById('btn-cetak-sekarang').style.background = PRINT_STATE.characteristic ? 'var(--or)' : 'var(--inks)';
 
   closeOrderDetail();
+  document.getElementById('print-preview-modal').classList.remove('hide');
+}
+
+// Cetak Nota Pembelian ke printer Bluetooth 58mm — dipanggil dari tombol "🖨️ Cetak Nota
+// Pembelian" di modal Proses Permintaan (Pembelian). Simpan dulu Nama/No HP Supplier yg
+// diisi di form (kalau ada), baru buka preview cetak.
+async function bukaPrintPreviewNota(noPermintaan){
+  const namaSupplier = (document.getElementById('pp-nama-supplier')?.value || '').trim();
+  const noHpSupplier = (document.getElementById('pp-hp-supplier')?.value || '').trim();
+  if(!namaSupplier){ toast('Isi Nama Supplier dulu sebelum cetak.','err'); return; }
+
+  // Cuma item yang DICENTANG yg ikut dicetak di nota ini — 1 kategori (mis. Sayur) belum
+  // tentu semuanya dibeli dari 1 supplier yang sama, jadi Pembelian pilih sendiri item mana
+  // yang mau dimasukkan ke nota supplier ini.
+  const blokTerpilih = Array.from(document.querySelectorAll('#pp-body [data-row]'))
+    .filter(el => el.querySelector('.pp-cetak-check')?.checked);
+  if(!blokTerpilih.length){ toast('Centang minimal 1 item yang mau dicetak di nota ini.','err'); return; }
+
+  const rowIndexes = blokTerpilih.map(el => el.dataset.row);
+  const items = blokTerpilih.map(el => {
+    const t = PERMINTAAN_CACHE.find(x => String(x.row_index) === el.dataset.row);
+    if(!t) return null;
+    // Pakai qty/harga TERBARU yg kelihatan di layar saat ini (mungkin belum sempat ditekan
+    // "Simpan Semua Perubahan"), supaya nota yg dicetak selalu sesuai apa yg terlihat.
+    return {
+      ...t,
+      qty_dibeli: parseFloat(el.querySelector('.pp-qty-input').value) || t.qty_dibeli || t.qty_diminta,
+      harga_satuan: parseFloat(el.querySelector('.pp-harga-input').value) || t.harga_satuan || 0
+    };
+  }).filter(Boolean);
+
+  try{
+    const qs = new URLSearchParams({action:'simpanInfoSupplier', no_permintaan:noPermintaan, nama_supplier:namaSupplier, no_hp_supplier:noHpSupplier}).toString();
+    await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+  }catch(e){ console.warn('Gagal simpan info supplier (lanjut cetak tetap jalan):', e.message); }
+
+  PRINT_STATE.jenis = 'nota';
+  PRINT_STATE.data = { noPermintaan, items, namaSupplier, noHpSupplier, rowIndexes };
+  renderKertasPreview_(bangunBarisNotaPembelian_(noPermintaan, items, namaSupplier, noHpSupplier));
+
+  document.getElementById('print-status').textContent = PRINT_STATE.characteristic
+    ? '🔵 Printer sudah terhubung — siap cetak'
+    : 'Belum terhubung ke printer. Tap "Hubungkan Printer" dulu.';
+  document.getElementById('btn-cetak-sekarang').disabled = !PRINT_STATE.characteristic;
+  document.getElementById('btn-cetak-sekarang').style.background = PRINT_STATE.characteristic ? 'var(--or)' : 'var(--inks)';
+
   document.getElementById('print-preview-modal').classList.remove('hide');
 }
 function tutupPrintPreview(){
@@ -5799,7 +5955,7 @@ function bangunByteESCPOS_(baris){
     if (b.cmd === 'normal') { push(0x1B,0x32); return; }    // ESC 2 — kembali ke jarak baris default
     push(0x1B,0x61, b.center ? 0x01 : 0x00); // align
     push(0x1B,0x45, b.bold ? 0x01 : 0x00);   // bold on/off
-    push(0x1D,0x21, 0x11); // GS ! — double-height + double-width utk SEMUA baris
+    push(0x1D,0x21, b.small ? 0x00 : 0x11);  // GS ! — normal size utk baris bertanda 'small' (mis. rincian Nota Pembelian), selain itu double-height+width spt biasa
     pushText(b.text || ' ');
     push(0x0A); // line feed
   });
@@ -5813,7 +5969,7 @@ function bangunByteESCPOS_(baris){
 
 async function cetakKePrinter(){
   if(!PRINT_STATE.characteristic){ toast('Hubungkan printer dulu.','err'); return; }
-  if(!PRINT_STATE.order){ toast('Data order tidak ada.','err'); return; }
+  if(!PRINT_STATE.data){ toast('Data yang mau dicetak tidak ada.','err'); return; }
 
   const stat = document.getElementById('print-status');
   const btn = document.getElementById('btn-cetak-sekarang');
@@ -5821,7 +5977,9 @@ async function cetakKePrinter(){
   stat.textContent = '🖨️ Mengirim data ke printer…';
 
   try{
-    const baris = bangunBarisStruk_(PRINT_STATE.order);
+    const baris = PRINT_STATE.jenis === 'nota'
+      ? bangunBarisNotaPembelian_(PRINT_STATE.data.noPermintaan, PRINT_STATE.data.items, PRINT_STATE.data.namaSupplier, PRINT_STATE.data.noHpSupplier)
+      : bangunBarisStruk_(PRINT_STATE.data);
     const data = bangunByteESCPOS_(baris);
 
     // Kirim per-chunk kecil (kebanyakan printer BLE murah cuma terima ±100-180 byte per write)
@@ -5833,7 +5991,22 @@ async function cetakKePrinter(){
     }
 
     stat.textContent = '✅ Selesai dicetak!';
-    toast('Menu berhasil dicetak ✓','ok');
+    toast((PRINT_STATE.jenis==='nota'?'Nota Pembelian':'Menu')+' berhasil dicetak ✓','ok');
+
+    // Tandai item2 yg baru dicetak sbg "Sudah Dicetak" — biar checkbox-nya default tercentang
+    // lain kali modal Proses Permintaan dibuka lagi, mencegah item yg sama tanpa sadar
+    // dicetak/dipesan ulang ke supplier lain (order ganda).
+    if(PRINT_STATE.jenis === 'nota' && PRINT_STATE.data.rowIndexes && PRINT_STATE.data.rowIndexes.length){
+      try{
+        const qs2 = new URLSearchParams({action:'tandaiItemDicetak', row_indexes: JSON.stringify(PRINT_STATE.data.rowIndexes)}).toString();
+        await gasFetch(APP.GAS_URL + '?' + qs2 + '&t=' + Date.now());
+        PRINT_STATE.data.rowIndexes.forEach(ri => {
+          const chk = document.querySelector(`#pp-body [data-row="${ri}"] .pp-cetak-check`);
+          if(chk) chk.checked = true;
+        });
+        loadPermintaanList(); // refresh cache biar status "Sudah Dicetak" ikut ter-update
+      }catch(e){ console.warn('Gagal menandai item sudah dicetak:', e.message); }
+    }
   }catch(e){
     stat.textContent = '❌ Gagal cetak: ' + e.message;
     toast('Gagal mencetak: '+e.message,'err');
