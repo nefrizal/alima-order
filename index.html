@@ -748,6 +748,11 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
         <option value="Sayur">Sayur</option>
         <option value="Sambal">Sambal</option>
         <option value="Bumbu">Bumbu</option>
+        <option value="Buah">Buah</option>
+        <option value="Kerupuk">Kerupuk</option>
+        <option value="Air Mineral">Air Mineral</option>
+        <option value="Packaging">Packaging</option>
+        <option value="Beban Bahan Bakar">Beban Bahan Bakar</option>
       </select>
     </div>
     <div class="fld"><label>Nama Bahan <span class="req">*</span></label><input id="kb-nama" placeholder="Contoh: Bayam"></div>
@@ -1575,8 +1580,9 @@ async function handleGoogleCredential(resp){
     }
     if (bisaBahanBaku) {
       document.getElementById('ksub-panel-bahan').classList.remove('hide');
-      // Tombol "Buat Permintaan" hanya utk leader dapur/admin — pembelian cuma memproses.
-      if (['leader dapur','admin'].includes(CURRENT_USER.role)) {
+      // Tombol "Buat Permintaan" — leader dapur/admin bisa dari awal; pembelian sekarang
+      // JUGA bisa bikin permintaan sendiri (sama seperti leader dapur), selain memproses.
+      if (['leader dapur','pembelian','admin'].includes(CURRENT_USER.role)) {
         document.getElementById('bb-btn-buat-permintaan').classList.remove('hide');
       }
     }
@@ -4955,7 +4961,7 @@ async function hapusJurnalBaris(rowIndex){
 // ══ BAHAN BAKU — Permintaan Leader Dapur → Diproses Pembelian ══════════════════
 let BAHAN_BAKU_DATA = [];   // [{nama,kategori,satuan_default,kode_akun}, ...] — master, di-cache per sesi
 let PERMINTAAN_CACHE = [];  // hasil getPermintaan terakhir (flat), dipakai utk buka detail proses
-const KATEGORI_BAHAN_LIST_ = ['Karbo','Lauk Utama','Lauk Tambahan','Sayur','Sambal','Bumbu'];
+const KATEGORI_BAHAN_LIST_ = ['Karbo','Lauk Utama','Lauk Tambahan','Sayur','Sambal','Bumbu','Buah','Kerupuk','Air Mineral','Packaging','Beban Bahan Bakar'];
 
 async function loadBahanBakuData(force){
   if(BAHAN_BAKU_DATA.length && !force) return;
