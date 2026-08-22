@@ -94,7 +94,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 .swrap{text-align:center;padding:40px;}
 .sp{width:30px;height:30px;border:3px solid var(--bdr);border-top-color:var(--or);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 10px;}
 @keyframes spin{to{transform:rotate(360deg)}}
-.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--ink);color:#fff;padding:10px 20px;border-radius:30px;font-size:12px;font-weight:600;z-index:999;transition:transform .3s cubic-bezier(.34,1.56,.64,1);white-space:nowrap;max-width:92vw;text-align:center;}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--ink);color:#fff;padding:10px 20px;border-radius:16px;font-size:12px;font-weight:600;z-index:999;transition:transform .3s cubic-bezier(.34,1.56,.64,1);white-space:normal;width:92vw;max-width:420px;text-align:center;line-height:1.5;}
 .toast.show{transform:translateX(-50%) translateY(0);}.toast.ok{background:var(--grn);}.toast.err{background:var(--red);}
 .ovl{position:fixed;inset:0;background:rgba(255,251,247,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:500;gap:12px;font-size:13px;color:var(--inkm);font-weight:500;}
 .ovl.hide{display:none;}
@@ -111,6 +111,10 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 .modal-head h2{font-family:'Playfair Display',serif;font-size:17px;font-weight:700;color:var(--ord);}
 .modal-close{background:var(--bdr);border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:18px;color:var(--inkm);display:flex;align-items:center;justify-content:center;}
 .sales-hint{font-size:11px;color:var(--inks);margin-top:4px;}
+.bb-cat-group{margin-bottom:6px;}
+.bb-cat-summary{cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-size:11px;font-weight:700;color:var(--ord);padding:8px 4px;border-radius:6px;user-select:none;}
+.bb-cat-summary:hover{background:var(--orl);}
+.bb-cat-arrow{display:inline-block;transition:transform .2s;color:var(--inks);font-size:10px;}
 @media(max-width:480px){.g2,.g3,.mgrid{grid-template-columns:1fr;}header{height:50px;}.tabs{top:50px;}}
 </style>
 </head>
@@ -150,6 +154,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   <button class="tbtn" id="tab-grafik" onclick="goTab('grafik',this)">📊 Grafik</button>
   <button class="tbtn" id="tab-absensi" onclick="goTab('absensi',this)">🕐 Absensi</button>
   <button class="tbtn" id="tab-laporan" onclick="goTab('laporan',this)">📋 Laporan Keluhan</button>
+  <button class="tbtn hide" id="tab-keuangan" onclick="goTab('keuangan',this)">💰 Keuangan</button>
 </div>
 <div class="ovl hide" id="ovl"><div class="sp"></div><span id="ovl-msg">Memproses…</span></div>
 <div class="toast" id="toast"></div>
@@ -419,6 +424,86 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   <div id="laporan-list"><div class="empty"><div class="eico">📋</div><p>Klik ↻ untuk memuat daftar laporan.</p></div></div>
 </div>
 
+<!-- ═══ KEUANGAN (JURNAL + BAHAN BAKU, tampil bertumpuk sesuai hak akses) ═══ -->
+<div class="panel" id="panel-keuangan">
+
+  <div id="ksub-panel-jurnal" class="hide">
+    <div style="font-family:'Playfair Display',serif;font-size:14px;font-weight:700;color:var(--ord);margin-bottom:10px;">📒 Jurnal</div>
+    <div class="lbar">
+      <button class="bico" id="kn-btn-buat-nota" onclick="openNotaModal()" style="flex:1;background:var(--or);">➕ Buat Nota</button>
+      <button class="bico" id="kn-btn-refresh" onclick="loadJurnalData()">↻</button>
+    </div>
+
+    <div id="kn-input-only-note" class="empty hide" style="padding:24px 16px;">
+      <div class="eico">✍️</div>
+      <p>Akses Anda: <strong>Input saja</strong> — Anda bisa menambahkan nota pembelian, tapi tidak bisa melihat rekap/jurnal keuangan.</p>
+    </div>
+
+    <div id="kn-view-section">
+      <div id="kn-scope-note" class="hide" style="background:var(--orl);border:1px solid #f7d4bc;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:11px;color:var(--ord);">
+        ℹ️ Anda cuma bisa lihat transaksi yang Anda input sendiri. Untuk lihat seluruh jurnal, hubungi admin/finance/sales.
+      </div>
+      <div class="sec">
+        <div class="stitle">🔍 Filter Periode</div>
+        <div class="g3">
+          <div class="fld"><label>Dari Tanggal</label><input id="kn-filter-mulai" type="date"></div>
+          <div class="fld"><label>Sampai Tanggal</label><input id="kn-filter-sampai" type="date"></div>
+          <div class="fld"><label>Kode Unit</label>
+            <select id="kn-filter-unit">
+              <option value="">— Semua —</option>
+              <option value="KSM">KSM</option>
+              <option value="KKB">KKB</option>
+              <option value="KCI">KCI</option>
+              <option value="BGN0">BGN0</option>
+              <option value="BGN1">BGN1</option>
+              <option value="BGN2">BGN2</option>
+              <option value="BGN3">BGN3</option>
+              <option value="BGN4">BGN4</option>
+              <option value="BGN5">BGN5</option>
+            </select>
+          </div>
+        </div>
+        <button class="bico" style="width:100%;" onclick="loadJurnalData()">🔍 Terapkan Filter</button>
+      </div>
+
+      <div id="kn-summary" class="pstrip" style="margin-bottom:14px;">
+        <div class="prow"><span>Total Pemasukan</span><span id="kn-total-masuk" style="color:var(--grn);font-weight:700;">Rp 0</span></div>
+        <div class="prow"><span>Total Pengeluaran</span><span id="kn-total-keluar" style="color:var(--red);font-weight:700;">Rp 0</span></div>
+        <div class="prow tot"><span>Laba Bersih</span><span id="kn-laba">Rp 0</span></div>
+      </div>
+
+      <div id="kn-list"><div class="empty"><div class="eico">📒</div><p>Klik ↻ untuk memuat data jurnal.</p></div></div>
+    </div>
+  </div>
+
+  <!-- ═══ BAHAN BAKU (Permintaan Leader Dapur → Diproses Pembelian) ═══ -->
+  <div class="hide" id="ksub-panel-bahan">
+    <div style="font-family:'Playfair Display',serif;font-size:14px;font-weight:700;color:var(--ord);margin:20px 0 10px;padding-top:16px;border-top:1px solid var(--bdr);">🥕 Bahan Baku</div>
+    <div class="lbar">
+      <button class="bico hide" id="bb-btn-buat-permintaan" onclick="openPermintaanModal()" style="flex:1;background:var(--or);">➕ Buat Permintaan Bahan</button>
+      <button class="bico" onclick="loadPermintaanList()">↻</button>
+    </div>
+
+    <div class="sec">
+      <div class="stitle">🔍 Filter</div>
+      <div class="g2">
+        <div class="fld"><label>Status</label>
+          <select id="bb-filter-status" onchange="loadPermintaanList()">
+            <option value="">— Semua —</option>
+            <option value="Diminta">Diminta (belum diproses)</option>
+            <option value="Diproses">Diproses (sudah ada harga)</option>
+            <option value="Selesai">Selesai</option>
+            <option value="Batal">Batal</option>
+          </select>
+        </div>
+        <div class="fld"><label>Tanggal (opsional)</label><input id="bb-filter-tanggal" type="date" onchange="loadPermintaanList()"></div>
+      </div>
+    </div>
+
+    <div id="bb-list"><div class="empty"><div class="eico">🥕</div><p>Klik ↻ untuk memuat daftar permintaan.</p></div></div>
+  </div>
+</div>
+
 </main>
 
 <!-- MODAL CUSTOMER (gabungan Tambah Baru + Edit/Revisi) -->
@@ -513,6 +598,182 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 
     <div class="stitle" style="font-size:13px;">📋 Daftar Peralatan</div>
     <div id="prl-list"><div class="empty" style="padding:16px;"><p style="font-size:12px;">⏳ Memuat…</p></div></div>
+  </div>
+</div>
+
+<!-- MODAL BUAT NOTA (multi-item, terhubung Kode Akun) -->
+<div class="modal-bg hide" id="nota-modal">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-head">
+      <h2>🧾 Buat Nota</h2>
+      <button class="modal-close" onclick="closeNotaModal()">×</button>
+    </div>
+    <div style="background:var(--orl);border:1px solid #f7d4bc;border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:11px;color:var(--ord);">
+      ℹ️ 1 nota bisa berisi beberapa item belanja (kode akun boleh beda-beda per item).
+      No. Nota di-generate otomatis setelah disimpan — catat nomor itu di nota kertas fisik sbg arsip.
+    </div>
+
+    <div class="stitle" style="font-size:13px;">📋 Info Nota</div>
+    <div class="g2">
+      <div class="fld"><label>Tanggal <span class="req">*</span></label><input id="nt-tanggal" type="date"></div>
+      <div class="fld"><label>Kode Unit</label>
+        <select id="nt-unit">
+          <option value="KSM">KSM</option>
+          <option value="KKB">KKB</option>
+          <option value="KCI">KCI</option>
+          <option value="BGN0">BGN0</option>
+          <option value="BGN1">BGN1</option>
+          <option value="BGN2">BGN2</option>
+          <option value="BGN3">BGN3</option>
+          <option value="BGN4">BGN4</option>
+          <option value="BGN5">BGN5</option>
+        </select>
+      </div>
+    </div>
+    <div class="g2">
+      <div class="fld"><label>Metode Bayar <span class="req">*</span></label>
+        <select id="nt-metode-bayar" onchange="toggleNtCardField()">
+          <option value="Cash">Cash</option>
+          <option value="Transfer">Transfer</option>
+          <option value="QRIS">QRIS</option>
+          <option value="Debit">Kartu Debit</option>
+          <option value="Kredit">Kartu Kredit</option>
+        </select>
+      </div>
+      <div class="fld" id="nt-card-fld">
+        <label>Card (bank/nama kartu)</label>
+        <input id="nt-card" placeholder="Contoh: BCA Debit">
+      </div>
+    </div>
+    <div class="g2">
+      <div class="fld"><label>No. Ref (opsional)</label><input id="nt-no-ref" placeholder="No. kwitansi / referensi transfer"></div>
+      <div class="fld"><label>Status</label>
+        <select id="nt-status">
+          <option value="Lunas">Lunas</option>
+          <option value="Pending">Pending</option>
+          <option value="DP">DP</option>
+          <option value="COD">COD</option>
+          <option value="Batal">Batal</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="stitle" style="font-size:13px;margin-top:6px;">➕ Tambah Item</div>
+    <div class="fld" style="position:relative;">
+      <label>Kode Akun <span class="req">*</span></label>
+      <input id="nt-akun-search" type="text" placeholder="🔍 Cari kode/kategori akun…" autocomplete="off"
+        oninput="filterNtAkun()" onfocus="filterNtAkun()" onblur="setTimeout(hideNtAkunDD,200)">
+      <input id="nt-akun-value" type="hidden">
+      <div id="nt-akun-dd" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--or);border-radius:0 0 8px 8px;max-height:220px;overflow-y:auto;z-index:100;box-shadow:var(--sh);"></div>
+    </div>
+    <div class="fld"><label>Deskripsi <span class="req">*</span></label><input id="nt-deskripsi" placeholder="Contoh: Beras 25kg"></div>
+    <div class="g3">
+      <div class="fld"><label>Qty</label><input id="nt-qty" type="number" min="1" value="1"></div>
+      <div class="fld"><label>Satuan</label><input id="nt-satuan" placeholder="kg/dus/pcs/liter"></div>
+      <div class="fld"><label>Harga Satuan (Rp)</label><input id="nt-harga" type="number" min="0" placeholder="50000"></div>
+    </div>
+    <div class="fld"><label>Jumlah</label><input id="nt-jumlah-preview" type="text" readonly placeholder="Auto"></div>
+    <button class="bico" style="width:100%;margin-bottom:10px;" onclick="tambahItemNota()">➕ Tambah Item ke Nota</button>
+
+    <div id="nt-items-list"></div>
+    <div id="nt-items-empty" class="empty" style="padding:16px;"><p style="font-size:12px;">Belum ada item. Tambahkan minimal 1 item di atas.</p></div>
+    <div id="nt-total-strip" class="pstrip hide" style="margin-bottom:14px;">
+      <div class="prow tot"><span>Total Nota</span><span id="nt-total-text">Rp 0</span></div>
+    </div>
+
+    <button class="bsub" onclick="previewNota()">👁️ Preview &amp; Simpan Nota</button>
+  </div>
+</div>
+
+<!-- MODAL PREVIEW NOTA (pengecekan sebelum benar-benar disimpan) -->
+<div class="modal-bg hide" id="nota-preview-modal">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-head">
+      <h2>👁️ Preview Nota</h2>
+      <button class="modal-close" onclick="closeNotaPreview()">×</button>
+    </div>
+    <div style="background:var(--orl);border:1px solid #f7d4bc;border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:11px;color:var(--ord);">
+      ℹ️ Cek dulu sebelum disimpan — No. Nota baru akan di-generate setelah Bapak tekan "Ya, Simpan".
+    </div>
+    <div id="ntp-body"></div>
+    <div style="display:flex;gap:8px;margin-top:16px;">
+      <button class="bico" style="flex:1;background:var(--inkm);" onclick="closeNotaPreview()">✏️ Edit Lagi</button>
+      <button class="bsub" id="ntp-btn-konfirmasi" style="flex:1;margin-top:0;" onclick="konfirmasiSimpanNota()">✅ Ya, Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL BUAT PERMINTAAN BAHAN BAKU (Leader Dapur) — centang dari daftar master -->
+<div class="modal-bg hide" id="permintaan-modal">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-head">
+      <h2>🥕 Buat Permintaan Bahan Baku</h2>
+      <button class="modal-close" onclick="closePermintaanModal()">×</button>
+    </div>
+    <div class="g2">
+      <div class="fld"><label>Tanggal Dibutuhkan</label><input id="pm-tanggal" type="date" onchange="onPmTanggalChange()"></div>
+      <div class="fld"><label>Nomor Order (opsional)</label><input id="pm-catatan" placeholder="Contoh: 10528, 10530 — utk korelasi jumlah order"></div>
+    </div>
+    <div id="pm-order-suggest" class="hide" style="margin:-6px 0 12px;"></div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:10px 0 6px;">
+      <div style="font-family:'Playfair Display',serif;font-size:13px;font-weight:700;color:var(--ord);">✅ Centang Bahan yang Dibutuhkan</div>
+    </div>
+    <div style="font-size:10px;color:var(--inks);margin:-4px 0 8px;">💡 Tap judul kategori (mis. "Packaging") utk buka/tutup daftar &mdash; di situ juga ada kolom utk tambah bahan baru kalau belum ada.</div>
+    <div class="fld">
+      <input id="pm-search-checklist" type="text" placeholder="🔍 Cari nama bahan…" oninput="renderPermintaanChecklist()">
+    </div>
+    <div id="pm-checklist"><div class="empty" style="padding:16px;"><p style="font-size:12px;">⏳ Memuat daftar bahan…</p></div></div>
+
+    <button class="bsub" onclick="previewPermintaan()" style="margin-top:14px;">👁️ Preview &amp; Kirim Permintaan</button>
+  </div>
+</div>
+
+<!-- MODAL PREVIEW PERMINTAAN BAHAN (sebelum benar-benar dikirim ke Pembelian) -->
+<div class="modal-bg hide" id="permintaan-preview-modal">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-head">
+      <h2>👁️ Preview Permintaan</h2>
+      <button class="modal-close" onclick="closePermintaanPreview()">×</button>
+    </div>
+    <div style="background:var(--orl);border:1px solid #f7d4bc;border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:11px;color:var(--ord);">
+      ℹ️ Cek dulu sebelum dikirim — No. Permintaan baru di-generate setelah Bapak/Ibu tekan "Ya, Kirim".
+    </div>
+    <div id="pmp-body"></div>
+    <div id="pmp-aksi-row" style="display:flex;gap:8px;margin-top:16px;">
+      <button class="bico" style="flex:1;background:var(--inkm);" onclick="closePermintaanPreview()">✏️ Edit Lagi</button>
+      <button class="bsub" id="pmp-btn-konfirmasi" style="flex:1;margin-top:0;" onclick="konfirmasiKirimPermintaan()">✅ Ya, Kirim ke Pembelian</button>
+    </div>
+    <div id="pmp-hasil-box" class="hide" style="background:var(--grnl);border:1px solid #b7dfc9;border-radius:8px;padding:12px 14px;margin-top:14px;font-size:12px;">
+      ✅ Permintaan <strong id="pmp-hasil-no"></strong> tersimpan!
+      <button class="bico" onclick="kirimPermintaanViaWA()" style="width:100%;margin-top:10px;background:#1B7A4A;">📲 Kirim WA ke Pembelian</button>
+      <button class="bico" onclick="closePermintaanPreview();closePermintaanModal();" style="width:100%;margin-top:8px;background:var(--inkm);">Tutup</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PROSES PERMINTAAN (Pembelian) — edit qty/harga, tandai selesai, cetak nota -->
+<div class="modal-bg hide" id="proses-permintaan-modal">
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-head">
+      <h2>🛒 Proses Permintaan — <span id="pp-no-permintaan"></span></h2>
+      <button class="modal-close" onclick="closeProsesPermintaanModal()">×</button>
+    </div>
+    <div id="pp-body"></div>
+    <div class="g2" style="margin-top:10px;">
+      <div class="fld" style="margin:0;position:relative;">
+        <label style="font-size:10px;">Nama Supplier <span class="req">*</span></label>
+        <input id="pp-nama-supplier" placeholder="🔍 Cari/ketik nama supplier…" autocomplete="off" style="padding:7px 9px;font-size:12px;"
+          oninput="filterPpSupplier()" onfocus="filterPpSupplier()" onblur="setTimeout(hidePpSupplierDD,200)">
+        <div id="pp-supplier-dd" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--or);border-radius:0 0 8px 8px;max-height:160px;overflow-y:auto;z-index:100;box-shadow:var(--sh);"></div>
+      </div>
+      <div class="fld" style="margin:0;"><label style="font-size:10px;">No. HP Supplier</label><input id="pp-hp-supplier" placeholder="08xxxxxxxxxx" style="padding:7px 9px;font-size:12px;"></div>
+    </div>
+    <button class="bico" style="width:100%;margin-top:10px;" onclick="simpanSemuaProsesPermintaan()">💾 Simpan Semua Perubahan</button>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <button class="bico" style="flex:1;background:#1565C0;" onclick="bukaPrintPreviewNota(PROSES_NO_PERMINTAAN_AKTIF)">🖨️ Cetak Nota Pembelian</button>
+      <button class="bsub" style="flex:1;margin-top:0;" onclick="tandaiSelesaiPermintaan()">✅ Tandai Selesai</button>
+    </div>
   </div>
 </div>
 
@@ -857,7 +1118,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 // ══ KONFIGURASI ══════════════════════
 const APP = {
   GAS_URL:      "https://script.google.com/macros/s/AKfycbyPgnhHNpbAWQbt4sNQiLFaDTRN-emDLn_rV68GVpvkdFAbFd41fyZxdMJUMqHdI1Zp/exec",
-  FONNTE_TOKEN: "CeRWm6bXYHAZRumRroUE",
+  FONNTE_TOKEN: "o3iKrUUBhRaF2qHHqsD7",
   WA_NOTIF:     "6282288175957",
   GOOGLE_CLIENT_ID: "437595495608-lksqd7ofcl1jo1ebaa75re48mn04mtkl.apps.googleusercontent.com"
 };
@@ -1188,61 +1449,13 @@ function cGet(k){ return MEM[k]||null; }
 
 // ══ INIT ══════════════════════════════
 document.addEventListener('DOMContentLoaded',()=>{
-  cobaSessionTersimpan_();
-});
-
-// Coba pakai session token yang tersimpan di HP dulu (kalau ada & masih berlaku) —
-// supaya user TIDAK perlu verifikasi Google berulang setiap buka app. Verifikasi Google
-// cuma perlu sekali di awal; setelahnya app "standby" pakai sesi ini (berlaku 24 jam).
-async function cobaSessionTersimpan_(){
-  const tokenTersimpan = localStorage.getItem('alima_session_token');
-  if(!tokenTersimpan){ initGoogleAuth(); return; }
-
-  document.getElementById('login-status').textContent = 'Menyambungkan sesi tersimpan…';
-  try{
-    const j = await gasFetch(APP.GAS_URL + '?action=checkAuth&id_token=' + encodeURIComponent(tokenTersimpan) + '&t=' + Date.now());
-    if(!j.success){
-      // Sesi tersimpan sudah tidak berlaku (kadaluarsa/dinonaktifkan admin) -> hapus & minta login Google lagi
-      localStorage.removeItem('alima_session_token');
-      initGoogleAuth();
-      return;
-    }
-    masukKeApp_(j, j.session_token || tokenTersimpan);
-  }catch(e){
-    // Gagal menghubungi server (mis. offline) -> tetap coba tampilkan opsi login Google biasa
-    initGoogleAuth();
-  }
-}
-
-// Logic "masuk ke app" setelah login berhasil terverifikasi (dipakai baik oleh login Google
-// baru MAUPUN oleh sesi tersimpan yang berhasil di-restore) — supaya tidak duplikat kode.
-function masukKeApp_(j, tokenUntukDipakai){
-  ID_TOKEN = tokenUntukDipakai; // session token (tahan lama), bukan token Google yg cuma ±1 jam
-  if(j.session_token) localStorage.setItem('alima_session_token', j.session_token);
-  CURRENT_USER = { email:j.email, nama:j.nama, role:(j.role||'karyawan').toLowerCase() };
-  document.getElementById('login-gate').classList.add('hide');
-  document.getElementById('app-content').classList.remove('hide');
-  document.getElementById('who-badge').textContent = `${CURRENT_USER.nama} · ${CURRENT_USER.role}`;
-
-  // Tombol Quotation cuma utk role admin/finance/sales
-  if (['admin','finance','sales'].includes(CURRENT_USER.role)) {
-    document.getElementById('btn-quotation').classList.remove('hide');
-  }
-
-  if (isFullAccessRole(CURRENT_USER.role)) {
-    initAppContent(); // admin / sales: akses penuh (Order Baru, Revisi, Jadwal, Masak, Absensi)
-  } else if (CURRENT_USER.role === 'snack') {
-    applySnackAccess(); // role snack: HANYA tab Jadwal, difilter khusus produk kategori Snack
+  const sesiTersimpan = ambilSesiLoginTersimpan_();
+  if (sesiTersimpan) {
+    masukLangsungDenganSesiTersimpan_(sesiTersimpan); // <24 jam sejak login terakhir -> langsung masuk
   } else {
-    applyKaryawanAccess(); // role lain (Dapur, Finance, Pembelian, Service, dst): Jadwal, Masak, Absensi saja
+    initGoogleAuth(); // belum pernah login / sudah lewat 24 jam -> proses login normal
   }
-}
-
-// Logout manual (kalau suatu saat perlu ganti akun) — hapus sesi tersimpan & reload
-function logoutManual(){
-  localStorage.removeItem('alima_session_token');
-  location.reload();
-}
+});
 
 // Daftarkan service worker — WAJIB supaya Chrome mau menawarkan "Add to Home screen"/"Install app"
 if ('serviceWorker' in navigator) {
@@ -1267,6 +1480,61 @@ function initAppContent(){
   loadMasterFromGAS();
   loadDrivers();
   checkConn();
+}
+
+// ══ SESI LOGIN TERSIMPAN (localStorage, 24 jam) ═══════════════════════
+// Supaya user TIDAK perlu lihat/sentuh layar login tiap kali buka app — kalau sesi
+// terakhir masih dalam 24 jam, langsung masuk pakai identitas tersimpan. Token Google
+// yang sesungguhnya (dibutuhkan tiap request ke server) tetap diambil ulang di BELAKANG
+// LAYAR (silent, via auto_select GIS) krn token asli cuma berlaku ~1 jam — ini aturan
+// Google, bukan sesuatu yg bisa diperpanjang dari sisi app. Kalau sesi Google di HP
+// itu ternyata sudah hilang (logout manual dari akun Google-nya), layar login akan
+// tetap muncul lagi walau belum 24 jam — itu wajar, di luar kendali app ini.
+const SESI_LOGIN_KEY = 'alima_sesi_login_v1';
+const SESI_LOGIN_DURASI_MS = 24 * 60 * 60 * 1000; // 24 jam
+let SESI_SUDAH_AKTIF_DARI_CACHE = false; // true kalau app ini dibuka lewat sesi tersimpan (bukan login baru)
+
+function simpanSesiLogin_(user){
+  try{ localStorage.setItem(SESI_LOGIN_KEY, JSON.stringify({ user, waktu: Date.now() })); }
+  catch(e){ /* localStorage penuh/diblokir browser, tidak fatal */ }
+}
+function ambilSesiLoginTersimpan_(){
+  try{
+    const raw = localStorage.getItem(SESI_LOGIN_KEY);
+    if(!raw) return null;
+    const data = JSON.parse(raw);
+    if(!data || !data.user || !data.waktu) return null;
+    if(Date.now() - data.waktu > SESI_LOGIN_DURASI_MS) return null; // sudah lewat 24 jam, minta login ulang
+    return data.user;
+  }catch(e){ return null; }
+}
+function hapusSesiLoginTersimpan_(){
+  try{ localStorage.removeItem(SESI_LOGIN_KEY); }catch(e){}
+}
+
+// Masuk LANGSUNG pakai identitas dari sesi tersimpan (tanpa nunggu/nampilin layar login),
+// sambil diam-diam ambil token Google yg fresh di belakang layar lewat initGoogleAuth().
+function masukLangsungDenganSesiTersimpan_(user){
+  SESI_SUDAH_AKTIF_DARI_CACHE = true;
+  CURRENT_USER = user;
+  document.getElementById('login-gate').classList.add('hide');
+  document.getElementById('app-content').classList.remove('hide');
+  document.getElementById('who-badge').textContent = `${CURRENT_USER.nama} · ${CURRENT_USER.role}`;
+  terapkanAksesRole_();
+  initGoogleAuth(); // ambil token asli di background, TIDAK menampilkan apapun ke user
+
+  // Jaga-jaga: kalau dlm beberapa detik token asli tetap tidak berhasil didapat diam-diam
+  // (mis. sesi Google di HP ini sudah tidak ada lagi / auto-select gagal), munculkan lagi
+  // layar login — drpd fitur diam-diam gagal semua tanpa penjelasan ke user.
+  setTimeout(() => {
+    if (!ID_TOKEN) {
+      hapusSesiLoginTersimpan_();
+      SESI_SUDAH_AKTIF_DARI_CACHE = false;
+      document.getElementById('app-content').classList.add('hide');
+      document.getElementById('login-gate').classList.remove('hide');
+      document.getElementById('login-status').textContent = 'Sesi login perlu diperbarui — silakan login lagi.';
+    }
+  }, 5000);
 }
 
 // ══ LOGIN GMAIL (Google Identity Services) ═══════════
@@ -1298,6 +1566,25 @@ function initGoogleAuth(){
 }
 
 async function handleGoogleCredential(resp){
+  // Kalau ini pemanggilan DIAM-DIAM di belakang layar (sesi tersimpan <24 jam sudah
+  // dipakai duluan utk langsung masuk tanpa nunggu) — cukup segarkan ID_TOKEN & data
+  // user, JANGAN jalankan ulang initAppContent()/dst supaya tampilan yg sedang dibuka
+  // user tidak keganggu/ke-reset tiba-tiba.
+  if (SESI_SUDAH_AKTIF_DARI_CACHE) {
+    try{
+      const j = await gasFetch(APP.GAS_URL + '?action=checkAuth&id_token=' + encodeURIComponent(resp.credential) + '&t=' + Date.now());
+      if (j.success) {
+        ID_TOKEN = resp.credential;
+        CURRENT_USER = { email:j.email, nama:j.nama, role:(j.role||'karyawan').toLowerCase(), aksesKeuanganLevel: j.aksesKeuanganLevel || '' };
+        simpanSesiLogin_(CURRENT_USER); // perpanjang lagi jendela 24 jam-nya
+      }
+      // Kalau gagal (mis. akun dinonaktifkan admin di tengah jalan) — dibiarkan saja,
+      // request2 API berikutnya yg bakal mulai gagal & kasih tahu user scr wajar,
+      // tidak perlu paksa logout mendadak cuma krn refresh token diam2 ini gagal.
+    }catch(e){ console.warn('Gagal refresh token diam-diam:', e.message); }
+    return;
+  }
+
   document.getElementById('login-status').textContent = 'Memverifikasi akun…';
   const btnBox = document.getElementById('g_id_signin_container');
   if (btnBox) btnBox.style.display = 'none';
@@ -1305,11 +1592,54 @@ async function handleGoogleCredential(resp){
     const j = await gasFetch(APP.GAS_URL + '?action=checkAuth&id_token=' + encodeURIComponent(resp.credential) + '&t=' + Date.now());
     if (!j.success) { showLoginDenied(j.message || 'Akun tidak terdaftar.'); return; }
 
-    // Pakai session_token dari server (tahan lama) ketimbang token Google asli (cuma ±1 jam) —
-    // supaya buka app berikutnya tidak perlu verifikasi Google lagi.
-    masukKeApp_(j, j.session_token || resp.credential);
+    ID_TOKEN = resp.credential; // simpan token supaya request selanjutnya ikut terautentikasi
+    CURRENT_USER = { email:j.email, nama:j.nama, role:(j.role||'karyawan').toLowerCase(), aksesKeuanganLevel: j.aksesKeuanganLevel || '' };
+    simpanSesiLogin_(CURRENT_USER); // sesi ini bisa dipakai lagi tanpa layar login selama 24 jam ke depan
+    document.getElementById('login-gate').classList.add('hide');
+    document.getElementById('app-content').classList.remove('hide');
+    document.getElementById('who-badge').textContent = `${CURRENT_USER.nama} · ${CURRENT_USER.role}`;
+    terapkanAksesRole_();
   }catch(e){
     showLoginDenied('Gagal menghubungi server: ' + e.message);
+  }
+}
+
+// Semua logika tampilkan/sembunyikan tab & fitur sesuai role — dipisah jadi fungsi sendiri
+// supaya bisa dipanggil baik dari login normal (handleGoogleCredential) MAUPUN dari jalur
+// "masuk langsung pakai sesi tersimpan" (masukLangsungDenganSesiTersimpan_), tanpa duplikasi.
+function terapkanAksesRole_(){
+  // Tombol Quotation cuma utk role admin/finance/sales
+  if (['admin','finance','sales'].includes(CURRENT_USER.role)) {
+    document.getElementById('btn-quotation').classList.remove('hide');
+  }
+  // Tab Keuangan sekarang mencakup 2 bagian yang tampil BERTUMPUK (bukan sub-tab
+  // terpisah lagi): Jurnal (akuntansi) & Bahan Baku (permintaan dapur → pembelian).
+  // Tab utama muncul kalau punya SALAH SATU dari kedua akses ini; masing-masing
+  // bagian baru muncul sendiri sesuai haknya.
+  const bisaJurnal = !!CURRENT_USER.aksesKeuanganLevel; // lihat ambilLevelAksesKeuangan_ di AkuntansiBackend.gs
+  const bisaBahanBaku = ['leader dapur','pembelian','admin'].includes(CURRENT_USER.role);
+  if (bisaJurnal || bisaBahanBaku) {
+    document.getElementById('tab-keuangan').classList.remove('hide');
+  }
+  if (bisaJurnal) {
+    document.getElementById('ksub-panel-jurnal').classList.remove('hide');
+    applyKeuanganLevelUI();
+  }
+  if (bisaBahanBaku) {
+    document.getElementById('ksub-panel-bahan').classList.remove('hide');
+    // Tombol "Buat Permintaan" — leader dapur/admin bisa dari awal; pembelian sekarang
+    // JUGA bisa bikin permintaan sendiri (sama seperti leader dapur), selain memproses.
+    if (['leader dapur','pembelian','admin'].includes(CURRENT_USER.role)) {
+      document.getElementById('bb-btn-buat-permintaan').classList.remove('hide');
+    }
+  }
+
+  if (isFullAccessRole(CURRENT_USER.role)) {
+    initAppContent(); // admin / sales: akses penuh (Order Baru, Revisi, Jadwal, Masak, Absensi)
+  } else if (CURRENT_USER.role === 'snack') {
+    applySnackAccess(); // role snack: HANYA tab Jadwal, difilter khusus produk kategori Snack
+  } else {
+    applyKaryawanAccess(); // role lain (Dapur, Finance, Pembelian, Service, dst): Jadwal, Masak, Absensi saja
   }
 }
 
@@ -1327,7 +1657,8 @@ function showLoginDenied(msg){
 }
 
 function retryLogin(){
-  localStorage.removeItem('alima_session_token'); // buang sesi lama supaya benar2 ganti akun
+  hapusSesiLoginTersimpan_(); // buang sesi lama biar tidak nyangkut ke akun sebelumnya
+  SESI_SUDAH_AKTIF_DARI_CACHE = false;
   document.getElementById('login-denied').style.display = 'none';
   const btnBox = document.getElementById('g_id_signin_container');
   if (btnBox) btnBox.style.display = 'block';
@@ -1345,9 +1676,9 @@ function applyKaryawanAccess(){
   document.getElementById('tab-laporan').classList.add('hide');
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('on'));
-  document.getElementById('panel-absensi').classList.add('on');
-  document.getElementById('tab-absensi').classList.add('on');
-  initAbsensiTab();
+  document.getElementById('panel-jadwal').classList.add('on');
+  document.getElementById('tab-jadwal').classList.add('on');
+  loadOrders().then(renderJadwal);
 }
 
 // Role "snack": HANYA tab Jadwal yang tampil (semua tab lain disembunyikan, termasuk Absensi).
@@ -1431,6 +1762,30 @@ function genNoLocal(){
   const mi=String(n.getMinutes()).padStart(2,'0');
   const s=String(n.getSeconds()).padStart(2,'0');
   return y+mo+d+h+mi+s; // format: ymmddHHMMss
+}
+
+// Ambil nomor order berikutnya dari server, COBA ULANG dulu (network sering cuma
+// putus-nyambung sesaat) sebelum benar-benar menyerah ke nomor cadangan berbasis
+// jam-menit-detik (suffix "-L" = Local fallback, WAJIB dicek manual krn bukan nomor urut asli).
+async function ambilNoOrderDenganRetry_(){
+  const MAKS_PERCOBAAN = 3;
+  for(let percobaan = 1; percobaan <= MAKS_PERCOBAAN; percobaan++){
+    try{
+      const j = await gasFetch(APP.GAS_URL + '?action=getNextNo&t=' + Date.now());
+      if(j.success && j.no){
+        localStorage.setItem('alima_last_no_v2', String(parseInt(j.no)));
+        return j.no;
+      }
+      throw new Error(j.message || 'GAS no error');
+    }catch(e){
+      console.warn(`Percobaan ${percobaan}/${MAKS_PERCOBAAN} ambil nomor order gagal:`, e.message);
+      if(percobaan < MAKS_PERCOBAAN) await sleep(900); // jeda sebentar, kasih waktu network pulih
+    }
+  }
+  // Semua percobaan gagal — baru pakai nomor cadangan, DAN langsung kasih tahu user (bukan cuma di console)
+  const noFallback = genNoLocal() + '-L';
+  toast(`⚠️ Gagal ambil nomor order dari server (${MAKS_PERCOBAAN}x dicoba). Pakai nomor sementara ${noFallback} — tolong cek manual nanti supaya tidak dobel.`, 'err');
+  return noFallback;
 }
 
 // Nomor order di-generate saat submit, bukan saat form dibuka
@@ -1894,7 +2249,7 @@ function renderQProdukDropdownKeepSelection(){
     qOnProduk();
     if(prevPaket){
       const paketSel = document.getElementById('q-paket');
-      const opt = Array.from(paketSel.options).find(o=>o.value===prevPaket);
+      const opt = Array.from(paketSel.options).find(o => o.value === prevPaket);
       if(opt){ paketSel.value = prevPaket; qOnPaket(); }
     }
   }
@@ -2632,16 +2987,7 @@ async function submitOrder(){
     // Nomor order: pakai yang sudah ada kalau mode edit, generate baru kalau order baru
     let no = isEdit ? EDIT_MODE_NO_ORDER : '';
     if (!isEdit) {
-      try {
-        const j = await gasFetch(APP.GAS_URL + '?action=getNextNo&t=' + Date.now());
-        if (j.success && j.no) {
-          no = j.no;
-          localStorage.setItem('alima_last_no_v2', String(parseInt(j.no)));
-        } else throw new Error('GAS no error');
-      } catch(e) {
-        no = genNoLocal() + '-L'; // suffix -L = Local fallback, perlu dicek manual
-        console.warn('Nomor order dari fallback lokal:', no);
-      }
+      no = await ambilNoOrderDenganRetry_();
       document.getElementById('f-no').value = no;
     }
 
@@ -3123,8 +3469,9 @@ function renderGrafikChart(j){
     maxVal = Math.max(maxVal, totalBulan);
   });
 
-  // Skala sumbu Y: kelipatan TETAP Rp25 juta (bukan dihitung otomatis lagi)
-  let step = 25000000;
+  // Skala sumbu Y: kelipatan rapi yang selalu bisa dibagi 50.000, target ~5 garis bantu
+  let step = Math.ceil((maxVal/5) / 50000) * 50000;
+  if (step <= 0) step = 50000;
   const topVal  = Math.ceil(maxVal/step) * step;
   const numGrid = topVal/step;
 
@@ -3209,8 +3556,8 @@ function renderGrafikHarianChart(j){
     maxVal = Math.max(maxVal, totalHari);
   });
 
-  // Skala sumbu Y: kelipatan TETAP Rp5 juta (bukan dihitung otomatis lagi)
-  let step = 5000000;
+  let step = Math.ceil((maxVal/5) / 50000) * 50000;
+  if (step <= 0) step = 50000;
   const topVal  = Math.ceil(maxVal/step) * step;
   const numGrid = topVal/step;
 
@@ -3400,6 +3747,7 @@ async function kirimNotifKeStaf(pesan){
     for(const hp of j.data){
       try{ await fPost(hp, pesan); }
       catch(e){ console.warn('Gagal kirim notif staf ke '+hp+':', e.message); }
+      await sleep(700); // jeda antar kirim, jaga2 kalau Fonnte membatasi kirim terlalu cepat beruntun
     }
   }catch(e){
     console.warn('Gagal ambil daftar penerima notifikasi staf:', e.message);
@@ -3422,13 +3770,14 @@ async function kirimInvoiceViaWA(){
       `No Order: ${LAST_INVOICE_RESULT.no_orders}\n\n` +
       `Dikirim oleh: ${CURRENT_USER.nama}`;
 
-    let gagal = 0;
+    let gagalDetail = [];
     for(const hp of j.data){
       try{ await fPostFile(hp, LAST_INVOICE_RESULT.pdf_url, caption); }
-      catch(e){ gagal++; console.warn('Gagal kirim invoice ke '+hp+':', e.message); }
+      catch(e){ gagalDetail.push(hp+': '+e.message); console.warn('Gagal kirim invoice ke '+hp+':', e.message); }
+      await sleep(700); // jeda antar kirim, jaga2 kalau Fonnte membatasi kirim terlalu cepat beruntun
     }
     hideOvl();
-    toast(gagal ? `PDF terkirim, tapi ${gagal} nomor gagal.` : 'PDF invoice terkirim ke semua Admin/Sales/Finance ✓', gagal ? 'err' : 'ok');
+    toast(gagalDetail.length ? `PDF terkirim, tapi ${gagalDetail.length} nomor gagal: ${gagalDetail[0]}` : 'PDF invoice terkirim ke semua Admin/Sales/Finance ✓', gagalDetail.length ? 'err' : 'ok');
   }catch(e){
     hideOvl();
     toast('Gagal kirim: '+e.message,'err');
@@ -3842,13 +4191,14 @@ async function kirimQuotationViaWA(){
       `Kepada: ${LAST_QUOTATION_RESULT.customer_nama || '—'}\n\n` +
       `Dikirim oleh: ${CURRENT_USER.nama}`;
 
-    let gagal = 0;
+    let gagalDetail = [];
     for(const hp of j.data){
       try{ await fPostFile(hp, LAST_QUOTATION_RESULT.pdf_url, caption); }
-      catch(e){ gagal++; console.warn('Gagal kirim quotation ke '+hp+':', e.message); }
+      catch(e){ gagalDetail.push(hp+': '+e.message); console.warn('Gagal kirim quotation ke '+hp+':', e.message); }
+      await sleep(700); // jeda antar kirim, jaga2 kalau Fonnte membatasi kirim terlalu cepat beruntun
     }
     hideOvl();
-    toast(gagal ? `PDF terkirim, tapi ${gagal} nomor gagal.` : 'PDF quotation terkirim ke semua Admin/Sales/Finance ✓', gagal ? 'err' : 'ok');
+    toast(gagalDetail.length ? `PDF terkirim, tapi ${gagalDetail.length} nomor gagal: ${gagalDetail[0]}` : 'PDF quotation terkirim ke semua Admin/Sales/Finance ✓', gagalDetail.length ? 'err' : 'ok');
   }catch(e){
     hideOvl();
     toast('Gagal kirim: '+e.message,'err');
@@ -3979,7 +4329,7 @@ function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 function showOvl(m){document.getElementById('ovl-msg').textContent=m;document.getElementById('ovl').classList.remove('hide');}
 function updOvl(m){document.getElementById('ovl-msg').textContent=m;}
 function hideOvl(){document.getElementById('ovl').classList.add('hide');}
-function toast(msg,type=''){const el=document.getElementById('toast');el.textContent=msg;el.className='toast'+(type?' '+type:'');el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),3200);}
+function toast(msg,type=''){const el=document.getElementById('toast');el.textContent=msg;el.className='toast'+(type?' '+type:'');el.classList.add('show');clearTimeout(el._t);const durasi=(type==='err' && msg.length>60)?7000:3200;el._t=setTimeout(()=>el.classList.remove('show'),durasi);}
 function goTab(id,btn){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('on'));
@@ -3990,6 +4340,63 @@ function goTab(id,btn){
   if(id==='grafik'){ loadGrafik(); loadGrafikHarian(); }
   if(id==='absensi'){ initAbsensiTab(); if(CURRENT_USER && isFullAccessRole(CURRENT_USER.role)) loadStatusTim(); }
   if(id==='laporan'){ loadLaporanList(); }
+  if(id==='keuangan'){
+    const level = CURRENT_USER ? CURRENT_USER.aksesKeuanganLevel : '';
+    if(level === 'Lihat' || level === 'Semua'){
+      if(!document.getElementById('kn-filter-mulai').value){
+        const now = new Date();
+        const awalBulan = new Date(now.getFullYear(), now.getMonth(), 1);
+        document.getElementById('kn-filter-mulai').value = awalBulan.toISOString().split('T')[0];
+        document.getElementById('kn-filter-sampai').value = now.toISOString().split('T')[0];
+      }
+      loadJurnalData();
+    }
+    const bisaBahan = CURRENT_USER && ['leader dapur','pembelian','admin'].includes(CURRENT_USER.role);
+    if(bisaBahan){ loadPermintaanList(); }
+  }
+}
+
+// Sesuaikan tampilan tab Keuangan dengan level akses ('Lihat' / 'Input' / 'Semua'):
+// - Lihat  : sembunyikan tombol "Buat Nota", tampilkan filter+rekap+jurnal
+// - Input  : tampilkan HANYA tombol "Buat Nota", sembunyikan filter+rekap+jurnal (tidak boleh lihat)
+// - Semua  : tampilkan semuanya
+function applyKeuanganLevelUI(){
+  const level = CURRENT_USER ? CURRENT_USER.aksesKeuanganLevel : '';
+  const role  = CURRENT_USER ? CURRENT_USER.role : '';
+  const btnBuatNota = document.getElementById('kn-btn-buat-nota');
+  const btnRefresh  = document.getElementById('kn-btn-refresh');
+  const viewSection = document.getElementById('kn-view-section');
+  const inputNote   = document.getElementById('kn-input-only-note');
+  const scopeNote   = document.getElementById('kn-scope-note');
+
+  if(level === 'Input'){
+    btnBuatNota.classList.remove('hide');
+    btnRefresh.classList.add('hide');
+    viewSection.classList.add('hide');
+    inputNote.classList.remove('hide');
+  } else if(level === 'Lihat'){
+    btnBuatNota.classList.add('hide');
+    btnRefresh.classList.remove('hide');
+    viewSection.classList.remove('hide');
+    inputNote.classList.add('hide');
+  } else { // 'Semua'
+    btnBuatNota.classList.remove('hide');
+    btnRefresh.classList.remove('hide');
+    viewSection.classList.remove('hide');
+    inputNote.classList.add('hide');
+  }
+
+  // Cuma admin, finance, & sales yang lihat SELURUH jurnal — role lain (pembelian dst)
+  // otomatis dibatasi server cuma lihat transaksi yg mereka input sendiri (lihat
+  // getJurnalObj di AkuntansiBackend.gs). Kasih tahu di layar biar tidak dikira data hilang.
+  if(scopeNote){
+    const bisaLihatSemua = ['admin','finance','sales'].includes(role);
+    if((level === 'Lihat' || level === 'Semua') && !bisaLihatSemua){
+      scopeNote.classList.remove('hide');
+    } else {
+      scopeNote.classList.add('hide');
+    }
+  }
 }
 function resetForm(){
   ['f-cid','f-gol','f-produk','f-qty','f-hjual','f-fee','f-hksm','f-hmin','f-del','f-ket','f-pen','f-hp','f-adr','f-krd','f-inv-bayar','f-mirip','f-jam','edit-search-no'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
@@ -4302,8 +4709,986 @@ async function bukaLaporanUntukEdit(noLaporan){
   }
 }
 
+// ══ KEUANGAN / JURNAL (skema Nota multi-item + Kode Akun) ══════════════
+let KODE_AKUN_DATA = [];      // [{kode,kelompok,sub_kelompok,kategori,jenis}, ...]
+let NOTA_ITEMS = [];          // item yang sudah ditambahkan ke nota yang sedang dibuat
+
+async function loadKodeAkunData(){
+  if(KODE_AKUN_DATA.length) return; // cache di memori, sekali per sesi cukup (chart of accounts jarang berubah)
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=getKodeAkun&t=' + Date.now());
+    if(j.success && j.data) KODE_AKUN_DATA = j.data;
+  }catch(e){ console.warn('Gagal load Kode Akun:', e.message); }
+}
+
+function toggleNtCardField(){
+  const metode = document.getElementById('nt-metode-bayar').value;
+  const fld = document.getElementById('nt-card-fld');
+  fld.style.display = (metode === 'Debit' || metode === 'Kredit') ? 'block' : 'none';
+}
+
+async function openNotaModal(){
+  document.getElementById('nt-tanggal').value = new Date().toISOString().split('T')[0];
+  document.getElementById('nt-unit').value = 'KSM';
+  document.getElementById('nt-metode-bayar').value = 'Cash';
+  document.getElementById('nt-card').value = '';
+  document.getElementById('nt-no-ref').value = '';
+  document.getElementById('nt-status').value = 'Lunas';
+  document.getElementById('nt-akun-search').value = '';
+  document.getElementById('nt-akun-value').value = '';
+  document.getElementById('nt-deskripsi').value = '';
+  document.getElementById('nt-qty').value = 1;
+  document.getElementById('nt-satuan').value = '';
+  document.getElementById('nt-harga').value = '';
+  document.getElementById('nt-jumlah-preview').value = '';
+  toggleNtCardField();
+  NOTA_ITEMS = [];
+  renderNotaItemsList();
+  document.getElementById('nota-modal').classList.remove('hide');
+  await loadKodeAkunData();
+}
+function closeNotaModal(){
+  document.getElementById('nota-modal').classList.add('hide');
+}
+
+// ── Cari Kode Akun (dropdown custom, searchable — >100 akun jadi wajib bisa dicari) ──
+function filterNtAkun(){
+  const q = document.getElementById('nt-akun-search').value.toLowerCase().trim();
+  const dd = document.getElementById('nt-akun-dd');
+  document.getElementById('nt-akun-value').value = ''; // ketik ulang -> reset pilihan lama
+
+  const filtered = (q.length < 1 ? KODE_AKUN_DATA.slice(0, 25) : KODE_AKUN_DATA.filter(a =>
+    a.kode.toLowerCase().includes(q) ||
+    a.kategori.toLowerCase().includes(q) ||
+    a.sub_kelompok.toLowerCase().includes(q) ||
+    a.kelompok.toLowerCase().includes(q)
+  )).slice(0, 40);
+
+  if(!filtered.length){
+    dd.innerHTML = '<div style="padding:9px 12px;font-size:12px;color:var(--inks);">Tidak ada hasil</div>';
+    dd.style.display = 'block';
+    return;
+  }
+  const jenisBadge = { 'Kas Masuk':'bs', 'Kas Keluar':'bx', 'Double':'bb' };
+  dd.innerHTML = filtered.map(a => `
+    <div onclick="pilihNtAkun('${a.kode}')"
+      style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--bdr);font-size:12px;"
+      onmouseover="this.style.background='var(--orl)'" onmouseout="this.style.background=''">
+      <strong>${a.kode}</strong> — ${a.kategori}
+      <span class="badge ${jenisBadge[a.jenis]||'bb'}" style="margin-left:6px;font-size:9px;">${a.jenis}</span>
+      <br><span style="color:var(--inks);font-size:10px;">${a.kelompok} · ${a.sub_kelompok}</span>
+    </div>`).join('');
+  dd.style.display = 'block';
+}
+function hideNtAkunDD(){ document.getElementById('nt-akun-dd').style.display = 'none'; }
+function pilihNtAkun(kode){
+  const a = KODE_AKUN_DATA.find(x => x.kode === kode);
+  if(!a) return;
+  document.getElementById('nt-akun-value').value = a.kode;
+  document.getElementById('nt-akun-search').value = a.kode + ' — ' + a.kategori;
+  document.getElementById('nt-akun-dd').style.display = 'none';
+}
+
+function recalcNtJumlahPreview(){
+  const qty = parseFloat(document.getElementById('nt-qty').value) || 0;
+  const harga = parseFloat(document.getElementById('nt-harga').value) || 0;
+  document.getElementById('nt-jumlah-preview').value = 'Rp ' + (qty*harga).toLocaleString('id-ID');
+}
+document.addEventListener('input', (e) => {
+  if(e.target && (e.target.id === 'nt-qty' || e.target.id === 'nt-harga')) recalcNtJumlahPreview();
+});
+
+function tambahItemNota(){
+  const kodeAkun = document.getElementById('nt-akun-value').value;
+  const deskripsi = document.getElementById('nt-deskripsi').value.trim();
+  const qty = parseFloat(document.getElementById('nt-qty').value) || 0;
+  const satuan = document.getElementById('nt-satuan').value.trim();
+  const harga = parseFloat(document.getElementById('nt-harga').value) || 0;
+
+  if(!kodeAkun){ toast('Pilih Kode Akun dulu (cari dari kotak di atas).','err'); return; }
+  if(!deskripsi){ toast('Isi Deskripsi item.','err'); return; }
+  if(!qty || qty<=0){ toast('Qty harus lebih dari 0.','err'); return; }
+  if(!harga || harga<=0){ toast('Harga Satuan harus lebih dari 0.','err'); return; }
+
+  const akunInfo = KODE_AKUN_DATA.find(a => a.kode === kodeAkun) || {};
+  NOTA_ITEMS.push({
+    kode_akun: kodeAkun, kategori_akun: akunInfo.kategori || kodeAkun,
+    deskripsi, qty, satuan, harga_satuan: harga, jumlah: qty*harga
+  });
+  renderNotaItemsList();
+
+  // Reset mini-form item (kecuali Kode Akun — sering belanja beberapa item dari akun yg sama berturut-turut)
+  document.getElementById('nt-deskripsi').value = '';
+  document.getElementById('nt-qty').value = 1;
+  document.getElementById('nt-satuan').value = '';
+  document.getElementById('nt-harga').value = '';
+  document.getElementById('nt-jumlah-preview').value = '';
+  toast('Item ditambahkan ✓','ok');
+}
+function hapusItemNota(idx){
+  NOTA_ITEMS.splice(idx,1);
+  renderNotaItemsList();
+}
+function renderNotaItemsList(){
+  const box = document.getElementById('nt-items-list');
+  const empty = document.getElementById('nt-items-empty');
+  const totStrip = document.getElementById('nt-total-strip');
+  if(!NOTA_ITEMS.length){
+    box.innerHTML = '';
+    empty.style.display = 'block';
+    totStrip.classList.add('hide');
+    return;
+  }
+  empty.style.display = 'none';
+  box.innerHTML = NOTA_ITEMS.map((it,i) => `
+    <div style="border:1px solid var(--bdr);border-radius:8px;padding:8px 10px;margin-bottom:8px;">
+      <div class="prow">
+        <span>${it.deskripsi}<br><span style="color:var(--inks);font-size:10px;">${it.kode_akun} — ${it.kategori_akun} · ${it.qty}${it.satuan?' '+it.satuan:''} x Rp${it.harga_satuan.toLocaleString('en-US')}</span></span>
+        <span style="display:flex;align-items:flex-start;gap:8px;">
+          Rp${it.jumlah.toLocaleString('en-US')}
+          <button onclick="hapusItemNota(${i})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;">🗑️</button>
+        </span>
+      </div>
+    </div>`).join('');
+  const total = NOTA_ITEMS.reduce((s,it)=>s+it.jumlah,0);
+  document.getElementById('nt-total-text').textContent = 'Rp ' + total.toLocaleString('id-ID');
+  totStrip.classList.remove('hide');
+}
+
+function previewNota(){
+  if(!NOTA_ITEMS.length){ toast('Tambahkan minimal 1 item dulu.','err'); return; }
+  const tanggal = document.getElementById('nt-tanggal').value;
+  if(!tanggal){ toast('Tanggal wajib diisi.','err'); return; }
+
+  const kodeUnit = document.getElementById('nt-unit').value;
+  const metodeBayar = document.getElementById('nt-metode-bayar').value;
+  const card = document.getElementById('nt-card').value.trim();
+  const noRef = document.getElementById('nt-no-ref').value.trim();
+  const status = document.getElementById('nt-status').value;
+  const total = NOTA_ITEMS.reduce((s,it)=>s+it.jumlah,0);
+
+  const itemsHtml = NOTA_ITEMS.map(it => `
+    <div class="jw-menurow">
+      <span class="jw-menuk">${it.deskripsi}<br><span style="font-size:10px;color:var(--inks);">${it.kode_akun} — ${it.kategori_akun} · ${it.qty}${it.satuan?' '+it.satuan:''} x Rp${it.harga_satuan.toLocaleString('id-ID')}</span></span>
+      <span class="jw-menuv">Rp ${it.jumlah.toLocaleString('id-ID')}</span>
+    </div>`).join('');
+
+  document.getElementById('ntp-body').innerHTML = `
+    <div class="pstrip" style="margin-top:0;">
+      <div class="prow"><span>📅 Tanggal</span><span>${fd(tanggal)}</span></div>
+      <div class="prow"><span>🏷️ Kode Unit</span><span>${kodeUnit}</span></div>
+      <div class="prow"><span>💳 Metode Bayar</span><span>${metodeBayar}${card?' ('+card+')':''}</span></div>
+      ${noRef?`<div class="prow"><span>📎 No. Ref</span><span>${noRef}</span></div>`:''}
+      <div class="prow"><span>📌 Status</span><span>${status}</span></div>
+    </div>
+    <div class="stitle" style="font-size:13px;margin-top:14px;">🧾 Item (${NOTA_ITEMS.length})</div>
+    <div class="jw-menulist">${itemsHtml}</div>
+    <div class="pstrip">
+      <div class="prow tot"><span>Total Nota</span><span>Rp ${total.toLocaleString('id-ID')}</span></div>
+    </div>
+  `;
+  document.getElementById('nota-preview-modal').classList.remove('hide');
+}
+function closeNotaPreview(){
+  document.getElementById('nota-preview-modal').classList.add('hide');
+}
+
+async function konfirmasiSimpanNota(){
+  const btn = document.getElementById('ntp-btn-konfirmasi');
+  if(btn.disabled) return;
+  btn.disabled = true;
+
+  const payload = {
+    action: 'simpanNota',
+    tanggal: document.getElementById('nt-tanggal').value,
+    kode_unit: document.getElementById('nt-unit').value,
+    metode_bayar: document.getElementById('nt-metode-bayar').value,
+    card: document.getElementById('nt-card').value.trim(),
+    no_ref: document.getElementById('nt-no-ref').value.trim(),
+    status: document.getElementById('nt-status').value,
+    items: JSON.stringify(NOTA_ITEMS.map(it => ({
+      deskripsi: it.deskripsi, kode_akun: it.kode_akun, qty: it.qty, satuan: it.satuan, harga_satuan: it.harga_satuan
+    })))
+  };
+
+  showOvl('Menyimpan nota…');
+  try{
+    const qs = new URLSearchParams(payload).toString();
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+    toast(`Nota ${j.no_nota} tersimpan ✓ (${j.jumlah_item} item, total Rp${j.total_nota.toLocaleString('id-ID')}) — catat nomor ini di nota kertas.`,'ok');
+    closeNotaPreview();
+    closeNotaModal();
+    loadJurnalData();
+  }catch(e){
+    toast('Gagal: '+e.message,'err');
+  }finally{ hideOvl(); btn.disabled=false; }
+}
+
+async function loadJurnalData(){
+  const wrap = document.getElementById('kn-list');
+  if(!wrap) return;
+  wrap.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat data…</div>';
+  const mulai  = document.getElementById('kn-filter-mulai').value;
+  const sampai = document.getElementById('kn-filter-sampai').value;
+  const unit   = document.getElementById('kn-filter-unit').value;
+  try{
+    const qs = new URLSearchParams({action:'getJurnal', mulai, sampai, kode_unit:unit}).toString();
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+
+    document.getElementById('kn-total-masuk').textContent  = 'Rp ' + (j.total_masuk||0).toLocaleString('id-ID');
+    document.getElementById('kn-total-keluar').textContent = 'Rp ' + (j.total_keluar||0).toLocaleString('id-ID');
+    document.getElementById('kn-laba').textContent         = 'Rp ' + (j.laba||0).toLocaleString('id-ID');
+
+    if(!j.data || !j.data.length){
+      wrap.innerHTML = '<div class="empty"><div class="eico">📒</div><p>Tidak ada transaksi di periode ini.</p></div>';
+      return;
+    }
+
+    // Kelompokkan baris per No. Nota supaya item2 dalam 1 nota tampil menyatu
+    const grup = {};
+    const urutanNota = [];
+    j.data.forEach(t => {
+      if(!grup[t.no_nota]){ grup[t.no_nota] = []; urutanNota.push(t.no_nota); }
+      grup[t.no_nota].push(t);
+    });
+
+    wrap.innerHTML = urutanNota.map(noNota => {
+      const items = grup[noNota];
+      const head = items[0];
+      const totalNota = items.reduce((s,t)=>s+t.jumlah,0);
+      const jenisWarna = { 'Kas Masuk':'var(--grn)', 'Kas Keluar':'var(--red)', 'Double':'var(--inkm)' };
+      const itemsHtml = items.map(t => {
+        const bisaHapus = t.sumber === 'Manual' && CURRENT_USER && CURRENT_USER.role === 'admin';
+        return `<div class="jw-menurow">
+          <span class="jw-menuk">${t.deskripsi}<br><span style="font-size:10px;color:var(--inks);">${t.kode_akun} · ${t.kategori}${t.qty?' · '+t.qty+(t.satuan?' '+t.satuan:''):''}</span></span>
+          <span class="jw-menuv" style="color:${jenisWarna[t.jenis_akun]||'var(--ink)'};display:flex;align-items:center;gap:6px;">
+            Rp ${t.jumlah.toLocaleString('id-ID')}
+            ${bisaHapus?`<button onclick="hapusJurnalBaris(${t.row_index})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;">🗑️</button>`:''}
+          </span>
+        </div>`;
+      }).join('');
+      return `
+      <div class="ocard">
+        <div class="och">
+          <div>
+            <div class="ono" style="font-size:14px;">${noNota}</div>
+            <div class="odt">${fd(head.tanggal)} · ${head.metode_bayar}${head.card?' ('+head.card+')':''} · ${head.kode_unit}</div>
+          </div>
+          <span class="badge ${head.sumber==='Auto-Invoice'?'bb':(head.status==='Lunas'?'bs':head.status==='Batal'?'bx':'bp')}">${head.status}</span>
+        </div>
+        <div class="jw-menulist">${itemsHtml}</div>
+        <div class="ofoot" style="margin-top:8px;">
+          <span style="font-size:11px;color:var(--inks);">${head.no_ref?'Ref: '+head.no_ref:''}</span>
+          <span class="otot">Rp ${totalNota.toLocaleString('id-ID')}</span>
+        </div>
+      </div>`;
+    }).join('');
+  }catch(e){
+    wrap.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>Gagal memuat: ${e.message}</p></div>`;
+  }
+}
+
+async function hapusJurnalBaris(rowIndex){
+  if(!confirm('Hapus item ini dari nota secara permanen?')) return;
+  showOvl('Menghapus…');
+  try{
+    const qs = new URLSearchParams({action:'hapusJurnalBaris', row_index:rowIndex}).toString();
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+    toast('Item dihapus ✓','ok');
+    loadJurnalData();
+  }catch(e){
+    toast('Gagal: '+e.message,'err');
+  }finally{ hideOvl(); }
+}
+
+// ══ BAHAN BAKU — Permintaan Leader Dapur → Diproses Pembelian ══════════════════
+let BAHAN_BAKU_DATA = [];   // [{nama,kategori,satuan_default,kode_akun}, ...] — master, di-cache per sesi
+let PERMINTAAN_CACHE = [];  // hasil getPermintaan terakhir (flat), dipakai utk buka detail proses
+const KATEGORI_BAHAN_LIST_ = ['Karbo','Lauk Utama','Lauk Tambahan','Sayur','Sambal','Bumbu','Buah','Kerupuk','Air Mineral','Packaging','Beban Bahan Bakar'];
+
+async function loadBahanBakuData(force){
+  if(BAHAN_BAKU_DATA.length && !force) return;
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=getBahanBaku&t=' + Date.now());
+    if(j.success && j.data) BAHAN_BAKU_DATA = j.data;
+  }catch(e){ console.warn('Gagal load Bahan Baku:', e.message); }
+}
+
+// ── Supplier (disimpan sbg baris Role="supplier" di sheet Karyawan) — dicari saat isi
+//    Nama Supplier di modal Proses Permintaan, bisa tambah baru langsung dari situ. ──
+let SUPPLIER_DATA = [];
+async function loadSupplierData(force){
+  if(SUPPLIER_DATA.length && !force) return;
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=getSupplierList&t=' + Date.now());
+    if(j.success && j.data) SUPPLIER_DATA = j.data;
+  }catch(e){ console.warn('Gagal load Supplier:', e.message); }
+}
+function filterPpSupplier(){
+  const q = document.getElementById('pp-nama-supplier').value.toLowerCase().trim();
+  const dd = document.getElementById('pp-supplier-dd');
+  const filtered = q ? SUPPLIER_DATA.filter(s => s.nama.toLowerCase().includes(q)) : SUPPLIER_DATA.slice(0,20);
+
+  let html = filtered.map(s => `
+    <div onclick="pilihPpSupplier('${s.nama.replace(/'/g,"\\'")}','${(s.no_hp||'').replace(/'/g,"\\'")}')"
+      style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--bdr);font-size:12px;"
+      onmouseover="this.style.background='var(--orl)'" onmouseout="this.style.background=''">
+      ${s.nama}${s.no_hp?' <span style="color:var(--inks);font-size:10px;">'+s.no_hp+'</span>':''}
+    </div>`).join('');
+
+  const cocokPersis = SUPPLIER_DATA.some(s => s.nama.toLowerCase() === q);
+  if(q && !cocokPersis){
+    html += `<div onclick="tambahSupplierBaru('${q.replace(/'/g,"\\'")}')"
+      style="padding:8px 12px;cursor:pointer;font-size:12px;color:var(--ord);font-weight:600;background:var(--orl);">
+      ➕ Tambah supplier baru: "${q}"
+    </div>`;
+  }
+  dd.innerHTML = html || '<div style="padding:8px 12px;font-size:12px;color:var(--inks);">Ketik nama supplier…</div>';
+  dd.style.display = 'block';
+}
+function hidePpSupplierDD(){ document.getElementById('pp-supplier-dd').style.display = 'none'; }
+function pilihPpSupplier(nama, noHp){
+  document.getElementById('pp-nama-supplier').value = nama;
+  if(noHp) document.getElementById('pp-hp-supplier').value = noHp;
+  document.getElementById('pp-supplier-dd').style.display = 'none';
+}
+async function tambahSupplierBaru(nama){
+  const noHp = document.getElementById('pp-hp-supplier').value.trim();
+  showOvl('Menyimpan supplier…');
+  try{
+    const qs = new URLSearchParams({action:'tambahSupplier', nama, no_hp:noHp}).toString();
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+    SUPPLIER_DATA.push({ nama, no_hp: noHp });
+    document.getElementById('pp-nama-supplier').value = nama;
+    document.getElementById('pp-supplier-dd').style.display = 'none';
+    toast(j.sudah_ada ? `Supplier "${nama}" sudah ada di daftar.` : `Supplier "${nama}" ditambahkan ✓`, 'ok');
+  }catch(e){
+    toast('Gagal: '+e.message,'err');
+  }finally{ hideOvl(); }
+}
+
+// ── Buat Permintaan (Leader Dapur) — centang dari daftar master, isi Qty per item ──
+let PERMINTAAN_SELECTED = {}; // key "kategori|nama" -> {kategori,nama_bahan,satuan,kode_akun,qty}
+
+async function openPermintaanModal(){
+  document.getElementById('pm-tanggal').value = new Date().toISOString().split('T')[0];
+  document.getElementById('pm-catatan').value = '';
+  document.getElementById('pm-order-suggest').classList.add('hide');
+  document.getElementById('pm-order-suggest').innerHTML = '';
+  document.getElementById('pm-search-checklist').value = '';
+  PERMINTAAN_SELECTED = {};
+  PM_KATEGORI_TERBUKA = new Set(); // semua kategori mulai tertutup tiap buka modal
+  EDIT_MODE_NO_PERMINTAAN_LAMA = null; // reset mode edit — kalau ini dari editPermintaan(), di-set lagi SESUDAH ini
+  EDIT_MODE_ITEMS_LAMA = null;
+  document.getElementById('permintaan-modal').classList.remove('hide');
+  document.getElementById('pm-checklist').innerHTML = '<div class="empty" style="padding:16px;"><div class="sp" style="margin:0 auto 8px;"></div><p style="font-size:12px;">Memuat daftar bahan…</p></div>';
+  await loadBahanBakuData(true); // selalu refresh dari server tiap buka modal, hindari data basi
+  renderPermintaanChecklist();
+  onPmTanggalChange(); // langsung cek order di tanggal default (hari ini)
+}
+
+// Begitu Tanggal Dibutuhkan diisi/diganti, tampilkan No Order yang jadwal kirimnya sama
+// persis dengan tanggal itu — supaya jumlah bahan yang diminta bisa dikorelasikan dengan
+// jumlah pax order yang sesungguhnya, tinggal tap utk menambahkan ke kolom Nomor Order.
+async function onPmTanggalChange(){
+  const tgl = document.getElementById('pm-tanggal').value;
+  const box = document.getElementById('pm-order-suggest');
+  if(!tgl){ box.classList.add('hide'); box.innerHTML = ''; return; }
+
+  if(!allOrders.length){
+    box.innerHTML = '<div style="font-size:11px;color:var(--inks);">⏳ Memuat data order…</div>';
+    box.classList.remove('hide');
+    await loadOrders();
+  }
+
+  const cocok = allOrders.filter(o =>
+    String(o.tanggal_kirim||o.tgl_kirim||'').slice(0,10) === tgl && o.status !== 'Batal'
+  );
+  if(!cocok.length){
+    box.innerHTML = '<div style="font-size:11px;color:var(--inks);">Tidak ada order dengan jadwal kirim tanggal ini.</div>';
+    box.classList.remove('hide');
+    return;
+  }
+  box.innerHTML = '<div style="font-size:10px;color:var(--inks);margin-bottom:5px;">📦 Order dgn jadwal kirim tanggal ini — tap utk tambah ke Nomor Order:</div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:6px;">' +
+    cocok.map(o => `<span onclick="tambahNoOrderKePm('${o.no_order}')" class="pill" style="cursor:pointer;">${o.no_order} · ${o.qty||0} pax</span>`).join('') +
+    '</div>';
+  box.classList.remove('hide');
+}
+function tambahNoOrderKePm(noOrder){
+  const el = document.getElementById('pm-catatan');
+  const existing = el.value.split(',').map(s=>s.trim()).filter(Boolean);
+  if(!existing.includes(noOrder)){
+    existing.push(noOrder);
+    el.value = existing.join(', ');
+    toast(`No Order ${noOrder} ditambahkan ✓`,'ok');
+  }
+}
+function closePermintaanModal(){
+  document.getElementById('permintaan-modal').classList.add('hide');
+}
+
+let PM_KATEGORI_TERBUKA = new Set(); // kategori mana yang lagi expand — direset tiap buka modal
+
+// Baris 1 item (dipakai bareng utk item yang sudah dicentang maupun belum)
+function pmItemRowHtml_(kat, b, adaBorder){
+  const key = kat + '|' + b.nama;
+  const sel = PERMINTAAN_SELECTED[key];
+  const dicentang = !!sel;
+  return `<div style="display:flex;align-items:center;gap:8px;padding:9px 10px;${adaBorder?'border-bottom:1px solid var(--bdr);':''}">
+    <input type="checkbox" onchange="togglePermintaanItem('${kat}','${b.nama.replace(/'/g,"\\'")}', this.checked)" ${dicentang?'checked':''}
+      style="-webkit-appearance:checkbox!important;appearance:checkbox!important;width:17px!important;height:17px!important;
+             min-width:17px!important;padding:0!important;margin:0!important;border:1px solid #999!important;
+             border-radius:3px!important;background:#fff!important;flex-shrink:0;">
+    <span style="flex:1;font-size:13px;">${b.nama} <span style="color:var(--inks);font-size:10px;">(${b.satuan_default||'—'})</span></span>
+    <input type="number" min="0" step="0.1" placeholder="Qty" value="${sel?sel.qty:''}"
+      oninput="ubahQtyPermintaanItem('${kat}','${b.nama.replace(/'/g,"\\'")}', this.value)"
+      style="width:72px;padding:5px 6px;font-size:12px;text-align:center;${dicentang?'':'visibility:hidden;'}">
+  </div>`;
+}
+
+function renderPermintaanChecklist(){
+  const q = (document.getElementById('pm-search-checklist').value||'').toLowerCase().trim();
+  const wrap = document.getElementById('pm-checklist');
+  let html = '';
+  KATEGORI_BAHAN_LIST_.forEach(kat => {
+    let items = BAHAN_BAKU_DATA.filter(b => b.kategori === kat);
+    if(q) items = items.filter(b => b.nama.toLowerCase().includes(q));
+    if(q && !items.length) return; // lagi nyari & tidak ada hasil di kategori ini -> lewati
+
+    // Item yang SUDAH dicentang tetap tampil terus, biarpun kategorinya ditutup.
+    // Yang belum dicentang cuma tampil kalau kategorinya sedang dibuka.
+    const checkedItems = items.filter(b => PERMINTAAN_SELECTED[kat+'|'+b.nama]);
+    const uncheckedItems = items.filter(b => !PERMINTAAN_SELECTED[kat+'|'+b.nama]);
+    const terbuka = q ? true : PM_KATEGORI_TERBUKA.has(kat); // waktu lagi cari, otomatis expand biar ketemu
+    const slug = kat.replace(/\s+/g,'_');
+
+    html += `<div class="bb-cat-group">
+      <div class="bb-cat-summary" onclick="onPmKategoriToggle('${kat}')">
+        <span>${kat} <span style="color:var(--inks);font-weight:500;">(${items.length}${checkedItems.length?' · '+checkedItems.length+' dipilih':''})</span></span>
+        <span class="bb-cat-arrow" style="${terbuka?'transform:rotate(90deg);':''}">▶</span>
+      </div>`;
+
+    if(checkedItems.length){
+      html += `<div style="border:1px solid var(--bdr);border-radius:8px;overflow:hidden;margin-top:6px;">`;
+      html += checkedItems.map((b,i) => pmItemRowHtml_(kat, b, i < checkedItems.length-1)).join('');
+      html += `</div>`;
+    }
+
+    // Form isian inline "Tambah Bahan Baru" — muncul begitu kategori ini dibuka (klik judul),
+    // menggantikan modal "Kelola Bahan Baku" yang lama. Kode Akun tidak perlu diisi manual lagi,
+    // otomatis diambil sesuai kategori (lihat KATEGORI_KODE_AKUN_DEFAULT_ di backend).
+    html += `<div class="${terbuka?'':'hide'}" style="display:flex;gap:6px;margin-top:6px;">
+      <input type="text" id="pm-inline-nama-${slug}" placeholder="+ Nama bahan baru" style="flex:1;padding:6px 8px;font-size:12px;">
+      <input type="text" id="pm-inline-satuan-${slug}" placeholder="Satuan" style="width:66px;padding:6px 8px;font-size:12px;">
+      <button type="button" onclick="tambahBahanInline_('${kat}')"
+        style="background:var(--or);color:#fff;border:none;border-radius:6px;padding:0 12px;font-size:12px;cursor:pointer;flex-shrink:0;">➕</button>
+    </div>`;
+
+    if(uncheckedItems.length){
+      html += `<div class="${terbuka?'':'hide'}" style="border:1px solid var(--bdr);border-radius:8px;overflow:hidden;margin-top:6px;">`;
+      html += uncheckedItems.map((b,i) => pmItemRowHtml_(kat, b, i < uncheckedItems.length-1)).join('');
+      html += `</div>`;
+    }
+    html += `</div>`;
+  });
+  if(!html){
+    html = '<div class="empty" style="padding:16px;"><p style="font-size:12px;">Tidak ada bahan yang cocok dgn kata kunci ini di kategori manapun.</p></div>';
+  }
+  wrap.innerHTML = html;
+}
+function onPmKategoriToggle(kat){
+  if(PM_KATEGORI_TERBUKA.has(kat)) PM_KATEGORI_TERBUKA.delete(kat); else PM_KATEGORI_TERBUKA.add(kat);
+  renderPermintaanChecklist();
+}
+function togglePermintaanItem(kat, nama, dicentang){
+  const key = kat + '|' + nama;
+  if(dicentang){
+    const b = BAHAN_BAKU_DATA.find(x => x.kategori===kat && x.nama===nama);
+    PERMINTAAN_SELECTED[key] = {
+      kategori: kat, nama_bahan: nama,
+      satuan: (b && b.satuan_default) || '', kode_akun: (b && b.kode_akun) || '',
+      qty: PERMINTAAN_SELECTED[key] ? PERMINTAAN_SELECTED[key].qty : ''
+    };
+  } else {
+    delete PERMINTAAN_SELECTED[key];
+  }
+  renderPermintaanChecklist();
+}
+function ubahQtyPermintaanItem(kat, nama, qty){
+  const key = kat + '|' + nama;
+  if(PERMINTAAN_SELECTED[key]) PERMINTAAN_SELECTED[key].qty = qty;
+}
+
+function previewPermintaan(){
+  const items = Object.values(PERMINTAAN_SELECTED);
+  if(!items.length){ toast('Centang minimal 1 bahan dulu.','err'); return; }
+  const tanggal = document.getElementById('pm-tanggal').value;
+  if(!tanggal){ toast('Tanggal wajib diisi.','err'); return; }
+  const itemTanpaQty = items.find(it => !it.qty || Number(it.qty) <= 0);
+  if(itemTanpaQty){ toast(`Isi Qty untuk "${itemTanpaQty.nama_bahan}".`,'err'); return; }
+  const catatan = document.getElementById('pm-catatan').value.trim();
+
+  let itemsHtml = '';
+  KATEGORI_BAHAN_LIST_.forEach(kat => {
+    const rows = items.filter(it => it.kategori===kat);
+    if(!rows.length) return;
+    itemsHtml += `<div style="font-size:11px;font-weight:700;color:var(--ord);margin:8px 0 4px;">${kat}</div>`;
+    itemsHtml += `<div class="jw-menulist">${rows.map(it=>`
+      <div class="jw-menurow"><span class="jw-menuk">${it.nama_bahan}</span><span class="jw-menuv">${it.qty} ${it.satuan}</span></div>
+    `).join('')}</div>`;
+  });
+
+  document.getElementById('pmp-body').innerHTML = `
+    ${EDIT_MODE_NO_PERMINTAAN_LAMA ? `<div style="background:var(--orl);border:1px solid #f7d4bc;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:var(--ord);">✏️ Mode Revisi — permintaan <strong>${EDIT_MODE_NO_PERMINTAAN_LAMA}</strong> akan DIPERBARUI (nomor tetap sama). Bahan yang dihapus dari centangan akan ditandai batal per-item; progres Qty Dibeli/Harga yang sudah diisi Pembelian utk bahan lain TIDAK akan hilang.</div>` : ''}
+    <div class="pstrip" style="margin-top:0;">
+      <div class="prow"><span>📅 Tanggal Dibutuhkan</span><span>${fd(tanggal)}</span></div>
+      ${catatan?`<div class="prow"><span>🧾 No Order</span><span>${catatan}</span></div>`:''}
+      <div class="prow"><span>🧾 Jumlah Bahan</span><span>${items.length} item</span></div>
+    </div>
+    ${itemsHtml}
+  `;
+  // Reset ke tampilan awal (form aksi tampil, kotak hasil+WA disembunyikan) tiap kali preview dibuka ulang
+  document.getElementById('pmp-aksi-row').classList.remove('hide');
+  document.getElementById('pmp-hasil-box').classList.add('hide');
+  document.getElementById('permintaan-preview-modal').classList.remove('hide');
+}
+function closePermintaanPreview(){
+  document.getElementById('permintaan-preview-modal').classList.add('hide');
+}
+
+let LAST_PERMINTAAN_RESULT = null; // { no_permintaan, tanggal, no_order, items } — dipakai utk kirim WA setelah tersimpan
+
+async function konfirmasiKirimPermintaan(){
+  const btn = document.getElementById('pmp-btn-konfirmasi');
+  if(btn.disabled) return;
+  btn.disabled = true;
+
+  const items = Object.values(PERMINTAAN_SELECTED);
+  const tanggal = document.getElementById('pm-tanggal').value;
+  const noOrder = document.getElementById('pm-catatan').value.trim();
+  const itemsJson = JSON.stringify(items.map(it => ({
+    nama_bahan: it.nama_bahan, kategori: it.kategori, qty: it.qty, satuan: it.satuan, kode_akun: it.kode_akun||''
+  })));
+
+  const modeEdit = !!EDIT_MODE_NO_PERMINTAAN_LAMA;
+  const payload = modeEdit
+    ? { action:'revisiPermintaan', no_permintaan:EDIT_MODE_NO_PERMINTAAN_LAMA, tanggal, catatan:noOrder, items:itemsJson }
+    : { action:'simpanPermintaan', tanggal, catatan:noOrder, items:itemsJson };
+
+  showOvl(modeEdit ? 'Menyimpan revisi…' : 'Mengirim permintaan…');
+  try{
+    const qs = new URLSearchParams(payload).toString();
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+
+    // No. Permintaan TETAP SAMA kalau ini revisi (bukan bikin nomor baru) — item yg dihapus
+    // dari centangan cuma ditandai Batal PADA BARIS ITU SAJA, item yg tetap ada progres
+    // Qty Dibeli/Harga Satuan yg sudah diisi Pembelian TIDAK IKUT HILANG.
+    const noPermintaanFinal = modeEdit ? EDIT_MODE_NO_PERMINTAAN_LAMA : j.no_permintaan;
+
+    if(modeEdit){
+      // Bandingkan kondisi SEBELUM (EDIT_MODE_ITEMS_LAMA) vs SESUDAH (items) — WA yang nanti
+      // dikirim cuma berisi PERUBAHANNYA saja (ditambah/diubah qty/dibatalkan), bukan
+      // mengulang semua item spt pengiriman awal.
+      const perubahan = hitungPerubahanPermintaan_(EDIT_MODE_ITEMS_LAMA || [], items);
+      LAST_PERMINTAAN_RESULT = { no_permintaan: noPermintaanFinal, tanggal, no_order: noOrder, mode:'revisi', perubahan };
+    } else {
+      LAST_PERMINTAAN_RESULT = { no_permintaan: noPermintaanFinal, tanggal, no_order: noOrder, mode:'baru', items: items.slice() };
+    }
+    EDIT_MODE_NO_PERMINTAAN_LAMA = null;
+    EDIT_MODE_ITEMS_LAMA = null;
+
+    toast(modeEdit
+      ? `Permintaan ${noPermintaanFinal} berhasil direvisi ✓ (${j.jumlah_item} bahan aktif)`
+      : `Permintaan ${noPermintaanFinal} terkirim ✓ (${j.jumlah_item} bahan)`, 'ok');
+    document.getElementById('pmp-aksi-row').classList.add('hide');
+    document.getElementById('pmp-hasil-no').textContent = noPermintaanFinal;
+    document.getElementById('pmp-hasil-box').classList.remove('hide');
+    loadPermintaanList();
+  }catch(e){
+    toast('Gagal: '+e.message,'err');
+  }finally{ hideOvl(); btn.disabled=false; }
+}
+
+// Bandingkan daftar item SEBELUM vs SESUDAH revisi, hasilkan daftar perubahan saja:
+// { jenis:'Ditambahkan'|'Diubah'|'Dibatalkan', kategori, nama_bahan, satuan, qtyLama, qtyBaru }
+function hitungPerubahanPermintaan_(itemsLama, itemsBaru){
+  const petaLama = {}; itemsLama.forEach(it => { petaLama[it.kategori+'|'+it.nama_bahan] = it; });
+  const petaBaru = {}; itemsBaru.forEach(it => { petaBaru[it.kategori+'|'+it.nama_bahan] = it; });
+  const perubahan = [];
+
+  Object.keys(petaLama).forEach(key => {
+    if(!petaBaru[key]){
+      const it = petaLama[key];
+      perubahan.push({ jenis:'Dibatalkan', kategori:it.kategori, nama_bahan:it.nama_bahan, satuan:it.satuan, qtyLama:it.qty, qtyBaru:null });
+    }
+  });
+  Object.keys(petaBaru).forEach(key => {
+    const baru = petaBaru[key];
+    const lama = petaLama[key];
+    if(!lama){
+      perubahan.push({ jenis:'Ditambahkan', kategori:baru.kategori, nama_bahan:baru.nama_bahan, satuan:baru.satuan, qtyLama:null, qtyBaru:baru.qty });
+    } else if(String(lama.qty) !== String(baru.qty)){
+      perubahan.push({ jenis:'Diubah', kategori:baru.kategori, nama_bahan:baru.nama_bahan, satuan:baru.satuan, qtyLama:lama.qty, qtyBaru:baru.qty });
+    }
+    // qty sama persis -> tidak dianggap perubahan, tidak masuk daftar
+  });
+  return perubahan;
+}
+
+function bangunPesanPermintaanWA_(hasil){
+  if(hasil.mode === 'revisi'){
+    return bangunPesanRevisiWA_(hasil);
+  }
+  let body = `🥕 *Permintaan Bahan Baku Baru*\n\n`;
+  body += `No. Permintaan: ${hasil.no_permintaan}\n`;
+  body += `Tanggal Dibutuhkan: ${fd(hasil.tanggal)}\n`;
+  if(hasil.no_order) body += `No Order Terkait: ${hasil.no_order}\n`;
+  body += `\n`;
+  KATEGORI_BAHAN_LIST_.forEach(kat => {
+    const rows = hasil.items.filter(it => it.kategori === kat);
+    if(!rows.length) return;
+    body += `*${kat}*\n`;
+    rows.forEach(it => { body += `- ${it.nama_bahan} ${it.qty} ${it.satuan}\n`; });
+    body += `\n`;
+  });
+  body += `Diminta oleh: ${CURRENT_USER ? CURRENT_USER.nama : '—'}`;
+  return body;
+}
+
+// Pesan WA KHUSUS revisi — cuma tampilkan PERUBAHANNYA (ditambah/diubah/dibatalkan),
+// TIDAK mengulang seluruh isi permintaan spt pesan pengiriman awal.
+function bangunPesanRevisiWA_(hasil){
+  const perubahan = hasil.perubahan || [];
+  let body = `✏️ *Revisi Permintaan Bahan Baku*\n\n`;
+  body += `No. Permintaan: ${hasil.no_permintaan}\n`;
+  body += `Tanggal Dibutuhkan: ${fd(hasil.tanggal)}\n`;
+  if(hasil.no_order) body += `No Order Terkait: ${hasil.no_order}\n`;
+  body += `\n`;
+
+  if(!perubahan.length){
+    body += `(Tidak ada perubahan qty/item — cuma info tanggal/no order yang diperbarui)\n\n`;
+  } else {
+    const ditambah = perubahan.filter(p => p.jenis === 'Ditambahkan');
+    const diubah = perubahan.filter(p => p.jenis === 'Diubah');
+    const dibatalkan = perubahan.filter(p => p.jenis === 'Dibatalkan');
+
+    if(ditambah.length){
+      body += `➕ *Ditambahkan*\n`;
+      ditambah.forEach(p => { body += `- ${p.nama_bahan}: ${p.qtyBaru} ${p.satuan}\n`; });
+      body += `\n`;
+    }
+    if(diubah.length){
+      body += `✏️ *Diubah Qty*\n`;
+      diubah.forEach(p => { body += `- ${p.nama_bahan}: ${p.qtyLama} → ${p.qtyBaru} ${p.satuan}\n`; });
+      body += `\n`;
+    }
+    if(dibatalkan.length){
+      body += `❌ *Dibatalkan*\n`;
+      dibatalkan.forEach(p => { body += `- ${p.nama_bahan} (sebelumnya ${p.qtyLama} ${p.satuan})\n`; });
+      body += `\n`;
+    }
+  }
+  body += `Direvisi oleh: ${CURRENT_USER ? CURRENT_USER.nama : '—'}`;
+  return body;
+}
+async function kirimPermintaanViaWA(){
+  if(!LAST_PERMINTAAN_RESULT){ toast('Belum ada permintaan yang tersimpan.','err'); return; }
+  showOvl('Mengirim WA ke Pembelian…');
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=getNotifRecipientsPembelian&t=' + Date.now());
+    if(!j.success || !j.data || !j.data.length){ toast('Tidak ada nomor Pembelian/Admin terdaftar.','err'); return; }
+    const pesan = bangunPesanPermintaanWA_(LAST_PERMINTAAN_RESULT);
+    const gagalDetail = [];
+    for(const hp of j.data){
+      try{ await fPost(hp, pesan); }
+      catch(e){ gagalDetail.push(hp+': '+e.message); console.warn('Gagal kirim WA ke '+hp+':', e.message); }
+      await sleep(700); // jeda antar kirim, jaga2 kalau Fonnte membatasi kirim terlalu cepat beruntun
+    }
+    if(gagalDetail.length){
+      toast(`Terkirim, tapi ${gagalDetail.length} nomor gagal: ${gagalDetail[0]}${gagalDetail.length>1?' (+'+(gagalDetail.length-1)+' lainnya, cek console)':''}`,'err');
+    } else {
+      toast('WA terkirim ke Pembelian ✓','ok');
+    }
+  }catch(e){
+    toast('Gagal: '+e.message,'err');
+  }finally{ hideOvl(); }
+}
+
+// ── Kelola Bahan Baku (tambah item baru ke master: kategori, nama, satuan, kode akun) ──
+async function tambahBahanInline_(kategori){
+  const slug = kategori.replace(/\s+/g,'_');
+  const nama = (document.getElementById('pm-inline-nama-'+slug)?.value || '').trim();
+  const satuan = (document.getElementById('pm-inline-satuan-'+slug)?.value || '').trim();
+  if(!nama){ toast('Isi nama bahan dulu.','err'); return; }
+  if(!satuan){ toast('Isi satuan dulu.','err'); return; }
+
+  showOvl('Menyimpan bahan baru…');
+  try{
+    const qs = new URLSearchParams({action:'tambahBahanBaku', nama, kategori, satuan}).toString();
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+    if(!j.sudah_ada) BAHAN_BAKU_DATA.push({ nama: j.nama, kategori: j.kategori, satuan_default: j.satuan_default, kode_akun: j.kode_akun });
+    toast(j.sudah_ada ? `"${nama}" sudah ada di daftar.` : `"${nama}" ditambahkan ✓ — tinggal dicentang.`, 'ok');
+    PM_KATEGORI_TERBUKA.add(kategori); // pastikan tetap kebuka stlh render ulang
+    renderPermintaanChecklist();
+  }catch(e){
+    toast('Gagal: '+e.message,'err');
+  }finally{ hideOvl(); }
+}
+
+
+// ── Daftar Permintaan (dilihat Dapur & Pembelian, beda hak proses) ──────
+async function loadPermintaanList(){
+  const wrap = document.getElementById('bb-list');
+  if(!wrap) return;
+  wrap.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat data…</div>';
+  const status = document.getElementById('bb-filter-status').value;
+  const tanggal = document.getElementById('bb-filter-tanggal').value;
+  try{
+    const qs = new URLSearchParams({action:'getPermintaan', mulai:tanggal, sampai:tanggal, status}).toString();
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+    PERMINTAAN_CACHE = j.data || [];
+
+    if(!PERMINTAAN_CACHE.length){
+      wrap.innerHTML = '<div class="empty"><div class="eico">🥕</div><p>Tidak ada permintaan.</p></div>';
+      return;
+    }
+
+    const grup = {};
+    let urutan = [];
+    PERMINTAAN_CACHE.forEach(t => {
+      if(!grup[t.no_permintaan]){ grup[t.no_permintaan] = []; urutan.push(t.no_permintaan); }
+      grup[t.no_permintaan].push(t);
+    });
+
+    // Tampilan DEFAULT (tanpa filter eksplisit) sengaja menyembunyikan SELURUH permintaan yang:
+    // - tanggalnya SUDAH LEWAT (kalau tidak sedang cari tanggal tertentu)
+    // - SEMUA itemnya sudah Batal (kalau tidak sedang cari khusus status Batal)
+    // Item yang batal krn revisi TAPI permintaannya masih ada item aktif lain TETAP ditampilkan
+    // (dicoret) — itu riwayat revisi yg masih relevan, beda dgn permintaan yg 100% sudah batal.
+    if(!tanggal || !status){
+      const hariIni = new Date().toISOString().split('T')[0];
+      urutan = urutan.filter(noPermintaan => {
+        const items = grup[noPermintaan];
+        const semuaBatal = items.every(t => t.status === 'Batal');
+        const sudahLewat = items[0].tanggal < hariIni;
+        if(!status && semuaBatal) return false;
+        if(!tanggal && sudahLewat) return false;
+        return true;
+      });
+    }
+
+    if(!urutan.length){
+      wrap.innerHTML = '<div class="empty"><div class="eico">🥕</div><p>Tidak ada permintaan aktif. Gunakan filter Status/Tanggal utk lihat riwayat lama.</p></div>';
+      return;
+    }
+
+    const bisaProses = CURRENT_USER && ['pembelian','admin'].includes(CURRENT_USER.role);
+    const bc = { Diminta:'bp', Diproses:'bb', Selesai:'bs', Batal:'bx' };
+
+    wrap.innerHTML = urutan.map(noPermintaan => {
+      const items = grup[noPermintaan];
+      const head = items[0];
+      const totalNota = items.reduce((s,t)=>s+(t.jumlah||0),0);
+      const revisiKe = Math.max(0, ...items.map(t => t.revisi_ke || 0));
+
+      // 1 No. Permintaan sekarang bisa berisi CAMPURAN status per item (mis. sebagian dibatalkan
+      // lewat revisi, sebagian masih aktif) — hitung status keseluruhan dari SEMUA item, bukan
+      // cuma item pertama, supaya badge & hak edit/proses akurat.
+      const adaSelesai = items.some(t => t.status === 'Selesai');
+      const semuaBatal = items.every(t => t.status === 'Batal');
+      const adaDiproses = items.some(t => t.status === 'Diproses');
+      let statusTampil;
+      if(semuaBatal) statusTampil = 'Batal';
+      else if(adaSelesai) statusTampil = 'Selesai';
+      else if(adaDiproses) statusTampil = 'Diproses';
+      else statusTampil = 'Diminta';
+
+      const itemsHtml = items.map(t => {
+        const dibatalkan = t.status === 'Batal';
+        return `
+        <div class="jw-menurow" style="${dibatalkan?'opacity:.5;':''}">
+          <span class="jw-menuk" style="${dibatalkan?'text-decoration:line-through;':''}">${t.nama_bahan}${dibatalkan?' <span style="font-size:9px;">(batal)</span>':''}<br><span style="font-size:10px;color:var(--inks);">${t.kategori} · ${t.qty_dibeli||t.qty_diminta} ${t.satuan}</span></span>
+          <span class="jw-menuv">${t.harga_satuan?('Rp '+t.jumlah.toLocaleString('id-ID')):'—'}</span>
+        </div>`;
+      }).join('');
+
+      // Edit/Batalkan HANYA muncul utk pembuatnya sendiri (atau admin), DAN belum ada item Selesai
+      // & belum semuanya Batal — sekali ada item sudah dibeli pembelian, tidak bisa direvisi lagi.
+      const bisaBatal = CURRENT_USER && !adaSelesai && !semuaBatal &&
+        (CURRENT_USER.role === 'admin' || (CURRENT_USER.email||'').toLowerCase() === (head.dibuat_oleh||'').toLowerCase());
+
+      return `
+      <div class="ocard">
+        <div class="och">
+          <div>
+            <div class="ono" style="font-size:14px;">${noPermintaan}${revisiKe>0?` <span style="font-size:10px;font-weight:600;color:var(--inks);">(Revisi ${revisiKe})</span>`:''}</div>
+            <div class="odt">${fd(head.tanggal)} · dibuat oleh ${head.dibuat_oleh||'—'}</div>
+          </div>
+          <span class="badge ${bc[statusTampil]||'bb'}">${statusTampil}</span>
+        </div>
+        <div class="jw-menulist">${itemsHtml}</div>
+        <div class="ofoot" style="margin-top:8px;">
+          <span style="font-size:11px;color:var(--inks);">${head.catatan?'No Order: '+head.catatan:''}</span>
+          <span class="otot">${totalNota>0?'Rp '+totalNota.toLocaleString('id-ID'):''}</span>
+        </div>
+        ${bisaProses ? `<button class="bico" style="width:100%;margin-top:10px;" onclick="openProsesPermintaanModal('${noPermintaan}')">🛒 Proses / Lihat Detail</button>` : ''}
+        ${bisaBatal ? `<div style="display:flex;gap:8px;margin-top:8px;">
+          <button class="bico" style="flex:1;background:var(--inkm);" onclick="editPermintaan('${noPermintaan}')">✏️ Edit</button>
+          <button class="bico" style="flex:1;background:var(--red);" onclick="batalkanPermintaan('${noPermintaan}')">🗑️ Batalkan Semua</button>
+        </div>` : ''}
+      </div>`;
+    }).join('');
+  }catch(e){
+    wrap.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>Gagal memuat: ${e.message}</p></div>`;
+  }
+}
+
+async function batalkanPermintaan(noPermintaan){
+  if(!confirm(`Batalkan permintaan ${noPermintaan}?\n\nDipakai kalau order yang jadi alasan permintaan ini ternyata tidak jadi. Bahan yang sudah dibeli/diproses TIDAK bisa dibatalkan dari sini lagi.`)) return;
+  showOvl('Membatalkan…');
+  try{
+    const qs = new URLSearchParams({action:'batalkanPermintaan', no_permintaan:noPermintaan}).toString();
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+    toast(`Permintaan ${noPermintaan} dibatalkan ✓`,'ok');
+    loadPermintaanList();
+  }catch(e){
+    toast('Gagal: '+e.message,'err');
+  }finally{ hideOvl(); }
+}
+
+// "Edit" = buka lagi modal Buat Permintaan dengan bahan yang sama sudah tercentang & qty
+// terisi (tinggal disesuaikan), lalu begitu dikirim ulang: permintaan LAMA otomatis
+// dibatalkan & permintaan BARU (No. beda) dibuat menggantikannya — supaya selalu ada
+// jejak audit yang jelas, bukan menimpa data lama diam-diam.
+let EDIT_MODE_NO_PERMINTAAN_LAMA = null;
+let EDIT_MODE_ITEMS_LAMA = null; // snapshot item SEBELUM diedit, dipakai bangun pesan WA "hanya yg berubah"
+async function editPermintaan(noPermintaan){
+  const items = PERMINTAAN_CACHE.filter(t => t.no_permintaan === noPermintaan && t.status !== 'Batal');
+  if(!items.length){ toast('Tidak ada item aktif di permintaan ini (semua sudah dibatalkan), coba refresh dulu.','err'); return; }
+
+  await openPermintaanModal(); // reset + load data master seperti biasa
+
+  document.getElementById('pm-tanggal').value = items[0].tanggal;
+  document.getElementById('pm-catatan').value = items[0].catatan || '';
+  EDIT_MODE_NO_PERMINTAAN_LAMA = noPermintaan;
+  // Simpan kondisi SEBELUM diedit — dipakai nanti utk bandingkan apa saja yg BENAR2 berubah,
+  // supaya WA yg dikirim setelah revisi cuma berisi perubahannya saja (bukan mengulang semua item).
+  EDIT_MODE_ITEMS_LAMA = items.map(t => ({ kategori: t.kategori, nama_bahan: t.nama_bahan, qty: t.qty_diminta, satuan: t.satuan }));
+
+  items.forEach(t => {
+    const b = BAHAN_BAKU_DATA.find(x => x.kategori===t.kategori && x.nama===t.nama_bahan);
+    const key = t.kategori + '|' + t.nama_bahan;
+    PERMINTAAN_SELECTED[key] = {
+      kategori: t.kategori, nama_bahan: t.nama_bahan,
+      satuan: t.satuan || (b&&b.satuan_default) || '', kode_akun: (b&&b.kode_akun) || '',
+      qty: t.qty_diminta
+    };
+    PM_KATEGORI_TERBUKA.add(t.kategori); // biar langsung kelihatan kategorinya, tidak perlu klik2 lagi
+  });
+  renderPermintaanChecklist();
+  toast(`Mode revisi ${noPermintaan} — ubah seperlunya lalu Preview & Kirim. Nomor permintaan tetap sama, progres Pembelian tidak hilang.`,'ok');
+}
+
+// ── Proses Permintaan (Pembelian): edit qty/harga per item, tandai selesai, cetak ──
+let PROSES_NO_PERMINTAAN_AKTIF = '';
+function openProsesPermintaanModal(noPermintaan){
+  PROSES_NO_PERMINTAAN_AKTIF = noPermintaan;
+  const semuaItemNo = PERMINTAAN_CACHE.filter(t => t.no_permintaan === noPermintaan);
+  const revisiKeModal = Math.max(0, ...semuaItemNo.map(t => t.revisi_ke || 0));
+  document.getElementById('pp-no-permintaan').textContent = noPermintaan + (revisiKeModal>0 ? ` (Revisi ${revisiKeModal})` : '');
+  document.getElementById('pp-nama-supplier').value = (semuaItemNo[0] && semuaItemNo[0].nama_supplier) || '';
+  document.getElementById('pp-hp-supplier').value = (semuaItemNo[0] && semuaItemNo[0].no_hp_supplier) || '';
+  loadSupplierData();
+  const items = PERMINTAAN_CACHE.filter(t => t.no_permintaan === noPermintaan && t.status !== 'Batal');
+
+  if(!items.length){
+    document.getElementById('pp-body').innerHTML = '<div class="empty" style="padding:16px;"><p style="font-size:12px;">Semua item di permintaan ini sudah dibatalkan, tidak ada yang perlu diproses.</p></div>';
+    document.getElementById('proses-permintaan-modal').classList.remove('hide');
+    return;
+  }
+
+  let html = '';
+  KATEGORI_BAHAN_LIST_.forEach(kat => {
+    const rows = items.filter(t => t.kategori === kat);
+    if(!rows.length) return;
+    html += `<div style="font-size:11px;font-weight:700;color:var(--ord);margin:10px 0 4px;">${kat}</div>`;
+    rows.forEach(t => {
+      html += `<div style="border:1px solid var(--bdr);border-radius:8px;padding:9px 10px;margin-bottom:8px;" data-row="${t.row_index}">
+        <label style="display:flex;align-items:flex-start;gap:8px;font-size:12px;font-weight:600;margin-bottom:6px;cursor:pointer;">
+          <input type="checkbox" class="pp-cetak-check" ${t.sudah_dicetak?'checked':''}
+            style="-webkit-appearance:checkbox!important;appearance:checkbox!important;width:17px!important;height:17px!important;
+                   min-width:17px!important;padding:0!important;margin:2px 0 0 0!important;border:1px solid #999!important;
+                   border-radius:3px!important;background:#fff!important;flex-shrink:0;">
+          <span>${t.nama_bahan} <span style="color:var(--inks);font-weight:400;">(diminta: ${t.qty_diminta} ${t.satuan})</span>${t.sudah_dicetak?' <span class="badge bs" style="font-size:9px;">Sudah dicetak</span>':''}</span>
+        </label>
+        <div class="g2">
+          <div class="fld" style="margin:0;"><label style="font-size:10px;">Qty Dibeli</label>
+            <input type="number" min="0" step="0.1" class="pp-qty-input" value="${t.qty_dibeli||t.qty_diminta}" style="padding:6px 8px;font-size:12px;">
+          </div>
+          <div class="fld" style="margin:0;"><label style="font-size:10px;">Harga Satuan (Rp)</label>
+            <input type="number" min="0" class="pp-harga-input" value="${t.harga_satuan||''}" placeholder="0" style="padding:6px 8px;font-size:12px;">
+          </div>
+        </div>
+      </div>`;
+    });
+  });
+  document.getElementById('pp-body').innerHTML = html;
+  document.getElementById('proses-permintaan-modal').classList.remove('hide');
+}
+function closeProsesPermintaanModal(){
+  document.getElementById('proses-permintaan-modal').classList.add('hide');
+  PROSES_NO_PERMINTAAN_AKTIF = '';
+}
+async function simpanSemuaProsesPermintaan(){
+  const blok = document.querySelectorAll('#pp-body [data-row]');
+  if(!blok.length){ toast('Tidak ada item.','err'); return; }
+
+  const items = Array.from(blok).map(el => ({
+    row_index: el.dataset.row,
+    qty_dibeli: el.querySelector('.pp-qty-input').value,
+    harga_satuan: el.querySelector('.pp-harga-input').value
+  }));
+
+  showOvl('Menyimpan perubahan…');
+  try{
+    const qs = new URLSearchParams({action:'updatePermintaanBatch', items: JSON.stringify(items)}).toString();
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+    toast(`${j.jumlah_baris} item tersimpan ✓`,'ok');
+    loadPermintaanList();
+  }catch(e){
+    toast('Gagal: '+e.message,'err');
+  }finally{ hideOvl(); }
+}
+async function tandaiSelesaiPermintaan(){
+  if(!PROSES_NO_PERMINTAAN_AKTIF) return;
+  if(!confirm(`Tandai permintaan ${PROSES_NO_PERMINTAAN_AKTIF} sebagai Selesai?`)) return;
+  showOvl('Memproses…');
+  try{
+    const qs = new URLSearchParams({action:'selesaikanPermintaan', no_permintaan:PROSES_NO_PERMINTAAN_AKTIF}).toString();
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+    toast('Permintaan ditandai Selesai ✓','ok');
+    closeProsesPermintaanModal();
+    loadPermintaanList();
+  }catch(e){
+    toast('Gagal: '+e.message,'err');
+  }finally{ hideOvl(); }
+}
+// (Fungsi cetakNotaPembelian() lama berbasis PDF sudah tidak dipakai — Cetak Nota Pembelian
+// sekarang lewat printer Bluetooth 58mm, lihat bukaPrintPreviewNota() di bawah.)
+
 // ══ PRINT MENU KE PRINTER BLUETOOTH 58MM (font diperbesar) ══
-const PRINT_STATE = { order:null, characteristic:null, device:null };
+const PRINT_STATE = { jenis:null, data:null, characteristic:null, device:null }; // jenis: 'order' atau 'nota'
 
 // Bungkus teks panjang jadi beberapa baris supaya pas di kertas 58mm
 function wrapTeksPrint_(str, maxChars){
@@ -4385,18 +5770,77 @@ function bangunBarisStruk_(o){
   return L;
 }
 
-function bukaPrintPreview(noOrder){
-  const o = allOrders.find(x => String(x.no_order) === String(noOrder));
-  if(!o){ toast('Data order tidak ditemukan.','err'); return; }
+// Susun baris cetak Nota Pembelian: header ringkas (nama akun + tanggal saja), rincian
+// item dgn font NORMAL (bukan double-width) supaya kolom qty/harga/jumlah bisa muat rapi
+// di kertas 58mm, lalu total, dan penutup "Batam, {tanggal}" + nama & no HP supplier.
+function bangunBarisNotaPembelian_(noPermintaan, items, namaSupplier, noHpSupplier){
+  const W = 14; // lebar baris besar (double-width), dipakai utk header/divider
+  const tglObj = items[0] && items[0].tanggal ? new Date(items[0].tanggal+'T00:00:00') : new Date();
+  const tglIndo = tglObj.toLocaleDateString('id-ID', {day:'numeric',month:'long',year:'numeric'});
 
-  PRINT_STATE.order = o;
-  const baris = bangunBarisStruk_(o);
+  // "Nama Akun" di header = nama KATEGORI item yang dicetak (mis. "Sayur"). Kalau item yg
+  // dicentang ternyata campur beberapa kategori sekaligus, gabung namanya dgn "/".
+  const kategoriUnik = Array.from(new Set(items.map(it => it.kategori).filter(Boolean)));
+  const namaAkunLabel = kategoriUnik.length ? kategoriUnik.join(' / ') : '-';
+
+  const L = [];
+  L.push({text: noPermintaan, bold:true, center:true});
+  L.push({text: namaAkunLabel, bold:true, center:true});
+  L.push({text:'-'.repeat(W), center:true});
+
+  // Rincian: No | Item | Satuan | Qty | Harga | Jumlah — ditulis 2 baris per item krn
+  // font normal 58mm (~32 karakter) tidak muat kalau semua kolom dipaksa 1 baris rata kanan-kiri.
+  L.push({cmd:'tight'});
+  let total = 0;
+  items.forEach((it,i) => {
+    const qty = it.qty_dibeli || it.qty_diminta || 0;
+    const harga = it.harga_satuan || 0;
+    const jumlah = qty * harga;
+    total += jumlah;
+    wrapTeksPrint_(`${i+1}. ${it.nama_bahan}`, 30).forEach(t => L.push({text:t, small:true}));
+    const kiri = `${it.satuan} x${qty} @${harga.toLocaleString('id-ID')}`;
+    const kanan = jumlah.toLocaleString('id-ID');
+    if(kiri.length <= 22){
+      L.push({text: kiri.padEnd(23)+kanan, small:true});
+    } else {
+      L.push({text: kiri, small:true});
+      L.push({text: '   = Rp'+kanan, small:true});
+    }
+  });
+  L.push({cmd:'normal'});
+
+  L.push({text:'-'.repeat(W), center:true});
+  L.push({text:'TOTAL: Rp'+total.toLocaleString('id-ID'), bold:true, medium:true}); // ukuran tengah: lebih kecil dari header, lebih besar dari rincian
+  L.push({text:'-'.repeat(W), center:true});
+  L.push({text:' '});
+  L.push({text:'Batam, '+tglIndo, small:true});
+  // Ruang kosong utk supplier tanda tangan/stempel langsung di kertas fisik ini
+  // (nota dicetak oleh Pembelian, tinggal diserahkan ke supplier utk ditandatangani/distempel)
+  L.push({text:' ', small:true});
+  L.push({text: namaSupplier || '(nama supplier)', small:true});
+  L.push({text: noHpSupplier || '(no HP supplier)', small:true});
+  return L;
+}
+
+// Render baris (dari bangunBarisStruk_ ATAU bangunBarisNotaPembelian_) ke kertas preview HTML.
+// Baris bertanda 'small' dirender lebih kecil (font normal), sisanya besar spt sebelumnya.
+function renderKertasPreview_(baris){
   const kertas = document.getElementById('print-paper');
   kertas.innerHTML = baris.filter(b=>!b.cmd).map(b => {
     const weight = b.bold ? '700' : '400';
     const align = b.center ? 'center' : 'left';
-    return `<div style="font-size:21px;font-weight:${weight};line-height:1.15;text-align:${align};margin:0;">${b.text||' '}</div>`;
+    const size = b.small ? '13px' : (b.medium ? '17px' : '21px');
+    return `<div style="font-size:${size};font-weight:${weight};line-height:1.25;text-align:${align};margin:0;">${b.text||' '}</div>`;
   }).join('');
+}
+
+function bukaPrintPreview(noOrder){
+  const o = allOrders.find(x => String(x.no_order) === String(noOrder));
+  if(!o){ toast('Data order tidak ditemukan.','err'); return; }
+
+  PRINT_STATE.jenis = 'order';
+  PRINT_STATE.data = o;
+  renderKertasPreview_(bangunBarisStruk_(o));
 
   document.getElementById('print-status').textContent = PRINT_STATE.characteristic
     ? '🔵 Printer sudah terhubung — siap cetak'
@@ -4405,6 +5849,52 @@ function bukaPrintPreview(noOrder){
   document.getElementById('btn-cetak-sekarang').style.background = PRINT_STATE.characteristic ? 'var(--or)' : 'var(--inks)';
 
   closeOrderDetail();
+  document.getElementById('print-preview-modal').classList.remove('hide');
+}
+
+// Cetak Nota Pembelian ke printer Bluetooth 58mm — dipanggil dari tombol "🖨️ Cetak Nota
+// Pembelian" di modal Proses Permintaan (Pembelian). Simpan dulu Nama/No HP Supplier yg
+// diisi di form (kalau ada), baru buka preview cetak.
+async function bukaPrintPreviewNota(noPermintaan){
+  const namaSupplier = (document.getElementById('pp-nama-supplier')?.value || '').trim();
+  const noHpSupplier = (document.getElementById('pp-hp-supplier')?.value || '').trim();
+  if(!namaSupplier){ toast('Isi Nama Supplier dulu sebelum cetak.','err'); return; }
+
+  // Cuma item yang DICENTANG yg ikut dicetak di nota ini — 1 kategori (mis. Sayur) belum
+  // tentu semuanya dibeli dari 1 supplier yang sama, jadi Pembelian pilih sendiri item mana
+  // yang mau dimasukkan ke nota supplier ini.
+  const blokTerpilih = Array.from(document.querySelectorAll('#pp-body [data-row]'))
+    .filter(el => el.querySelector('.pp-cetak-check')?.checked);
+  if(!blokTerpilih.length){ toast('Centang minimal 1 item yang mau dicetak di nota ini.','err'); return; }
+
+  const rowIndexes = blokTerpilih.map(el => el.dataset.row);
+  const items = blokTerpilih.map(el => {
+    const t = PERMINTAAN_CACHE.find(x => String(x.row_index) === el.dataset.row);
+    if(!t) return null;
+    // Pakai qty/harga TERBARU yg kelihatan di layar saat ini (mungkin belum sempat ditekan
+    // "Simpan Semua Perubahan"), supaya nota yg dicetak selalu sesuai apa yg terlihat.
+    return {
+      ...t,
+      qty_dibeli: parseFloat(el.querySelector('.pp-qty-input').value) || t.qty_dibeli || t.qty_diminta,
+      harga_satuan: parseFloat(el.querySelector('.pp-harga-input').value) || t.harga_satuan || 0
+    };
+  }).filter(Boolean);
+
+  try{
+    const qs = new URLSearchParams({action:'simpanInfoSupplier', no_permintaan:noPermintaan, nama_supplier:namaSupplier, no_hp_supplier:noHpSupplier}).toString();
+    await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+  }catch(e){ console.warn('Gagal simpan info supplier (lanjut cetak tetap jalan):', e.message); }
+
+  PRINT_STATE.jenis = 'nota';
+  PRINT_STATE.data = { noPermintaan, items, namaSupplier, noHpSupplier, rowIndexes };
+  renderKertasPreview_(bangunBarisNotaPembelian_(noPermintaan, items, namaSupplier, noHpSupplier));
+
+  document.getElementById('print-status').textContent = PRINT_STATE.characteristic
+    ? '🔵 Printer sudah terhubung — siap cetak'
+    : 'Belum terhubung ke printer. Tap "Hubungkan Printer" dulu.';
+  document.getElementById('btn-cetak-sekarang').disabled = !PRINT_STATE.characteristic;
+  document.getElementById('btn-cetak-sekarang').style.background = PRINT_STATE.characteristic ? 'var(--or)' : 'var(--inks)';
+
   document.getElementById('print-preview-modal').classList.remove('hide');
 }
 function tutupPrintPreview(){
@@ -4461,7 +5951,9 @@ function bangunByteESCPOS_(baris){
     if (b.cmd === 'normal') { push(0x1B,0x32); return; }    // ESC 2 — kembali ke jarak baris default
     push(0x1B,0x61, b.center ? 0x01 : 0x00); // align
     push(0x1B,0x45, b.bold ? 0x01 : 0x00);   // bold on/off
-    push(0x1D,0x21, 0x11); // GS ! — double-height + double-width utk SEMUA baris
+    // GS ! — ukuran huruf: 'small' = normal (rincian), 'medium' = lebar 2x tinggi normal (mis. baris TOTAL,
+    // supaya lebih besar dari rincian tapi tetap lebih kecil dari header/default yg double-height+width penuh)
+    push(0x1D,0x21, b.small ? 0x00 : (b.medium ? 0x01 : 0x11));
     pushText(b.text || ' ');
     push(0x0A); // line feed
   });
@@ -4475,7 +5967,7 @@ function bangunByteESCPOS_(baris){
 
 async function cetakKePrinter(){
   if(!PRINT_STATE.characteristic){ toast('Hubungkan printer dulu.','err'); return; }
-  if(!PRINT_STATE.order){ toast('Data order tidak ada.','err'); return; }
+  if(!PRINT_STATE.data){ toast('Data yang mau dicetak tidak ada.','err'); return; }
 
   const stat = document.getElementById('print-status');
   const btn = document.getElementById('btn-cetak-sekarang');
@@ -4483,7 +5975,9 @@ async function cetakKePrinter(){
   stat.textContent = '🖨️ Mengirim data ke printer…';
 
   try{
-    const baris = bangunBarisStruk_(PRINT_STATE.order);
+    const baris = PRINT_STATE.jenis === 'nota'
+      ? bangunBarisNotaPembelian_(PRINT_STATE.data.noPermintaan, PRINT_STATE.data.items, PRINT_STATE.data.namaSupplier, PRINT_STATE.data.noHpSupplier)
+      : bangunBarisStruk_(PRINT_STATE.data);
     const data = bangunByteESCPOS_(baris);
 
     // Kirim per-chunk kecil (kebanyakan printer BLE murah cuma terima ±100-180 byte per write)
@@ -4495,7 +5989,22 @@ async function cetakKePrinter(){
     }
 
     stat.textContent = '✅ Selesai dicetak!';
-    toast('Menu berhasil dicetak ✓','ok');
+    toast((PRINT_STATE.jenis==='nota'?'Nota Pembelian':'Menu')+' berhasil dicetak ✓','ok');
+
+    // Tandai item2 yg baru dicetak sbg "Sudah Dicetak" — biar checkbox-nya default tercentang
+    // lain kali modal Proses Permintaan dibuka lagi, mencegah item yg sama tanpa sadar
+    // dicetak/dipesan ulang ke supplier lain (order ganda).
+    if(PRINT_STATE.jenis === 'nota' && PRINT_STATE.data.rowIndexes && PRINT_STATE.data.rowIndexes.length){
+      try{
+        const qs2 = new URLSearchParams({action:'tandaiItemDicetak', row_indexes: JSON.stringify(PRINT_STATE.data.rowIndexes)}).toString();
+        await gasFetch(APP.GAS_URL + '?' + qs2 + '&t=' + Date.now());
+        PRINT_STATE.data.rowIndexes.forEach(ri => {
+          const chk = document.querySelector(`#pp-body [data-row="${ri}"] .pp-cetak-check`);
+          if(chk) chk.checked = true;
+        });
+        loadPermintaanList(); // refresh cache biar status "Sudah Dicetak" ikut ter-update
+      }catch(e){ console.warn('Gagal menandai item sudah dicetak:', e.message); }
+    }
   }catch(e){
     stat.textContent = '❌ Gagal cetak: ' + e.message;
     toast('Gagal mencetak: '+e.message,'err');
