@@ -1617,7 +1617,7 @@ function terapkanAksesRole_(){
   // Tab utama muncul kalau punya SALAH SATU dari kedua akses ini; masing-masing
   // bagian baru muncul sendiri sesuai haknya.
   const bisaJurnal = !!CURRENT_USER.aksesKeuanganLevel; // lihat ambilLevelAksesKeuangan_ di AkuntansiBackend.gs
-  const bisaBahanBaku = ['leader dapur','pembelian','admin'].includes(CURRENT_USER.role);
+  const bisaBahanBaku = ['leader dapur','leader service','pembelian','admin'].includes(CURRENT_USER.role);
   if (bisaJurnal || bisaBahanBaku) {
     document.getElementById('tab-keuangan').classList.remove('hide');
   }
@@ -1627,9 +1627,9 @@ function terapkanAksesRole_(){
   }
   if (bisaBahanBaku) {
     document.getElementById('ksub-panel-bahan').classList.remove('hide');
-    // Tombol "Buat Permintaan" — leader dapur/admin bisa dari awal; pembelian sekarang
-    // JUGA bisa bikin permintaan sendiri (sama seperti leader dapur), selain memproses.
-    if (['leader dapur','pembelian','admin'].includes(CURRENT_USER.role)) {
+    // Tombol "Buat Permintaan" — leader dapur/leader service/admin bisa dari awal;
+    // pembelian sekarang JUGA bisa bikin permintaan sendiri, selain memproses.
+    if (['leader dapur','leader service','pembelian','admin'].includes(CURRENT_USER.role)) {
       document.getElementById('bb-btn-buat-permintaan').classList.remove('hide');
     }
   }
@@ -4351,7 +4351,7 @@ function goTab(id,btn){
       }
       loadJurnalData();
     }
-    const bisaBahan = CURRENT_USER && ['leader dapur','pembelian','admin'].includes(CURRENT_USER.role);
+    const bisaBahan = CURRENT_USER && ['leader dapur','leader service','pembelian','admin'].includes(CURRENT_USER.role);
     if(bisaBahan){ loadPermintaanList(); }
   }
 }
@@ -5880,6 +5880,27 @@ async function bukaPrintPreviewNota(noPermintaan){
     };
   }).filter(Boolean);
 
+  // WAJIB SIMPAN DULU qty/harga yang mau dicetak ke Google Sheets sebelum lanjut cetak —
+  // sebelumnya cetak cuma pakai nilai yg kelihatan di layar TANPA menyimpannya, jadi kalau
+  // "Simpan Semua Perubahan" belum sempat ditekan duluan, angkanya muncul di kertas tapi
+  // hilang/kosong di sheet begitu modal ditutup/direfresh. Sekarang cetak SELALU nyimpen dulu.
+  showOvl('Menyimpan data sebelum cetak…');
+  try{
+    const batchItems = items.map(it => ({ row_index: it.row_index, qty_dibeli: it.qty_dibeli, harga_satuan: it.harga_satuan }));
+    const qsBatch = new URLSearchParams({action:'updatePermintaanBatch', items: JSON.stringify(batchItems)}).toString();
+    const jBatch = await gasFetch(APP.GAS_URL + '?' + qsBatch + '&t=' + Date.now());
+    if(!jBatch.success) throw new Error(jBatch.message);
+    // Samakan cache lokal juga, biar konsisten kalau modal ditutup tanpa jadi mencetak
+    items.forEach(it => {
+      const cacheItem = PERMINTAAN_CACHE.find(x => String(x.row_index) === String(it.row_index));
+      if(cacheItem){ cacheItem.qty_dibeli = it.qty_dibeli; cacheItem.harga_satuan = it.harga_satuan; cacheItem.jumlah = it.qty_dibeli*it.harga_satuan; }
+    });
+  }catch(e){
+    hideOvl();
+    toast('Gagal menyimpan data sebelum cetak: '+e.message,'err');
+    return; // JANGAN lanjut ke preview cetak kalau simpannya gagal
+  }
+
   try{
     const qs = new URLSearchParams({action:'simpanInfoSupplier', no_permintaan:noPermintaan, nama_supplier:namaSupplier, no_hp_supplier:noHpSupplier}).toString();
     await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
@@ -5895,6 +5916,7 @@ async function bukaPrintPreviewNota(noPermintaan){
   document.getElementById('btn-cetak-sekarang').disabled = !PRINT_STATE.characteristic;
   document.getElementById('btn-cetak-sekarang').style.background = PRINT_STATE.characteristic ? 'var(--or)' : 'var(--inks)';
 
+  hideOvl();
   document.getElementById('print-preview-modal').classList.remove('hide');
 }
 function tutupPrintPreview(){
