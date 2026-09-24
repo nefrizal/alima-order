@@ -483,6 +483,9 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       <button class="bico hide" id="bb-btn-buat-permintaan" onclick="openPermintaanModal()" style="flex:1;background:var(--or);">➕ Buat Permintaan Bahan</button>
       <button class="bico" onclick="loadPermintaanList()">↻</button>
     </div>
+    <div class="lbar">
+      <button class="bico" onclick="openGramasiModal()" style="flex:1;">📋 Kelola Menu Gramasi</button>
+    </div>
 
     <div class="sec">
       <div class="stitle">🔍 Filter</div>
@@ -720,8 +723,10 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       <div style="font-family:'Playfair Display',serif;font-size:13px;font-weight:700;color:var(--ord);">✅ Centang Bahan yang Dibutuhkan</div>
     </div>
     <div style="font-size:10px;color:var(--inks);margin:-4px 0 8px;">💡 Tap judul kategori (mis. "Packaging") utk buka/tutup daftar &mdash; di situ juga ada kolom utk tambah bahan baru kalau belum ada.</div>
-    <div class="fld">
-      <input id="pm-search-checklist" type="text" placeholder="🔍 Cari nama bahan…" oninput="renderPermintaanChecklist()">
+    <div class="fld" style="display:flex;gap:6px;align-items:center;">
+      <input id="pm-search-checklist" type="text" placeholder="🔍 Cari nama bahan…" oninput="renderPermintaanChecklist()" style="flex:1;">
+      <button type="button" onclick="tambahMenuGramasiManual()" style="font-size:10px;padding:4px 8px;white-space:nowrap;">+ Menu</button>
+      <button type="button" onclick="hitungGramasiManual()" style="font-size:10px;padding:4px 8px;background:var(--or);color:#fff;border:none;border-radius:4px;white-space:nowrap;">🧮 Hitung</button>
     </div>
     <div id="pm-checklist"><div class="empty" style="padding:16px;"><p style="font-size:12px;">⏳ Memuat daftar bahan…</p></div></div>
 
@@ -5116,7 +5121,8 @@ async function onPmTanggalChange(){
   box.innerHTML = '<div style="font-size:10px;color:var(--inks);margin-bottom:5px;">📦 Order dgn jadwal kirim tanggal ini — tap utk tambah ke Nomor Order:</div>' +
     '<div style="display:flex;flex-wrap:wrap;gap:6px;">' +
     cocok.map(o => `<span onclick="tambahNoOrderKePm('${o.no_order}')" class="pill" style="cursor:pointer;">${o.no_order} · ${o.qty||0} pax</span>`).join('') +
-    '</div>';
+    '</div>' +
+    '<button type="button" onclick="hitungGramasiDariTanggal()" style="margin-top:8px;background:var(--or);color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:11px;cursor:pointer;">🧮 Hitung Otomatis Bahan dari Menu Order Tanggal Ini</button>';
   box.classList.remove('hide');
 }
 function tambahNoOrderKePm(noOrder){
@@ -5222,6 +5228,221 @@ function togglePermintaanItem(kat, nama, dicentang){
 function ubahQtyPermintaanItem(kat, nama, qty){
   const key = kat + '|' + nama;
   if(PERMINTAAN_SELECTED[key]) PERMINTAAN_SELECTED[key].qty = qty;
+}
+
+// ── KALKULATOR GRAMASI ──────────────────────────────────────────
+// Terapkan hasil hitungan (dari endpoint manapun) ke checklist Permintaan Bahan:
+// item yang ketemu di master BahanBaku otomatis tercentang+terisi qty, kategorinya
+// otomatis dibuka. Bahan yang belum terdaftar TIDAK dicentang otomatis (krn kategori/
+// kode akunnya belum ada) — cukup diberi tahu lewat toast, leader tambahkan manual
+// via form "+ Nama bahan baru" yang sudah ada di tiap kategori.
+function terapkanHasilGramasi_(hasil){
+  let jumlahDiisi = 0;
+  (hasil.items||[]).forEach(it => {
+    if(!it.kategori) return; // bahan belum terdaftar di master -> lewati, jangan auto-centang
+    const key = it.kategori + '|' + it.nama_bahan;
+    PERMINTAAN_SELECTED[key] = {
+      kategori: it.kategori, nama_bahan: it.nama_bahan,
+      satuan: it.satuan || '', kode_akun: it.kode_akun || '', qty: it.qty
+    };
+    PM_KATEGORI_TERBUKA.add(it.kategori);
+    jumlahDiisi++;
+  });
+  renderPermintaanChecklist();
+
+  let pesan = `${jumlahDiisi} bahan otomatis terisi ✓`;
+  if((hasil.menu_tidak_ditemukan||[]).length){
+    pesan += `\n⚠️ Menu tanpa resep gramasi: ${hasil.menu_tidak_ditemukan.join(', ')}`;
+  }
+  if((hasil.bahan_belum_terdaftar||[]).length){
+    pesan += `\n⚠️ Bahan belum ada di master (tambahkan manual): ${hasil.bahan_belum_terdaftar.join(', ')}`;
+  }
+  toast(pesan, (hasil.menu_tidak_ditemukan||[]).length || (hasil.bahan_belum_terdaftar||[]).length ? 'err' : 'ok');
+}
+
+// Mode OTOMATIS — dari tanggal yang sedang diisi di modal Permintaan Bahan
+async function hitungGramasiDariTanggal(){
+  const tgl = document.getElementById('pm-tanggal').value;
+  if(!tgl){ toast('Isi Tanggal Dibutuhkan dulu.','err'); return; }
+  toast('Menghitung kebutuhan bahan…','ok');
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=hitungKebutuhanBahanDariTanggal&tanggal=' + tgl + '&t=' + Date.now());
+    if(!j || !j.success){ toast(j?.message || 'Gagal menghitung.', 'err'); return; }
+    terapkanHasilGramasi_(j);
+  }catch(e){ toast('Gagal menghitung: ' + e.message, 'err'); }
+}
+
+// Mode MANUAL — pilih menu + porsi sendiri lewat prompt sederhana berulang.
+let GRAMASI_MENU_LIST = [];
+let GRAMASI_PILIHAN_MANUAL = [];
+async function tambahMenuGramasiManual(){
+  if(!GRAMASI_MENU_LIST || !GRAMASI_MENU_LIST.length){
+    const j = await gasFetch(APP.GAS_URL + '?action=getDaftarMenuGramasi&t=' + Date.now());
+    GRAMASI_MENU_LIST = (j && j.success) ? j.data : [];
+  }
+  const namaMenu = prompt('Nama menu (harus sama persis dgn di tab gramasi):\n\nContoh: ' + (GRAMASI_MENU_LIST.slice(0,3).join(', ') || '-'));
+  if(!namaMenu) return;
+  const porsi = prompt('Jumlah porsi untuk "' + namaMenu + '"?');
+  if(!porsi || isNaN(Number(porsi)) || Number(porsi) <= 0){ toast('Jumlah porsi tidak valid.','err'); return; }
+  GRAMASI_PILIHAN_MANUAL.push({ nama_menu: namaMenu.trim(), porsi: Number(porsi) });
+  toast(`"${namaMenu}" (${porsi} porsi) ditambahkan. Total ${GRAMASI_PILIHAN_MANUAL.length} menu — klik lagi utk tambah, atau "Hitung Sekarang".`,'ok');
+}
+async function hitungGramasiManual(){
+  if(!GRAMASI_PILIHAN_MANUAL.length){ toast('Tambahkan minimal 1 menu dulu.','err'); return; }
+  toast('Menghitung kebutuhan bahan…','ok');
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=hitungKebutuhanBahan&daftar_menu=' + encodeURIComponent(JSON.stringify(GRAMASI_PILIHAN_MANUAL)) + '&t=' + Date.now());
+    if(!j || !j.success){ toast(j?.message || 'Gagal menghitung.', 'err'); return; }
+    terapkanHasilGramasi_(j);
+    GRAMASI_PILIHAN_MANUAL = []; // reset setelah dipakai
+  }catch(e){ toast('Gagal menghitung: ' + e.message, 'err'); }
+}
+
+// ── KELOLA MENU GRAMASI — tambah/edit/hapus resep menu ──────────
+let GRAMASI_LIST_DATA = [];
+let GF_BAHAN_ROWS = []; // [{bahan, gram}] — state form yang sedang diedit
+
+async function openGramasiModal(){
+  document.getElementById('gramasi-modal').classList.remove('hide');
+  document.getElementById('gramasi-list-view').classList.remove('hide');
+  document.getElementById('gramasi-form-view').classList.add('hide');
+  document.getElementById('gramasi-search').value = '';
+  // BAHAN_BAKU_DATA dipakai bareng dgn modal Permintaan Bahan (variabel global yang
+  // sama) — kalau belum pernah dimuat di sesi ini, muat dulu; kalau sudah ada, pakai
+  // yang di-cache saja biar modal ini buka cepat (tidak perlu refresh tiap buka).
+  if(!BAHAN_BAKU_DATA || !BAHAN_BAKU_DATA.length) await loadBahanBakuData();
+  renderGfBahanDatalist_();
+  await loadGramasiList();
+}
+// Isi <datalist> nama bahan dari master BahanBaku (BAHAN_BAKU_DATA, sudah ada di app)
+// supaya ejaan di tab gramasi konsisten sama master — tapi tetap boleh ketik nama baru
+// yang belum ada di master (datalist cuma saran, bukan validasi wajib pilih).
+function renderGfBahanDatalist_(){
+  const namaUnik = [...new Set((BAHAN_BAKU_DATA||[]).map(b => b.nama))].sort();
+  document.getElementById('gf-bahan-list').innerHTML = namaUnik.map(n => `<option value="${n.replace(/"/g,'&quot;')}">`).join('');
+}
+function closeGramasiModal(){
+  document.getElementById('gramasi-modal').classList.add('hide');
+}
+
+async function loadGramasiList(){
+  document.getElementById('gramasi-list').innerHTML = '<div class="empty" style="padding:16px;"><p style="font-size:12px;">Memuat…</p></div>';
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=getDaftarMenuGramasiLengkap&t=' + Date.now());
+    GRAMASI_LIST_DATA = (j && j.success) ? j.data : [];
+  }catch(e){ GRAMASI_LIST_DATA = []; }
+  renderGramasiList();
+}
+function renderGramasiList(){
+  const q = (document.getElementById('gramasi-search').value||'').toLowerCase().trim();
+  const wrap = document.getElementById('gramasi-list');
+  let data = GRAMASI_LIST_DATA;
+  if(q) data = data.filter(m => m.nama_menu.toLowerCase().includes(q));
+  if(!data.length){
+    wrap.innerHTML = '<div class="empty" style="padding:16px;"><p style="font-size:12px;">Belum ada menu' + (q?' yang cocok.':' di tab gramasi.') + '</p></div>';
+    return;
+  }
+  wrap.innerHTML = '<div style="border:1px solid var(--bdr);border-radius:8px;overflow:hidden;">' +
+    data.map((m,i) => `
+      <div onclick="openGramasiForm('${m.nama_menu.replace(/'/g,"\\'")}')" style="padding:10px;cursor:pointer;${i<data.length-1?'border-bottom:1px solid var(--bdr);':''}display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-size:13px;font-weight:600;">${m.nama_menu}</div>
+          <div style="font-size:10px;color:var(--inks);">${m.kelompok} · basis ${m.porsi} porsi · ${m.jumlah_bahan} bahan</div>
+        </div>
+        <span style="font-size:14px;color:var(--inks);">›</span>
+      </div>
+    `).join('') + '</div>';
+}
+
+// namaMenu kosong = mode "Menu Baru"; diisi = mode edit (fetch detail dulu)
+async function openGramasiForm(namaMenu){
+  document.getElementById('gramasi-list-view').classList.add('hide');
+  document.getElementById('gramasi-form-view').classList.remove('hide');
+  document.getElementById('gf-nama-menu-lama').value = '';
+  document.getElementById('gf-hapus-btn').classList.add('hide');
+
+  if(!namaMenu){
+    document.getElementById('gramasi-form-title').textContent = 'Menu Baru';
+    document.getElementById('gf-nama-menu').value = '';
+    document.getElementById('gf-kelompok').value = '';
+    document.getElementById('gf-porsi').value = '';
+    GF_BAHAN_ROWS = [{bahan:'', gram:''}];
+    renderGfBahanRows();
+    return;
+  }
+
+  document.getElementById('gramasi-form-title').textContent = 'Memuat…';
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=getGramasiMenuDetail&nama_menu=' + encodeURIComponent(namaMenu) + '&t=' + Date.now());
+    if(!j || !j.success){ toast(j?.message || 'Gagal memuat menu.', 'err'); backToGramasiList(); return; }
+    document.getElementById('gramasi-form-title').textContent = 'Edit: ' + j.nama_menu;
+    document.getElementById('gf-nama-menu-lama').value = j.nama_menu;
+    document.getElementById('gf-nama-menu').value = j.nama_menu;
+    document.getElementById('gf-kelompok').value = j.kelompok;
+    document.getElementById('gf-porsi').value = j.porsi;
+    GF_BAHAN_ROWS = j.items.length ? j.items.map(it => ({bahan: it.bahan, gram: it.gram})) : [{bahan:'', gram:''}];
+    renderGfBahanRows();
+    document.getElementById('gf-hapus-btn').classList.remove('hide');
+  }catch(e){ toast('Gagal memuat menu: ' + e.message, 'err'); backToGramasiList(); }
+}
+function backToGramasiList(){
+  document.getElementById('gramasi-form-view').classList.add('hide');
+  document.getElementById('gramasi-list-view').classList.remove('hide');
+}
+
+function renderGfBahanRows(){
+  const wrap = document.getElementById('gf-bahan-rows');
+  wrap.innerHTML = GF_BAHAN_ROWS.map((row, i) => `
+    <div style="display:flex;gap:6px;margin-bottom:6px;">
+      <input type="text" value="${(row.bahan||'').replace(/"/g,'&quot;')}" placeholder="Nama bahan" list="gf-bahan-list" oninput="GF_BAHAN_ROWS[${i}].bahan=this.value" style="flex:1;padding:6px 8px;font-size:12px;">
+      <input type="number" min="0" value="${row.gram||''}" placeholder="Gram total" oninput="GF_BAHAN_ROWS[${i}].gram=this.value" style="width:90px;padding:6px 8px;font-size:12px;">
+      <button type="button" onclick="hapusBarisGf(${i})" style="background:none;border:none;color:#e33;font-size:16px;cursor:pointer;padding:0 4px;">🗑</button>
+    </div>
+  `).join('');
+}
+function tambahBarisGf(){ GF_BAHAN_ROWS.push({bahan:'', gram:''}); renderGfBahanRows(); }
+function hapusBarisGf(i){
+  if(GF_BAHAN_ROWS.length <= 1){ toast('Minimal 1 baris bahan.','err'); return; }
+  GF_BAHAN_ROWS.splice(i,1); renderGfBahanRows();
+}
+
+async function simpanGramasiMenu(){
+  const namaMenu = document.getElementById('gf-nama-menu').value.trim();
+  const namaMenuLama = document.getElementById('gf-nama-menu-lama').value.trim();
+  const kelompok = document.getElementById('gf-kelompok').value.trim();
+  const porsi = document.getElementById('gf-porsi').value;
+  const items = GF_BAHAN_ROWS.filter(r => String(r.bahan||'').trim() && Number(r.gram) > 0);
+
+  if(!namaMenu){ toast('Nama menu wajib diisi.','err'); return; }
+  if(!kelompok){ toast('Kelompok wajib diisi.','err'); return; }
+  if(!porsi || Number(porsi) <= 0){ toast('Porsi basis resep harus lebih dari 0.','err'); return; }
+  if(!items.length){ toast('Isi minimal 1 baris bahan (nama + gram > 0).','err'); return; }
+
+  toast('Menyimpan…','ok');
+  try{
+    const body = new URLSearchParams({
+      action: 'simpanGramasiMenu', nama_menu: namaMenu, nama_menu_lama: namaMenuLama,
+      kelompok, porsi, items: JSON.stringify(items)
+    });
+    const j = await gasFetch(APP.GAS_URL + '?' + body.toString() + '&t=' + Date.now());
+    if(!j || !j.success){ toast(j?.message || 'Gagal menyimpan.', 'err'); return; }
+    toast(`Menu "${namaMenu}" tersimpan (${j.jumlah_bahan} bahan) ✓`,'ok');
+    await loadGramasiList();
+    backToGramasiList();
+  }catch(e){ toast('Gagal menyimpan: ' + e.message, 'err'); }
+}
+
+async function hapusGramasiMenuDariForm(){
+  const namaMenu = document.getElementById('gf-nama-menu-lama').value.trim();
+  if(!namaMenu) return;
+  if(!confirm(`Hapus menu "${namaMenu}" beserta seluruh daftar bahannya? Tidak bisa dibatalkan.`)) return;
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=hapusGramasiMenu&nama_menu=' + encodeURIComponent(namaMenu) + '&t=' + Date.now());
+    if(!j || !j.success){ toast(j?.message || 'Gagal menghapus.', 'err'); return; }
+    toast('Menu dihapus ✓','ok');
+    await loadGramasiList();
+    backToGramasiList();
+  }catch(e){ toast('Gagal menghapus: ' + e.message, 'err'); }
 }
 
 function previewPermintaan(){
@@ -6041,5 +6262,57 @@ async function checkConn(){
   catch{el.textContent='🔴';}
 }
 </script>
+<!-- MODAL KELOLA MENU GRAMASI (tambah/edit/hapus resep menu utk Kalkulator Gramasi) -->
+<div id="gramasi-modal" class="hide" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:flex-end;justify-content:center;">
+  <div style="background:#fff;width:100%;max-width:520px;max-height:90vh;border-radius:16px 16px 0 0;display:flex;flex-direction:column;overflow:hidden;">
+    <div style="padding:14px 16px;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center;">
+      <strong style="font-size:14px;">📋 Kelola Menu Gramasi</strong>
+      <span onclick="closeGramasiModal()" style="cursor:pointer;font-size:18px;">✕</span>
+    </div>
+
+    <!-- ── VIEW: DAFTAR MENU ── -->
+    <div id="gramasi-list-view" style="overflow-y:auto;padding:12px 16px;">
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <input type="text" id="gramasi-search" placeholder="Cari menu…" oninput="renderGramasiList()" style="flex:1;padding:8px 10px;font-size:12px;">
+        <button type="button" onclick="openGramasiForm()" style="background:var(--or);color:#fff;border:none;border-radius:6px;padding:0 12px;font-size:12px;cursor:pointer;white-space:nowrap;">+ Menu Baru</button>
+      </div>
+      <div id="gramasi-list"><div class="empty" style="padding:16px;"><p style="font-size:12px;">Memuat…</p></div></div>
+    </div>
+
+    <!-- ── VIEW: FORM TAMBAH/EDIT MENU ── -->
+    <div id="gramasi-form-view" class="hide" style="overflow-y:auto;padding:12px 16px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span onclick="backToGramasiList()" style="cursor:pointer;font-size:16px;">←</span>
+        <strong id="gramasi-form-title" style="font-size:13px;">Menu Baru</strong>
+      </div>
+      <input type="hidden" id="gf-nama-menu-lama">
+      <label style="font-size:11px;color:var(--inks);">Nama Menu</label>
+      <input type="text" id="gf-nama-menu" placeholder="mis. ayam bakar bumbu padang" style="width:100%;padding:8px 10px;font-size:13px;margin-bottom:8px;">
+
+      <label style="font-size:11px;color:var(--inks);">Kelompok</label>
+      <input type="text" id="gf-kelompok" list="gf-kelompok-list" placeholder="mis. lauk utama" style="width:100%;padding:8px 10px;font-size:13px;margin-bottom:8px;">
+      <datalist id="gf-kelompok-list">
+        <option value="lauk utama"><option value="lauk tambahan"><option value="karbo">
+        <option value="sayur"><option value="sambal"><option value="buah">
+      </datalist>
+
+      <label style="font-size:11px;color:var(--inks);">Porsi Basis Resep <span style="font-weight:400;">(jumlah porsi yang jadi patokan angka Gram di bawah — mis. resep ditulis utk 100 porsi, isi 100)</span></label>
+      <input type="number" id="gf-porsi" min="1" placeholder="mis. 100" style="width:100%;padding:8px 10px;font-size:13px;margin-bottom:10px;">
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <label style="font-size:11px;color:var(--inks);">Daftar Bahan (gram TOTAL utk seluruh porsi basis di atas)</label>
+        <button type="button" onclick="tambahBarisGf()" style="font-size:11px;padding:3px 8px;">+ Baris</button>
+      </div>
+      <div id="gf-bahan-rows"></div>
+      <datalist id="gf-bahan-list"></datalist>
+
+      <div style="display:flex;gap:8px;margin-top:14px;">
+        <button type="button" onclick="simpanGramasiMenu()" style="flex:1;background:var(--or);color:#fff;border:none;border-radius:8px;padding:10px;font-size:13px;cursor:pointer;">💾 Simpan</button>
+        <button type="button" id="gf-hapus-btn" onclick="hapusGramasiMenuDariForm()" class="hide" style="background:#e33;color:#fff;border:none;border-radius:8px;padding:10px 14px;font-size:13px;cursor:pointer;">🗑</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
