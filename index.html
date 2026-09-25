@@ -3384,6 +3384,9 @@ function renderJadwalMasak(){
       });
     });
 
+    // Role yang boleh klik nama menu utk langsung edit resepnya di Kelola Menu Gramasi
+    const BISA_EDIT_GRAMASI_DARI_MASAK = ['dapur','leader dapur','admin','finance'].includes((CURRENT_USER&&CURRENT_USER.role)||'');
+
     // Render 2 seksi besar terpisah: HARI INI dulu (semua kategori), baru BESOK (semua kategori)
     function renderSeksiHari(tglTarget, labelHari){
       let bodyHtml = '';
@@ -3393,11 +3396,19 @@ function renderJadwalMasak(){
         if(!rows.length) return;
         rows.sort((a,b)=> a.jam.localeCompare(b.jam) || a.item.localeCompare(b.item));
         totalItem += rows.length;
-        const rowsHtml = rows.map(r=>`<div class="jw-row masak">
+        const rowsHtml = rows.map(r=>{
+          const itemStyle = BISA_EDIT_GRAMASI_DARI_MASAK
+            ? 'cursor:pointer;text-decoration:underline;text-decoration-color:#f0c9ab;color:var(--or);font-weight:600;'
+            : 'cursor:default;text-decoration:none;color:var(--ink);font-weight:600;';
+          const itemClick = BISA_EDIT_GRAMASI_DARI_MASAK
+            ? ` onclick="bukaGramasiDariMasak('${String(r.item).replace(/'/g,"\\'")}')"`
+            : '';
+          return `<div class="jw-row masak">
           <div class="jw-jam">${r.jam||'—'}</div>
           <div class="jw-qty">${r.qty}</div>
-          <div class="jw-paket" style="cursor:default;text-decoration:none;color:var(--ink);font-weight:600;">${r.item}</div>
-        </div>`).join('');
+          <div class="jw-paket" style="${itemStyle}"${itemClick}>${r.item}</div>
+        </div>`;
+        }).join('');
         bodyHtml += `<div style="margin-top:10px;">
           <div style="font-size:12px;font-weight:700;color:var(--ord);padding:4px 4px;">${label}</div>
           <div class="jw-table">
@@ -5301,6 +5312,23 @@ async function hitungGramasiManual(){
 // ── KELOLA MENU GRAMASI — tambah/edit/hapus resep menu ──────────
 let GRAMASI_LIST_DATA = [];
 let GF_BAHAN_ROWS = []; // [{bahan, gram}] — state form yang sedang diedit
+
+// Dipanggil dari klik nama menu di Jadwal Masak — buka modal Gramasi LANGSUNG ke
+// form edit menu itu (skip daftar), utk role dapur/leader dapur/admin/finance
+// (lihat cek role di renderJadwalMasak/BISA_EDIT_GRAMASI_DARI_MASAK yang menentukan
+// nama menu ini bisa diklik atau tidak). Cek role diulang di sini juga sbg jaga-jaga,
+// tapi otorisasi SEBENARNYA tetap di backend (GRAMASI_ROLES_ di AlimaSheetsBackend.gs).
+async function bukaGramasiDariMasak(namaMenu){
+  const rolesBoleh = ['dapur','leader dapur','admin','finance'];
+  if(!CURRENT_USER || !rolesBoleh.includes(CURRENT_USER.role)){
+    toast('Role Anda tidak punya akses fitur Gramasi.','err'); return;
+  }
+  document.getElementById('gramasi-modal').classList.remove('hide');
+  if(!BAHAN_BAKU_DATA || !BAHAN_BAKU_DATA.length) await loadBahanBakuData();
+  renderGfBahanDatalist_();
+  loadGramasiList(); // muat daftar di background biar tombol "←" di form nanti bisa balik
+  await openGramasiForm(namaMenu);
+}
 
 async function openGramasiModal(){
   document.getElementById('gramasi-modal').classList.remove('hide');
