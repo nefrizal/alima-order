@@ -483,8 +483,15 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       <button class="bico hide" id="bb-btn-buat-permintaan" onclick="openPermintaanModal()" style="flex:1;background:var(--or);">➕ Buat Permintaan Bahan</button>
       <button class="bico" onclick="loadPermintaanList()">↻</button>
     </div>
-    <div class="lbar">
-      <button class="bico" onclick="openGramasiModal()" style="flex:1;">📋 Kelola Menu Gramasi</button>
+
+    <div class="sec" id="kbo-sec">
+      <div class="stitle">🧾 Kebutuhan Bahan Otomatis <span style="font-weight:400;font-size:10px;color:var(--inks);">(dari Order × Gramasi — Qty/Satuan otomatis, Harga diisi Pembelian)</span></div>
+      <div class="g2">
+        <div class="fld"><label>Dari Tanggal</label><input type="date" id="kbo-dari" onchange="loadKebutuhanBahanOtomatis()"></div>
+        <div class="fld"><label>Sampai Tanggal</label><input type="date" id="kbo-sampai" onchange="loadKebutuhanBahanOtomatis()"></div>
+      </div>
+      <div id="kbo-warning" style="font-size:10px;color:#c33;margin:4px 0 0;"></div>
+      <div id="kbo-table" style="overflow-x:auto;margin-top:8px;"></div>
     </div>
 
     <div class="sec">
@@ -4368,7 +4375,7 @@ function goTab(id,btn){
       loadJurnalData();
     }
     const bisaBahan = CURRENT_USER && ['leader dapur','leader service','pembelian','admin'].includes(CURRENT_USER.role);
-    if(bisaBahan){ loadPermintaanList(); }
+    if(bisaBahan){ loadPermintaanList(); loadKebutuhanBahanOtomatis(); }
   }
 }
 
@@ -5691,6 +5698,75 @@ async function tambahBahanInline_(kategori){
   }finally{ hideOvl(); }
 }
 
+
+// ── KEBUTUHAN BAHAN OTOMATIS (dari Order × Gramasi) ──────────────
+let KBO_DATA = [];
+function initKboTanggalDefault_(){
+  const dariEl = document.getElementById('kbo-dari');
+  const sampaiEl = document.getElementById('kbo-sampai');
+  if(dariEl.value && sampaiEl.value) return; // sudah pernah diisi, jangan timpa
+  const now = new Date();
+  const plus6 = new Date(now.getTime() + 6*86400000);
+  const fmt = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  dariEl.value = fmt(now);
+  sampaiEl.value = fmt(plus6);
+}
+async function loadKebutuhanBahanOtomatis(){
+  initKboTanggalDefault_();
+  const dari = document.getElementById('kbo-dari').value;
+  const sampai = document.getElementById('kbo-sampai').value;
+  const wrap = document.getElementById('kbo-table');
+  const warn = document.getElementById('kbo-warning');
+  if(!dari || !sampai) return;
+  wrap.innerHTML = '<div class="sp" style="margin:12px auto;"></div>';
+  warn.innerHTML = '';
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=getKebutuhanBahanOtomatis&dari_tanggal=' + dari + '&sampai_tanggal=' + sampai + '&t=' + Date.now());
+    if(!j || !j.success){ wrap.innerHTML = `<div class="empty" style="padding:12px;"><p style="font-size:12px;">${j?.message || 'Gagal memuat.'}</p></div>`; return; }
+    KBO_DATA = j.data || [];
+    let pesanWarn = [];
+    if((j.menu_tidak_ditemukan||[]).length) pesanWarn.push('⚠️ Menu tanpa resep gramasi (dilewati): ' + j.menu_tidak_ditemukan.join(', '));
+    if((j.bahan_belum_terdaftar||[]).length) pesanWarn.push('⚠️ Bahan belum ada di master BahanBaku: ' + j.bahan_belum_terdaftar.join(', '));
+    warn.innerHTML = pesanWarn.map(p=>`<div>${p}</div>`).join('');
+    renderKboTable();
+  }catch(e){ wrap.innerHTML = `<div class="empty" style="padding:12px;"><p style="font-size:12px;">Gagal memuat: ${e.message}</p></div>`; }
+}
+function renderKboTable(){
+  const wrap = document.getElementById('kbo-table');
+  if(!KBO_DATA.length){
+    wrap.innerHTML = '<div class="empty" style="padding:12px;"><p style="font-size:12px;">Tidak ada kebutuhan bahan di rentang tanggal ini.</p></div>';
+    return;
+  }
+  let html = '<table style="width:100%;border-collapse:collapse;font-size:12px;min-width:520px;">';
+  html += '<tr style="background:#faf5ee;text-align:left;">' +
+    '<th style="padding:6px;">Tanggal Pemakaian</th><th style="padding:6px;">Daftar Bahan</th>' +
+    '<th style="padding:6px;">Qty</th><th style="padding:6px;">Satuan</th>' +
+    '<th style="padding:6px;">Harga</th><th style="padding:6px;">Jumlah</th></tr>';
+  KBO_DATA.forEach((r,i) => {
+    html += `<tr style="border-top:1px solid var(--bdr);">
+      <td style="padding:6px;white-space:nowrap;">${fd(r.tanggal)}</td>
+      <td style="padding:6px;">${r.nama_bahan}</td>
+      <td style="padding:6px;">${r.qty}</td>
+      <td style="padding:6px;">${r.satuan}</td>
+      <td style="padding:6px;"><input type="number" min="0" value="${r.harga||''}" placeholder="—" style="width:90px;padding:4px 6px;font-size:12px;" onchange="ubahHargaKbo(${i}, this.value)"></td>
+      <td style="padding:6px;" id="kbo-jumlah-${i}">Rp ${(r.jumlah||0).toLocaleString('id-ID')}</td>
+    </tr>`;
+  });
+  html += '</table>';
+  wrap.innerHTML = html;
+}
+async function ubahHargaKbo(i, nilai){
+  const harga = Number(nilai);
+  if(isNaN(harga) || harga < 0){ toast('Harga tidak valid.','err'); renderKboTable(); return; }
+  const r = KBO_DATA[i];
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=simpanHargaBahanOtomatis&tanggal=' + r.tanggal + '&nama_bahan=' + encodeURIComponent(r.nama_bahan) + '&harga=' + harga + '&t=' + Date.now());
+    if(!j || !j.success){ toast(j?.message || 'Gagal menyimpan harga.', 'err'); renderKboTable(); return; }
+    r.harga = harga;
+    r.jumlah = Math.round(harga * r.qty);
+    document.getElementById('kbo-jumlah-'+i).textContent = 'Rp ' + r.jumlah.toLocaleString('id-ID');
+  }catch(e){ toast('Gagal menyimpan harga: ' + e.message, 'err'); renderKboTable(); }
+}
 
 // ── Daftar Permintaan (dilihat Dapur & Pembelian, beda hak proses) ──────
 async function loadPermintaanList(){
