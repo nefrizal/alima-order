@@ -513,6 +513,10 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       <div class="fld"><label>Dari Tanggal</label><input type="date" id="kbo-dari" onchange="loadKebutuhanBahanOtomatis()"></div>
       <div class="fld"><label>Sampai Tanggal</label><input type="date" id="kbo-sampai" onchange="loadKebutuhanBahanOtomatis()"></div>
     </div>
+    <div style="display:flex;gap:6px;margin-top:8px;">
+      <button type="button" id="kbo-btn-pertanggal" onclick="setKboMode('pertanggal')" style="flex:1;padding:6px;font-size:11px;border-radius:6px;border:1px solid var(--or);background:var(--or);color:#fff;cursor:pointer;">📅 Pertanggal</button>
+      <button type="button" id="kbo-btn-akumulasi" onclick="setKboMode('akumulasi')" style="flex:1;padding:6px;font-size:11px;border-radius:6px;border:1px solid var(--or);background:#fff;color:var(--or);cursor:pointer;">📊 Akumulasi</button>
+    </div>
     <div id="kbo-warning" style="font-size:10px;color:#c33;margin:4px 0 0;"></div>
     <div id="kbo-table" style="overflow-x:auto;margin-top:8px;"></div>
   </div>
@@ -5737,6 +5741,17 @@ async function tambahBahanInline_(kategori){
 
 // ── KEBUTUHAN BAHAN OTOMATIS (dari Order × Gramasi) ──────────────
 let KBO_DATA = [];
+let KBO_MODE = 'pertanggal'; // 'pertanggal' | 'akumulasi'
+function setKboMode(mode){
+  KBO_MODE = mode;
+  const btnP = document.getElementById('kbo-btn-pertanggal');
+  const btnA = document.getElementById('kbo-btn-akumulasi');
+  btnP.style.background = mode==='pertanggal' ? 'var(--or)' : '#fff';
+  btnP.style.color = mode==='pertanggal' ? '#fff' : 'var(--or)';
+  btnA.style.background = mode==='akumulasi' ? 'var(--or)' : '#fff';
+  btnA.style.color = mode==='akumulasi' ? '#fff' : 'var(--or)';
+  renderKboTable();
+}
 function initKboTanggalDefault_(){
   const dariEl = document.getElementById('kbo-dari');
   const sampaiEl = document.getElementById('kbo-sampai');
@@ -5780,8 +5795,8 @@ function renderKboTable(){
     '<th style="padding:6px;">Harga</th><th style="padding:6px;">Jumlah</th>' +
     '<th style="padding:6px;">Stok Teori</th><th style="padding:6px;">Stok Koreksi</th>' +
     '<th style="padding:6px;">Belanja</th></tr>';
-  KBO_DATA.forEach((r,i) => {
-    html += `<tr style="border-top:1px solid var(--bdr);">
+
+  const barisHtml = (r,i) => `<tr style="border-top:1px solid var(--bdr);">
       <td style="padding:6px;white-space:nowrap;">${fd(r.tanggal)}</td>
       <td style="padding:6px;">${r.nama_bahan}</td>
       <td style="padding:6px;">${r.qty}</td>
@@ -5792,7 +5807,43 @@ function renderKboTable(){
       <td style="padding:6px;"><input type="number" value="${r.stok_koreksi ?? ''}" placeholder="—" style="width:80px;padding:4px 6px;font-size:12px;" onchange="ubahStokKoreksiKbo(${i}, this.value)"></td>
       <td style="padding:6px;font-weight:600;" id="kbo-belanja-${i}">${(r.belanja ?? 0).toLocaleString('id-ID')}</td>
     </tr>`;
-  });
+
+  if(KBO_MODE === 'pertanggal'){
+    KBO_DATA.forEach((r,i) => { html += barisHtml(r,i); });
+  } else {
+    // Akumulasi: tetap tampilkan baris per-tanggal (spy Harga/Stok Koreksi tetap bisa
+    // diedit per hari seperti biasa), tapi dikelompokkan per bahan + baris "Total" di
+    // bawah tiap kelompok. Total Jumlah = jumlah SETIAP hari yg sudah ada dijumlahkan
+    // (bukan qty total × 1 harga), krn harga per hari bisa beda-beda.
+    const groups = {}; // key: nama_bahan lowercase -> {nama_bahan, satuan, items:[{r,i}]}
+    const urutan = [];
+    KBO_DATA.forEach((r,i) => {
+      const key = r.nama_bahan.toLowerCase();
+      if(!groups[key]){ groups[key] = { nama_bahan: r.nama_bahan, satuan: r.satuan, items: [] }; urutan.push(key); }
+      groups[key].items.push({r,i});
+    });
+    urutan.forEach(key => {
+      const g = groups[key];
+      g.items.forEach(({r,i}) => { html += barisHtml(r,i); });
+      let qtyTotal = 0, jumlahTotal = 0;
+      g.items.forEach(({r}) => { qtyTotal += Number(r.qty)||0; jumlahTotal += Number(r.jumlah)||0; });
+      const stokTeoriAwal = g.items[0].r.stok_teori ?? 0;
+      const stokKoreksiAkhir = g.items[g.items.length-1].r.stok_koreksi ?? 0;
+      const belanjaTotal = Math.round((stokKoreksiAkhir - qtyTotal) * 100) / 100;
+      html += `<tr style="border-top:2px solid var(--or);background:#fff6ec;font-weight:700;">
+        <td style="padding:6px;">Total</td>
+        <td style="padding:6px;">${g.nama_bahan}</td>
+        <td style="padding:6px;">${Math.round(qtyTotal*100)/100}</td>
+        <td style="padding:6px;">${g.satuan}</td>
+        <td style="padding:6px;color:var(--inks);font-weight:400;">—</td>
+        <td style="padding:6px;">Rp ${jumlahTotal.toLocaleString('id-ID')}</td>
+        <td style="padding:6px;color:var(--inks);" title="Stok Teori di tanggal awal rentang">${stokTeoriAwal}</td>
+        <td style="padding:6px;color:var(--inks);" title="Stok Koreksi di tanggal akhir rentang">${stokKoreksiAkhir}</td>
+        <td style="padding:6px;">${belanjaTotal.toLocaleString('id-ID')}</td>
+      </tr>`;
+    });
+  }
+
   html += '</table>';
   wrap.innerHTML = html;
 }
@@ -5805,7 +5856,9 @@ async function ubahHargaKbo(i, nilai){
     if(!j || !j.success){ toast(j?.message || 'Gagal menyimpan harga.', 'err'); renderKboTable(); return; }
     r.harga = harga;
     r.jumlah = Math.round(harga * r.qty);
-    document.getElementById('kbo-jumlah-'+i).textContent = 'Rp ' + r.jumlah.toLocaleString('id-ID');
+    // Render ulang penuh (bukan cuma patch 1 sel) — supaya baris "Total" di mode
+    // Akumulasi ikut ter-update jumlahnya, bukan cuma baris per-tanggal ini saja.
+    renderKboTable();
   }catch(e){ toast('Gagal menyimpan harga: ' + e.message, 'err'); renderKboTable(); }
 }
 async function ubahStokKoreksiKbo(i, nilai){
@@ -5817,7 +5870,8 @@ async function ubahStokKoreksiKbo(i, nilai){
     if(!j || !j.success){ toast(j?.message || 'Gagal menyimpan Stok Koreksi.', 'err'); renderKboTable(); return; }
     r.stok_koreksi = stokKoreksi;
     r.belanja = Math.round((stokKoreksi - r.qty) * 100) / 100;
-    document.getElementById('kbo-belanja-'+i).textContent = r.belanja.toLocaleString('id-ID');
+    // Render ulang penuh spy baris "Total" (Stok Koreksi akhir & Belanja) ikut update.
+    renderKboTable();
   }catch(e){ toast('Gagal menyimpan Stok Koreksi: ' + e.message, 'err'); renderKboTable(); }
 }
 
