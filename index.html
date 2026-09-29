@@ -5773,11 +5773,13 @@ function renderKboTable(){
     wrap.innerHTML = '<div class="empty" style="padding:12px;"><p style="font-size:12px;">Tidak ada kebutuhan bahan di rentang tanggal ini.</p></div>';
     return;
   }
-  let html = '<table style="width:100%;border-collapse:collapse;font-size:12px;min-width:520px;">';
+  let html = '<table style="width:100%;border-collapse:collapse;font-size:12px;min-width:820px;">';
   html += '<tr style="background:#faf5ee;text-align:left;">' +
     '<th style="padding:6px;">Tanggal Pemakaian</th><th style="padding:6px;">Daftar Bahan</th>' +
     '<th style="padding:6px;">Qty</th><th style="padding:6px;">Satuan</th>' +
-    '<th style="padding:6px;">Harga</th><th style="padding:6px;">Jumlah</th></tr>';
+    '<th style="padding:6px;">Harga</th><th style="padding:6px;">Jumlah</th>' +
+    '<th style="padding:6px;">Stok Teori</th><th style="padding:6px;">Stok Koreksi</th>' +
+    '<th style="padding:6px;">Belanja</th></tr>';
   KBO_DATA.forEach((r,i) => {
     html += `<tr style="border-top:1px solid var(--bdr);">
       <td style="padding:6px;white-space:nowrap;">${fd(r.tanggal)}</td>
@@ -5786,6 +5788,9 @@ function renderKboTable(){
       <td style="padding:6px;">${r.satuan}</td>
       <td style="padding:6px;"><input type="number" min="0" value="${r.harga||''}" placeholder="—" style="width:90px;padding:4px 6px;font-size:12px;" onchange="ubahHargaKbo(${i}, this.value)"></td>
       <td style="padding:6px;" id="kbo-jumlah-${i}">Rp ${(r.jumlah||0).toLocaleString('id-ID')}</td>
+      <td style="padding:6px;color:var(--inks);" title="Otomatis, terkunci per bulan">${r.stok_teori ?? 0}</td>
+      <td style="padding:6px;"><input type="number" value="${r.stok_koreksi ?? ''}" placeholder="—" style="width:80px;padding:4px 6px;font-size:12px;" onchange="ubahStokKoreksiKbo(${i}, this.value)"></td>
+      <td style="padding:6px;font-weight:600;" id="kbo-belanja-${i}">${(r.belanja ?? 0).toLocaleString('id-ID')}</td>
     </tr>`;
   });
   html += '</table>';
@@ -5802,6 +5807,18 @@ async function ubahHargaKbo(i, nilai){
     r.jumlah = Math.round(harga * r.qty);
     document.getElementById('kbo-jumlah-'+i).textContent = 'Rp ' + r.jumlah.toLocaleString('id-ID');
   }catch(e){ toast('Gagal menyimpan harga: ' + e.message, 'err'); renderKboTable(); }
+}
+async function ubahStokKoreksiKbo(i, nilai){
+  const stokKoreksi = Number(nilai);
+  if(isNaN(stokKoreksi)){ toast('Nilai stok tidak valid.','err'); renderKboTable(); return; }
+  const r = KBO_DATA[i];
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=simpanStokKoreksi&tanggal=' + r.tanggal + '&nama_bahan=' + encodeURIComponent(r.nama_bahan) + '&nilai=' + stokKoreksi + '&t=' + Date.now());
+    if(!j || !j.success){ toast(j?.message || 'Gagal menyimpan Stok Koreksi.', 'err'); renderKboTable(); return; }
+    r.stok_koreksi = stokKoreksi;
+    r.belanja = Math.round((stokKoreksi - r.qty) * 100) / 100;
+    document.getElementById('kbo-belanja-'+i).textContent = r.belanja.toLocaleString('id-ID');
+  }catch(e){ toast('Gagal menyimpan Stok Koreksi: ' + e.message, 'err'); renderKboTable(); }
 }
 
 // ── Daftar Permintaan (dilihat Dapur & Pembelian, beda hak proses) ──────
