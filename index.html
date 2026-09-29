@@ -5118,6 +5118,16 @@ async function tambahSupplierBaru(nama){
 // ── Buat Permintaan (Leader Dapur) — centang dari daftar master, isi Qty per item ──
 let PERMINTAAN_SELECTED = {}; // key "kategori|nama" -> {kategori,nama_bahan,satuan,kode_akun,qty}
 
+// Dipanggil dari klik nama bahan di peringatan "Bahan belum ada di master" (Belanja
+// Otomatis) — buka modal Permintaan Bahan lalu langsung isi kotak pencarian dgn nama
+// bahan itu, supaya form "+ Nama bahan baru" (di semua kategori) langsung tawarkan nama
+// itu tanpa perlu ketik ulang. Staf tinggal pilih kategori yg sesuai lalu isi Satuan.
+async function bukaPermintaanUntukBahanBaru(namaBahan){
+  await openPermintaanModal();
+  document.getElementById('pm-search-checklist').value = namaBahan;
+  renderPermintaanChecklist();
+}
+
 async function openPermintaanModal(){
   document.getElementById('pm-tanggal').value = new Date().toISOString().split('T')[0];
   document.getElementById('pm-catatan').value = '';
@@ -5242,7 +5252,27 @@ function renderPermintaanChecklist(){
     html += `</div>`;
   });
   if(!html){
-    html = '<div class="empty" style="padding:16px;"><p style="font-size:12px;">Tidak ada bahan yang cocok dgn kata kunci ini di kategori manapun.</p></div>';
+    if(q){
+      // Tidak ada bahan yg cocok dgn pencarian -> kemungkinan besar bahan baru (mis. dari
+      // link "Bahan belum ada di master" di Belanja Otomatis). Tawarkan form "+ Nama bahan
+      // baru" di SEMUA kategori sekaligus (user tinggal pilih kategori yg tepat), dgn nama
+      // sudah otomatis terisi dari kata pencarian — tidak perlu ketik ulang.
+      html = `<div class="empty" style="padding:10px 4px;"><p style="font-size:12px;">Tidak ada bahan "${q}" di master. Kalau ini bahan baru, pilih kategori yang sesuai lalu tambahkan:</p></div>`;
+      KATEGORI_BAHAN_LIST_.forEach(kat => {
+        const slug = kat.replace(/\s+/g,'_');
+        html += `<div class="bb-cat-group">
+          <div class="bb-cat-summary" style="cursor:default;"><span>${kat}</span></div>
+          <div style="display:flex;gap:6px;margin-top:6px;">
+            <input type="text" id="pm-inline-nama-${slug}" value="${q.replace(/"/g,'&quot;')}" placeholder="+ Nama bahan baru" style="flex:1;padding:6px 8px;font-size:12px;">
+            <input type="text" id="pm-inline-satuan-${slug}" placeholder="Satuan" style="width:66px;padding:6px 8px;font-size:12px;">
+            <button type="button" onclick="tambahBahanInline_('${kat}')"
+              style="background:var(--or);color:#fff;border:none;border-radius:6px;padding:0 12px;font-size:12px;cursor:pointer;flex-shrink:0;">➕</button>
+          </div>
+        </div>`;
+      });
+    } else {
+      html = '<div class="empty" style="padding:16px;"><p style="font-size:12px;">Tidak ada bahan yang cocok dgn kata kunci ini di kategori manapun.</p></div>';
+    }
   }
   wrap.innerHTML = html;
 }
@@ -5778,7 +5808,12 @@ async function loadKebutuhanBahanOtomatis(){
       ).join(', ');
       pesanWarn.push('⚠️ Menu tanpa resep gramasi (klik nama utk buat resepnya): ' + daftarKlik);
     }
-    if((j.bahan_belum_terdaftar||[]).length) pesanWarn.push('⚠️ Bahan belum ada di master BahanBaku: ' + j.bahan_belum_terdaftar.join(', '));
+    if((j.bahan_belum_terdaftar||[]).length){
+      const daftarKlik = j.bahan_belum_terdaftar.map(b =>
+        `<span onclick="bukaPermintaanUntukBahanBaru('${String(b).replace(/'/g,"\\'")}')" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;">${b}</span>`
+      ).join(', ');
+      pesanWarn.push('⚠️ Bahan belum ada di master BahanBaku (klik nama utk tambahkan): ' + daftarKlik);
+    }
     warn.innerHTML = pesanWarn.map(p=>`<div>${p}</div>`).join('');
     renderKboTable();
   }catch(e){ wrap.innerHTML = `<div class="empty" style="padding:12px;"><p style="font-size:12px;">Gagal memuat: ${e.message}</p></div>`; }
