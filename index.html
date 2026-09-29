@@ -79,7 +79,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 .jw-paket{color:var(--or);font-weight:600;text-decoration:underline;text-decoration-color:#f0c9ab;cursor:pointer;}
 .jw-qty{text-align:center;font-weight:700;color:var(--ord);}
 .jw-nama{color:var(--inks);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.jw-row.masak{grid-template-columns:60px 44px 1fr;}
+.jw-row.masak{grid-template-columns:60px 44px 1fr 1fr;}
 .jw-jam-hari{font-size:9px;color:var(--inks);font-weight:600;text-transform:uppercase;}
 .jw-menulist{border:1px solid var(--bdr);border-radius:8px;overflow:hidden;}
 .jw-menurow{display:flex;justify-content:space-between;gap:10px;padding:8px 12px;font-size:12px;border-bottom:1px solid var(--bdr);}
@@ -155,6 +155,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   <button class="tbtn" id="tab-absensi" onclick="goTab('absensi',this)">🕐 Absensi</button>
   <button class="tbtn" id="tab-laporan" onclick="goTab('laporan',this)">📋 Laporan Keluhan</button>
   <button class="tbtn hide" id="tab-keuangan" onclick="goTab('keuangan',this)">💰 Keuangan</button>
+  <button class="tbtn hide" id="tab-belanja" onclick="goTab('belanja',this)">🛒 Belanja Otomatis</button>
 </div>
 <div class="ovl hide" id="ovl"><div class="sp"></div><span id="ovl-msg">Memproses…</span></div>
 <div class="toast" id="toast"></div>
@@ -484,16 +485,6 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       <button class="bico" onclick="loadPermintaanList()">↻</button>
     </div>
 
-    <div class="sec" id="kbo-sec">
-      <div class="stitle">🧾 Kebutuhan Bahan Otomatis <span style="font-weight:400;font-size:10px;color:var(--inks);">(dari Order × Gramasi — Qty/Satuan otomatis, Harga diisi Pembelian)</span></div>
-      <div class="g2">
-        <div class="fld"><label>Dari Tanggal</label><input type="date" id="kbo-dari" onchange="loadKebutuhanBahanOtomatis()"></div>
-        <div class="fld"><label>Sampai Tanggal</label><input type="date" id="kbo-sampai" onchange="loadKebutuhanBahanOtomatis()"></div>
-      </div>
-      <div id="kbo-warning" style="font-size:10px;color:#c33;margin:4px 0 0;"></div>
-      <div id="kbo-table" style="overflow-x:auto;margin-top:8px;"></div>
-    </div>
-
     <div class="sec">
       <div class="stitle">🔍 Filter</div>
       <div class="g2">
@@ -511,6 +502,19 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     </div>
 
     <div id="bb-list"><div class="empty"><div class="eico">🥕</div><p>Klik ↻ untuk memuat daftar permintaan.</p></div></div>
+  </div>
+</div>
+
+<!-- ═══ BELANJA OTOMATIS (dari Order × Gramasi — Qty/Satuan otomatis, Harga diisi Pembelian) ═══ -->
+<div class="panel" id="panel-belanja">
+  <div class="sec" id="kbo-sec">
+    <div class="stitle">🛒 Belanja Otomatis <span style="font-weight:400;font-size:10px;color:var(--inks);">(dari Order × Gramasi — Qty/Satuan otomatis, Harga diisi Pembelian)</span></div>
+    <div class="g2">
+      <div class="fld"><label>Dari Tanggal</label><input type="date" id="kbo-dari" onchange="loadKebutuhanBahanOtomatis()"></div>
+      <div class="fld"><label>Sampai Tanggal</label><input type="date" id="kbo-sampai" onchange="loadKebutuhanBahanOtomatis()"></div>
+    </div>
+    <div id="kbo-warning" style="font-size:10px;color:#c33;margin:4px 0 0;"></div>
+    <div id="kbo-table" style="overflow-x:auto;margin-top:8px;"></div>
   </div>
 </div>
 
@@ -1632,6 +1636,11 @@ function terapkanAksesRole_(){
   const bisaBahanBaku = ['leader dapur','leader service','pembelian','admin'].includes(CURRENT_USER.role);
   if (bisaJurnal || bisaBahanBaku) {
     document.getElementById('tab-keuangan').classList.remove('hide');
+  }
+  // "Belanja Otomatis" sekarang tab TERPISAH dari Keuangan/Bahan Baku (dulu sub-bagian
+  // di dalamnya) — role yang boleh akses sama dgn yang boleh lihat Bahan Baku.
+  if (bisaBahanBaku) {
+    document.getElementById('tab-belanja').classList.remove('hide');
   }
   if (bisaJurnal) {
     document.getElementById('ksub-panel-jurnal').classList.remove('hide');
@@ -3353,9 +3362,10 @@ function jamBerangkat_(jamSampai){
   return String(Math.floor(total/60)).padStart(2,'0')+':'+String(total%60).padStart(2,'0');
 }
 
-function renderJadwalMasak(){
+async function renderJadwalMasak(){
   const w = document.getElementById('jm');
   try{
+    await pastikanGramasiMenuListDimuat_();
     const now = new Date();
     const fmtTgl = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
     const todayStr = fmtTgl(now);
@@ -3410,16 +3420,19 @@ function renderJadwalMasak(){
           const itemClick = BISA_EDIT_GRAMASI_DARI_MASAK
             ? ` onclick="bukaGramasiDariMasak('${String(r.item).replace(/'/g,"\\'")}')"`
             : '';
+          const adaGramasi = GRAMASI_MENU_SET_LOWER && GRAMASI_MENU_SET_LOWER.has(String(r.item).trim().toLowerCase());
+          const keteranganHtml = adaGramasi ? '' : '<span style="color:#c33;font-size:11px;">daftar bahan belum tersedia</span>';
           return `<div class="jw-row masak">
           <div class="jw-jam">${r.jam||'—'}</div>
           <div class="jw-qty">${r.qty}</div>
           <div class="jw-paket" style="${itemStyle}"${itemClick}>${r.item}</div>
+          <div>${keteranganHtml}</div>
         </div>`;
         }).join('');
         bodyHtml += `<div style="margin-top:10px;">
           <div style="font-size:12px;font-weight:700;color:var(--ord);padding:4px 4px;">${label}</div>
           <div class="jw-table">
-            <div class="jw-row masak head"><div>Berangkat</div><div>Qty</div><div>Item</div></div>
+            <div class="jw-row masak head"><div>Berangkat</div><div>Qty</div><div>Item</div><div>Keterangan</div></div>
             ${rowsHtml}
           </div>
         </div>`;
@@ -4375,8 +4388,9 @@ function goTab(id,btn){
       loadJurnalData();
     }
     const bisaBahan = CURRENT_USER && ['leader dapur','leader service','pembelian','admin'].includes(CURRENT_USER.role);
-    if(bisaBahan){ loadPermintaanList(); loadKebutuhanBahanOtomatis(); }
+    if(bisaBahan){ loadPermintaanList(); }
   }
+  if(id==='belanja'){ loadKebutuhanBahanOtomatis(); }
 }
 
 // Sesuaikan tampilan tab Keuangan dengan level akses ('Lihat' / 'Input' / 'Semua'):
@@ -5292,12 +5306,18 @@ async function hitungGramasiDariTanggal(){
 
 // Mode MANUAL — pilih menu + porsi sendiri lewat prompt sederhana berulang.
 let GRAMASI_MENU_LIST = [];
-let GRAMASI_PILIHAN_MANUAL = [];
-async function tambahMenuGramasiManual(){
-  if(!GRAMASI_MENU_LIST || !GRAMASI_MENU_LIST.length){
+let GRAMASI_MENU_SET_LOWER = null; // Set nama menu (lowercase) yg SUDAH ada resep gramasinya — dipakai jg utk kolom Keterangan di Jadwal Masak
+async function pastikanGramasiMenuListDimuat_(force){
+  if(GRAMASI_MENU_LIST.length && !force) return;
+  try{
     const j = await gasFetch(APP.GAS_URL + '?action=getDaftarMenuGramasi&t=' + Date.now());
     GRAMASI_MENU_LIST = (j && j.success) ? j.data : [];
-  }
+  }catch(e){ GRAMASI_MENU_LIST = []; }
+  GRAMASI_MENU_SET_LOWER = new Set(GRAMASI_MENU_LIST.map(m => String(m).trim().toLowerCase()));
+}
+let GRAMASI_PILIHAN_MANUAL = [];
+async function tambahMenuGramasiManual(){
+  await pastikanGramasiMenuListDimuat_();
   const namaMenu = prompt('Nama menu (harus sama persis dgn di tab gramasi):\n\nContoh: ' + (GRAMASI_MENU_LIST.slice(0,3).join(', ') || '-'));
   if(!namaMenu) return;
   const porsi = prompt('Jumlah porsi untuk "' + namaMenu + '"?');
@@ -5409,7 +5429,19 @@ async function openGramasiForm(namaMenu){
   document.getElementById('gramasi-form-title').textContent = 'Memuat…';
   try{
     const j = await gasFetch(APP.GAS_URL + '?action=getGramasiMenuDetail&nama_menu=' + encodeURIComponent(namaMenu) + '&t=' + Date.now());
-    if(!j || !j.success){ toast(j?.message || 'Gagal memuat menu.', 'err'); backToGramasiList(); return; }
+    if(!j || !j.success){
+      // Menu ini belum ada resepnya sama sekali (mis. diklik dari Jadwal Masak yg
+      // kolom Keterangannya "daftar bahan belum tersedia") -> perlakukan sbg mode
+      // "Menu Baru", TAPI Nama Menu sudah otomatis terisi dari nama yg diklik, biar
+      // tidak perlu ketik ulang manual & menghindari typo.
+      document.getElementById('gramasi-form-title').textContent = 'Menu Baru';
+      document.getElementById('gf-nama-menu').value = namaMenu;
+      document.getElementById('gf-kelompok').value = '';
+      document.getElementById('gf-porsi').value = '';
+      GF_BAHAN_ROWS = [{bahan:'', gram:''}];
+      renderGfBahanRows();
+      return;
+    }
     document.getElementById('gramasi-form-title').textContent = 'Edit: ' + j.nama_menu;
     document.getElementById('gf-nama-menu-lama').value = j.nama_menu;
     document.getElementById('gf-nama-menu').value = j.nama_menu;
