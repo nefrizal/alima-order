@@ -3395,7 +3395,11 @@ async function renderJadwalMasak(){
       KATEGORI_MASAK.forEach(([key])=>{
         const item = String(o[key]||'').trim();
         if(!item || item==='—') return;
-        const k = tgl+'|'+jb+'|'+item;
+        // Kunci digabung pakai huruf kecil semua, supaya "Sambal Goreng Kentang Hati"
+        // dan "sambal goreng kentang hati" dihitung sbg MENU YANG SAMA (qty digabung
+        // jadi 1 baris), bukan 2 baris terpisah cuma krn beda huruf besar/kecil.
+        // Nama yg DITAMPILKAN tetap pakai casing pertama yg ketemu.
+        const k = tgl+'|'+jb+'|'+item.toLowerCase();
         if(!kategoriMap[key][k]) kategoriMap[key][k] = { tgl, jam:jb, item, qty:0 };
         kategoriMap[key][k].qty += qty;
       });
