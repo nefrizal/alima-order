@@ -514,9 +514,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       <div class="fld"><label>Sampai Tanggal</label><input type="date" id="kbo-sampai" onchange="loadKebutuhanBahanOtomatis()"></div>
     </div>
     <div style="display:flex;gap:6px;margin-top:8px;">
-      <button type="button" id="kbo-btn-pertanggal" onclick="setKboMode('pertanggal')" style="flex:1;padding:6px;font-size:11px;border-radius:6px;border:1px solid var(--or);background:var(--or);color:#fff;cursor:pointer;">📅 Pertanggal</button>
-      <button type="button" id="kbo-btn-akumulasi" onclick="setKboMode('akumulasi')" style="flex:1;padding:6px;font-size:11px;border-radius:6px;border:1px solid var(--or);background:#fff;color:var(--or);cursor:pointer;">📊 Akumulasi</button>
-      <button type="button" onclick="loadKebutuhanBahanOtomatis()" title="Refresh" style="padding:6px 10px;font-size:13px;border-radius:6px;border:1px solid var(--or);background:#fff;color:var(--or);cursor:pointer;">↻</button>
+      <button type="button" onclick="loadKebutuhanBahanOtomatis()" style="flex:1;padding:6px;font-size:11px;border-radius:6px;border:1px solid var(--or);background:#fff;color:var(--or);cursor:pointer;">↻ Refresh</button>
     </div>
     <div id="kbo-warning" style="font-size:10px;color:#c33;margin:4px 0 0;"></div>
     <div id="kbo-table" style="overflow-x:auto;margin-top:8px;"></div>
@@ -5355,7 +5353,10 @@ let GF_BAHAN_ROWS = []; // [{bahan, gram}] — state form yang sedang diedit
 // nama menu ini bisa diklik atau tidak). Cek role diulang di sini juga sbg jaga-jaga,
 // tapi otorisasi SEBENARNYA tetap di backend (GRAMASI_ROLES_ di AlimaSheetsBackend.gs).
 async function bukaGramasiDariMasak(namaMenu){
-  const rolesBoleh = ['dapur','leader dapur','admin','finance'];
+  // Samakan dgn GRAMASI_ROLES_ di backend (AlimaSheetsBackend.gs) — 'pembelian' perlu
+  // ikut disertakan krn dipanggil jg dari Belanja Otomatis (yg rolenya leader dapur/
+  // pembelian/admin), bukan cuma dari klik menu di tab Masak.
+  const rolesBoleh = ['dapur','leader dapur','pembelian','admin','finance'];
   if(!CURRENT_USER || !rolesBoleh.includes(CURRENT_USER.role)){
     toast('Role Anda tidak punya akses fitur Gramasi.','err'); return;
   }
@@ -5742,20 +5743,9 @@ async function tambahBahanInline_(kategori){
 
 // ── KEBUTUHAN BAHAN OTOMATIS (dari Order × Gramasi) ──────────────
 let KBO_DATA = [];
-let KBO_MODE = 'pertanggal'; // 'pertanggal' | 'akumulasi'
-let KBO_GRUP_TERTUTUP = new Set(); // key: nama_bahan (lowercase) yg detail tanggalnya sedang disembunyikan (mode Akumulasi)
+let KBO_GRUP_TERBUKA = new Set(); // key: nama_bahan (lowercase) yg detailnya SEDANG DIBUKA — default semua tertutup (cuma baris Total yg tampil), spy baris yg kelihatan lebih sedikit
 function toggleKboGrup(key){
-  if(KBO_GRUP_TERTUTUP.has(key)) KBO_GRUP_TERTUTUP.delete(key); else KBO_GRUP_TERTUTUP.add(key);
-  renderKboTable();
-}
-function setKboMode(mode){
-  KBO_MODE = mode;
-  const btnP = document.getElementById('kbo-btn-pertanggal');
-  const btnA = document.getElementById('kbo-btn-akumulasi');
-  btnP.style.background = mode==='pertanggal' ? 'var(--or)' : '#fff';
-  btnP.style.color = mode==='pertanggal' ? '#fff' : 'var(--or)';
-  btnA.style.background = mode==='akumulasi' ? 'var(--or)' : '#fff';
-  btnA.style.color = mode==='akumulasi' ? '#fff' : 'var(--or)';
+  if(KBO_GRUP_TERBUKA.has(key)) KBO_GRUP_TERBUKA.delete(key); else KBO_GRUP_TERBUKA.add(key);
   renderKboTable();
 }
 function initKboTanggalDefault_(){
@@ -5782,7 +5772,12 @@ async function loadKebutuhanBahanOtomatis(){
     if(!j || !j.success){ wrap.innerHTML = `<div class="empty" style="padding:12px;"><p style="font-size:12px;">${j?.message || 'Gagal memuat.'}</p></div>`; return; }
     KBO_DATA = j.data || [];
     let pesanWarn = [];
-    if((j.menu_tidak_ditemukan||[]).length) pesanWarn.push('⚠️ Menu tanpa resep gramasi (dilewati): ' + j.menu_tidak_ditemukan.join(', '));
+    if((j.menu_tidak_ditemukan||[]).length){
+      const daftarKlik = j.menu_tidak_ditemukan.map(m =>
+        `<span onclick="bukaGramasiDariMasak('${String(m).replace(/'/g,"\\'")}')" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;">${m}</span>`
+      ).join(', ');
+      pesanWarn.push('⚠️ Menu tanpa resep gramasi (klik nama utk buat resepnya): ' + daftarKlik);
+    }
     if((j.bahan_belum_terdaftar||[]).length) pesanWarn.push('⚠️ Bahan belum ada di master BahanBaku: ' + j.bahan_belum_terdaftar.join(', '));
     warn.innerHTML = pesanWarn.map(p=>`<div>${p}</div>`).join('');
     renderKboTable();
@@ -5814,47 +5809,41 @@ function renderKboTable(){
       <td style="padding:6px;font-weight:600;" id="kbo-belanja-${i}">${(r.belanja ?? 0).toLocaleString('id-ID')}</td>
     </tr>`;
 
-  if(KBO_MODE === 'pertanggal'){
-    KBO_DATA.forEach((r,i) => { html += barisHtml(r,i); });
-  } else {
-    // Akumulasi: tetap tampilkan baris per-tanggal (spy Harga/Stok Koreksi tetap bisa
-    // diedit per hari seperti biasa), tapi dikelompokkan per bahan + baris "Total" di
-    // bawah tiap kelompok. Total Jumlah = jumlah SETIAP hari yg sudah ada dijumlahkan
-    // (bukan qty total × 1 harga), krn harga per hari bisa beda-beda.
-    const groups = {}; // key: nama_bahan lowercase -> {nama_bahan, satuan, items:[{r,i}]}
-    const urutan = [];
-    KBO_DATA.forEach((r,i) => {
-      const key = r.nama_bahan.toLowerCase();
-      if(!groups[key]){ groups[key] = { nama_bahan: r.nama_bahan, satuan: r.satuan, items: [] }; urutan.push(key); }
-      groups[key].items.push({r,i});
-    });
-    urutan.forEach(key => {
-      const g = groups[key];
-      let qtyTotal = 0, jumlahTotal = 0;
-      g.items.forEach(({r}) => { qtyTotal += Number(r.qty)||0; jumlahTotal += Number(r.jumlah)||0; });
-      const stokTeoriAwal = g.items[0].r.stok_teori ?? 0;
-      const stokKoreksiAkhir = g.items[g.items.length-1].r.stok_koreksi ?? 0;
-      const belanjaTotal = Math.round((stokKoreksiAkhir - qtyTotal) * 100) / 100;
-      const tertutup = KBO_GRUP_TERTUTUP.has(key);
-      const panah = tertutup ? '▸' : '▾';
-      // Baris Total ditaruh PALING ATAS tiap kelompok — klik utk sembunyikan/tampilkan
-      // detail per-tanggal di bawahnya (default: detail tampil / tidak disembunyikan).
-      html += `<tr onclick="toggleKboGrup('${key.replace(/'/g,"\\'")}')" style="border-top:2px solid var(--or);background:#fff6ec;font-weight:700;cursor:pointer;">
-        <td style="padding:6px;">${panah} Total</td>
-        <td style="padding:6px;">${g.nama_bahan}</td>
-        <td style="padding:6px;">${Math.round(qtyTotal*100)/100}</td>
-        <td style="padding:6px;">${g.satuan}</td>
-        <td style="padding:6px;color:var(--inks);font-weight:400;">—</td>
-        <td style="padding:6px;">Rp ${jumlahTotal.toLocaleString('id-ID')}</td>
-        <td style="padding:6px;color:var(--inks);" title="Stok Teori di tanggal awal rentang">${stokTeoriAwal}</td>
-        <td style="padding:6px;color:var(--inks);" title="Stok Koreksi di tanggal akhir rentang">${stokKoreksiAkhir}</td>
-        <td style="padding:6px;">${belanjaTotal.toLocaleString('id-ID')}</td>
-      </tr>`;
-      if(!tertutup){
-        g.items.forEach(({r,i}) => { html += barisHtml(r,i); });
-      }
-    });
-  }
+  // Selalu dikelompokkan per bahan + baris "Total" di atas tiap kelompok (default
+  // tertutup, cuma Total yg tampil — klik utk buka/tutup detail per-tanggalnya).
+  // Jumlah Total = jumlah SETIAP hari yg sudah ada dijumlahkan (bukan qty total ×
+  // 1 harga), krn harga per hari bisa beda-beda.
+  const groups = {}; // key: nama_bahan lowercase -> {nama_bahan, satuan, items:[{r,i}]}
+  const urutan = [];
+  KBO_DATA.forEach((r,i) => {
+    const key = r.nama_bahan.toLowerCase();
+    if(!groups[key]){ groups[key] = { nama_bahan: r.nama_bahan, satuan: r.satuan, items: [] }; urutan.push(key); }
+    groups[key].items.push({r,i});
+  });
+  urutan.forEach(key => {
+    const g = groups[key];
+    let qtyTotal = 0, jumlahTotal = 0;
+    g.items.forEach(({r}) => { qtyTotal += Number(r.qty)||0; jumlahTotal += Number(r.jumlah)||0; });
+    const stokTeoriAwal = g.items[0].r.stok_teori ?? 0;
+    const stokKoreksiAkhir = g.items[g.items.length-1].r.stok_koreksi ?? 0;
+    const belanjaTotal = Math.round((stokKoreksiAkhir - qtyTotal) * 100) / 100;
+    const terbuka = KBO_GRUP_TERBUKA.has(key);
+    const panah = terbuka ? '▾' : '▸';
+    html += `<tr onclick="toggleKboGrup('${key.replace(/'/g,"\\'")}')" style="border-top:2px solid var(--or);background:#fff6ec;font-weight:700;cursor:pointer;">
+      <td style="padding:6px;">${panah} Total</td>
+      <td style="padding:6px;">${g.nama_bahan}</td>
+      <td style="padding:6px;">${Math.round(qtyTotal*100)/100}</td>
+      <td style="padding:6px;">${g.satuan}</td>
+      <td style="padding:6px;color:var(--inks);font-weight:400;">—</td>
+      <td style="padding:6px;">Rp ${jumlahTotal.toLocaleString('id-ID')}</td>
+      <td style="padding:6px;color:var(--inks);" title="Stok Teori di tanggal awal rentang">${stokTeoriAwal}</td>
+      <td style="padding:6px;color:var(--inks);" title="Stok Koreksi di tanggal akhir rentang">${stokKoreksiAkhir}</td>
+      <td style="padding:6px;">${belanjaTotal.toLocaleString('id-ID')}</td>
+    </tr>`;
+    if(terbuka){
+      g.items.forEach(({r,i}) => { html += barisHtml(r,i); });
+    }
+  });
 
   html += '</table>';
   wrap.innerHTML = html;
