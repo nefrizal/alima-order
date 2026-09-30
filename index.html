@@ -514,15 +514,26 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 <div class="panel" id="panel-belanja">
   <div class="sec" id="kbo-sec">
     <div class="stitle">🛒 Belanja Otomatis <span style="font-weight:400;font-size:10px;color:var(--inks);">(dari Order × Gramasi — Qty/Satuan otomatis, Harga diisi Pembelian)</span></div>
-    <div class="g2">
-      <div class="fld"><label>Dari Tanggal</label><input type="date" id="kbo-dari" onchange="loadKebutuhanBahanOtomatis()"></div>
-      <div class="fld"><label>Sampai Tanggal</label><input type="date" id="kbo-sampai" onchange="loadKebutuhanBahanOtomatis()"></div>
+
+    <!-- Tampilan LENGKAP: leader dapur/pembelian/admin -->
+    <div id="kbo-full-view" class="hide">
+      <div class="g2">
+        <div class="fld"><label>Dari Tanggal</label><input type="date" id="kbo-dari" onchange="loadKebutuhanBahanOtomatis()"></div>
+        <div class="fld"><label>Sampai Tanggal</label><input type="date" id="kbo-sampai" onchange="loadKebutuhanBahanOtomatis()"></div>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        <button type="button" onclick="loadKebutuhanBahanOtomatis()" style="flex:1;padding:6px;font-size:11px;border-radius:6px;border:1px solid var(--or);background:#fff;color:var(--or);cursor:pointer;">↻ Refresh</button>
+      </div>
+      <div id="kbo-warning" style="font-size:10px;color:#c33;margin:4px 0 0;"></div>
+      <div id="kbo-table" style="overflow-x:auto;margin-top:8px;"></div>
     </div>
-    <div style="display:flex;gap:6px;margin-top:8px;">
-      <button type="button" onclick="loadKebutuhanBahanOtomatis()" style="flex:1;padding:6px;font-size:11px;border-radius:6px;border:1px solid var(--or);background:#fff;color:var(--or);cursor:pointer;">↻ Refresh</button>
+
+    <!-- Tampilan RINGKAS: semua karyawan lainnya — cuma 2 daftar peringatan, tanpa
+         Qty/Harga/Stok (data itu tetap khusus leader dapur/pembelian/admin). -->
+    <div id="kbo-simple-view" class="hide">
+      <div style="font-size:11px;color:var(--inks);margin-bottom:8px;">Menu & bahan yang perlu dilengkapi, utk order besok & lusa:</div>
+      <div id="kbo-warning-simple"></div>
     </div>
-    <div id="kbo-warning" style="font-size:10px;color:#c33;margin:4px 0 0;"></div>
-    <div id="kbo-table" style="overflow-x:auto;margin-top:8px;"></div>
   </div>
 </div>
 
@@ -1645,11 +1656,11 @@ function terapkanAksesRole_(){
   if (bisaJurnal || bisaBahanBaku) {
     document.getElementById('tab-keuangan').classList.remove('hide');
   }
-  // "Belanja Otomatis" sekarang tab TERPISAH dari Keuangan/Bahan Baku (dulu sub-bagian
-  // di dalamnya) — role yang boleh akses sama dgn yang boleh lihat Bahan Baku.
-  if (bisaBahanBaku) {
-    document.getElementById('tab-belanja').classList.remove('hide');
-  }
+  // "Belanja Otomatis" tampil utk SEMUA karyawan (bukan cuma leader dapur/pembelian/
+  // admin) — tapi isinya beda: role penuh (bisaBahanBaku) dapat tabel Qty/Harga/Stok
+  // lengkap; role lain cuma dapat 2 daftar peringatan (menu/bahan yg perlu dilengkapi)
+  // tanpa data harga/stok. Pembagian tampilannya diatur di goTab('belanja', ...).
+  document.getElementById('tab-belanja').classList.remove('hide');
   if (bisaJurnal) {
     document.getElementById('ksub-panel-jurnal').classList.remove('hide');
     applyKeuanganLevelUI();
@@ -1718,6 +1729,7 @@ function applySnackAccess(){
   document.getElementById('tab-grafik').classList.add('hide');
   document.getElementById('tab-absensi').classList.add('hide');
   document.getElementById('tab-laporan').classList.add('hide');
+  document.getElementById('tab-belanja').classList.add('hide'); // role snack tetap dibatasi hanya tab Jadwal
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('on'));
   document.getElementById('panel-jadwal').classList.add('on');
@@ -4402,7 +4414,12 @@ function goTab(id,btn){
     const bisaBahan = CURRENT_USER && ['leader dapur','leader service','pembelian','admin'].includes(CURRENT_USER.role);
     if(bisaBahan){ loadPermintaanList(); }
   }
-  if(id==='belanja'){ loadKebutuhanBahanOtomatis(); }
+  if(id==='belanja'){
+    const bisaLengkap = CURRENT_USER && ['leader dapur','pembelian','admin'].includes(CURRENT_USER.role);
+    document.getElementById('kbo-full-view').classList.toggle('hide', !bisaLengkap);
+    document.getElementById('kbo-simple-view').classList.toggle('hide', bisaLengkap);
+    if(bisaLengkap) loadKebutuhanBahanOtomatis(); else loadPeringatanBelanjaOtomatisSaja();
+  }
 }
 
 // Sesuaikan tampilan tab Keuangan dengan level akses ('Lihat' / 'Input' / 'Semua'):
@@ -5388,15 +5405,12 @@ let GF_BAHAN_ROWS = []; // [{bahan, gram}] — state form yang sedang diedit
 // nama menu ini bisa diklik atau tidak). Cek role diulang di sini juga sbg jaga-jaga,
 // tapi otorisasi SEBENARNYA tetap di backend (GRAMASI_ROLES_ di AlimaSheetsBackend.gs).
 async function bukaGramasiDariMasak(namaMenu){
-  // Samakan dgn GRAMASI_ROLES_ di backend (AlimaSheetsBackend.gs) — 'pembelian' perlu
-  // ikut disertakan krn dipanggil jg dari Belanja Otomatis (yg rolenya leader dapur/
-  // pembelian/admin), bukan cuma dari klik menu di tab Masak.
-  const rolesBoleh = ['dapur','leader dapur','pembelian','admin','finance'];
-  if(!CURRENT_USER || !rolesBoleh.includes(CURRENT_USER.role)){
-    toast('Role Anda tidak punya akses fitur Gramasi.','err'); return;
-  }
+  // Dibuka utk SEMUA karyawan yang sudah login (backend juga sudah dilonggarkan —
+  // lihat catatan GRAMASI_ACTIONS_ di AlimaSheetsBackend.gs) — supaya siapapun bisa
+  // bantu lengkapi resep menu yang belum ada gramasinya, tidak dibatasi role tertentu.
+  if(!CURRENT_USER){ toast('Sesi login tidak valid, silakan login ulang.','err'); return; }
   document.getElementById('gramasi-modal').classList.remove('hide');
-  if(!BAHAN_BAKU_DATA || !BAHAN_BAKU_DATA.length) await loadBahanBakuData();
+  if(!BAHAN_BAKU_DATA || !BAHAN_BAKU_DATA.length) await loadBahanBakuData(); // boleh gagal diam2 utk role yg tak berhak — datalist-nya saja yg kosong
   renderGfBahanDatalist_();
   loadGramasiList(); // muat daftar di background biar tombol "←" di form nanti bisa balik
   await openGramasiForm(namaMenu);
@@ -5465,7 +5479,7 @@ async function openGramasiForm(namaMenu){
     document.getElementById('gramasi-form-title').textContent = 'Menu Baru';
     document.getElementById('gf-nama-menu').value = '';
     document.getElementById('gf-kelompok').value = '';
-    document.getElementById('gf-porsi').value = '';
+    document.getElementById('gf-porsi').value = 100;
     GF_BAHAN_ROWS = [{bahan:'', gram:''}];
     renderGfBahanRows();
     return;
@@ -5482,7 +5496,7 @@ async function openGramasiForm(namaMenu){
       document.getElementById('gramasi-form-title').textContent = 'Menu Baru';
       document.getElementById('gf-nama-menu').value = namaMenu;
       document.getElementById('gf-kelompok').value = '';
-      document.getElementById('gf-porsi').value = '';
+      document.getElementById('gf-porsi').value = 100;
       GF_BAHAN_ROWS = [{bahan:'', gram:''}];
       renderGfBahanRows();
       return;
@@ -5793,6 +5807,53 @@ function initKboTanggalDefault_(){
   const fmt = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   dariEl.value = fmt(besok);
   sampaiEl.value = fmt(lusa);
+}
+// Versi RINGAN "tambah bahan baru" khusus dipakai dari tampilan ringkas karyawan biasa
+// (kbo-simple-view) — TIDAK buka modal Permintaan Bahan yang penuh (itu perlu akses
+// 'getBahanBaku' yg masih khusus leader dapur/pembelian/admin), cukup tanya Kategori &
+// Satuan lewat prompt sederhana lalu langsung simpan ke master.
+async function tambahBahanBaruSederhana(namaBahan){
+  const kategori = prompt('Kategori bahan "' + namaBahan + '"?\n(mis. Lauk Utama, Karbo, Sayur, Sambal, Bumbu, Kemasan, dll)');
+  if(!kategori) return;
+  const satuan = prompt('Satuan bahan "' + namaBahan + '"?\n(mis. kg, gram, liter, butir, bks, ikat)');
+  if(!satuan) return;
+  toast('Menambahkan…','ok');
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=tambahBahanBaku&nama=' + encodeURIComponent(namaBahan) + '&kategori=' + encodeURIComponent(kategori) + '&satuan=' + encodeURIComponent(satuan) + '&t=' + Date.now());
+    if(!j || !j.success){ toast(j?.message || 'Gagal menambahkan.', 'err'); return; }
+    toast(`"${namaBahan}" berhasil ditambahkan ke master ✓`,'ok');
+    loadPeringatanBelanjaOtomatisSaja(); // refresh, biar bahan ini hilang dari daftar peringatan
+  }catch(e){ toast('Gagal menambahkan: ' + e.message, 'err'); }
+}
+
+// Versi RINGKAS utk karyawan biasa (bukan leader dapur/pembelian/admin) — cuma 2
+// daftar peringatan yg bisa diklik utk lengkapi data, TANPA tabel Qty/Harga/Stok.
+async function loadPeringatanBelanjaOtomatisSaja(){
+  const wrap = document.getElementById('kbo-warning-simple');
+  wrap.innerHTML = '<div class="sp" style="margin:12px auto;"></div>';
+  const now = new Date();
+  const fmt = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  const dari = fmt(new Date(now.getTime() + 1*86400000));   // besok
+  const sampai = fmt(new Date(now.getTime() + 2*86400000)); // lusa
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=getPeringatanBelanjaOtomatis&dari_tanggal=' + dari + '&sampai_tanggal=' + sampai + '&t=' + Date.now());
+    if(!j || !j.success){ wrap.innerHTML = `<div class="empty" style="padding:12px;"><p style="font-size:12px;">${j?.message || 'Gagal memuat.'}</p></div>`; return; }
+    let html = '';
+    if((j.menu_tidak_ditemukan||[]).length){
+      const daftar = j.menu_tidak_ditemukan.map(m =>
+        `<span onclick="bukaGramasiDariMasak('${String(m).replace(/'/g,"\\'")}')" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;">${m}</span>`
+      ).join(', ');
+      html += `<div style="margin-bottom:8px;font-size:12px;color:#c33;">⚠️ Menu tanpa resep gramasi (klik nama utk buat resepnya): ${daftar}</div>`;
+    }
+    if((j.bahan_belum_terdaftar||[]).length){
+      const daftar = j.bahan_belum_terdaftar.map(b =>
+        `<span onclick="tambahBahanBaruSederhana('${String(b).replace(/'/g,"\\'")}')" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;">${b}</span>`
+      ).join(', ');
+      html += `<div style="font-size:12px;color:#c33;">⚠️ Bahan belum ada di master BahanBaku (klik nama utk tambahkan): ${daftar}</div>`;
+    }
+    if(!html) html = '<div class="empty" style="padding:12px;"><p style="font-size:12px;">✅ Semua menu & bahan untuk besok-lusa sudah lengkap.</p></div>';
+    wrap.innerHTML = html;
+  }catch(e){ wrap.innerHTML = `<div class="empty" style="padding:12px;"><p style="font-size:12px;">Gagal memuat: ${e.message}</p></div>`; }
 }
 async function loadKebutuhanBahanOtomatis(){
   initKboTanggalDefault_();
