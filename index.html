@@ -5788,10 +5788,11 @@ function initKboTanggalDefault_(){
   const sampaiEl = document.getElementById('kbo-sampai');
   if(dariEl.value && sampaiEl.value) return; // sudah pernah diisi, jangan timpa
   const now = new Date();
-  const plus6 = new Date(now.getTime() + 6*86400000);
+  const besok = new Date(now.getTime() + 1*86400000);
+  const lusa  = new Date(now.getTime() + 2*86400000);
   const fmt = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-  dariEl.value = fmt(now);
-  sampaiEl.value = fmt(plus6);
+  dariEl.value = fmt(besok);
+  sampaiEl.value = fmt(lusa);
 }
 async function loadKebutuhanBahanOtomatis(){
   initKboTanggalDefault_();
