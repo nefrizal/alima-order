@@ -3425,8 +3425,11 @@ async function renderJadwalMasak(){
       });
     });
 
-    // Role yang boleh klik nama menu utk langsung edit resepnya di Kelola Menu Gramasi
-    const BISA_EDIT_GRAMASI_DARI_MASAK = ['dapur','leader dapur','admin','finance'].includes((CURRENT_USER&&CURRENT_USER.role)||'');
+    // Semua role yang login bisa klik nama menu utk edit resepnya (backend jg sudah
+    // dibuka utk semua — lihat catatan GRAMASI_ACTIONS_ di AlimaSheetsBackend.gs).
+    // Dulu dibatasi ke beberapa role saja, tapi itu bikin tidak konsisten (mis. role
+    // pembelian sempat kelewat) — sekarang disamakan: siapapun yg login boleh klik.
+    const BISA_EDIT_GRAMASI_DARI_MASAK = !!CURRENT_USER;
 
     // Render 2 seksi besar terpisah: HARI INI dulu (semua kategori), baru BESOK (semua kategori)
     function renderSeksiHari(tglTarget, labelHari){
