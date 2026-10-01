@@ -534,6 +534,18 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       <div style="font-size:11px;color:var(--inks);margin-bottom:8px;">Menu & bahan yang perlu dilengkapi, utk order besok & lusa:</div>
       <div id="kbo-warning-simple"></div>
     </div>
+
+    <!-- Riwayat Harga Bahan — dari kolom Harga Satuan di sheet PermintaanBahan.
+         Section TERPISAH dgn rolenya sendiri (pembelian/finance/admin/sales) —
+         beda dari tabel Qty di atas (leader dapur/pembelian/admin), krn ini info
+         harga/biaya yg relevan utk finance & sales, bukan operasional dapur. -->
+    <div id="kbo-riwayat-harga-view" class="hide" style="margin-top:20px;padding-top:14px;border-top:1px solid var(--bdr);">
+      <div class="stitle" style="font-size:13px;">📜 Riwayat Harga Bahan <span style="font-weight:400;font-size:10px;color:var(--inks);">(dari proses Permintaan Bahan sebelumnya)</span></div>
+      <div style="display:flex;gap:6px;margin-top:6px;">
+        <input type="text" id="rhb-cari" placeholder="🔍 Cari nama bahan… (kosongkan utk 50 terbaru)" oninput="loadRiwayatHargaBahan()" style="flex:1;padding:6px 8px;font-size:12px;">
+      </div>
+      <div id="rhb-table" style="overflow-x:auto;margin-top:8px;"></div>
+    </div>
   </div>
 </div>
 
@@ -4419,9 +4431,12 @@ function goTab(id,btn){
   }
   if(id==='belanja'){
     const bisaLengkap = CURRENT_USER && ['leader dapur','pembelian','admin'].includes(CURRENT_USER.role);
+    const bisaRiwayatHarga = CURRENT_USER && ['pembelian','finance','admin','sales'].includes(CURRENT_USER.role);
     document.getElementById('kbo-full-view').classList.toggle('hide', !bisaLengkap);
     document.getElementById('kbo-simple-view').classList.toggle('hide', bisaLengkap);
+    document.getElementById('kbo-riwayat-harga-view').classList.toggle('hide', !bisaRiwayatHarga);
     if(bisaLengkap) loadKebutuhanBahanOtomatis(); else loadPeringatanBelanjaOtomatisSaja();
+    if(bisaRiwayatHarga) loadRiwayatHargaBahan();
   }
 }
 
@@ -5858,6 +5873,38 @@ async function loadPeringatanBelanjaOtomatisSaja(){
     wrap.innerHTML = html;
   }catch(e){ wrap.innerHTML = `<div class="empty" style="padding:12px;"><p style="font-size:12px;">Gagal memuat: ${e.message}</p></div>`; }
 }
+// ── Riwayat Harga Bahan (dari PermintaanBahan) ───────────────────
+let RHB_DEBOUNCE_TIMER = null;
+function loadRiwayatHargaBahan(){
+  clearTimeout(RHB_DEBOUNCE_TIMER);
+  RHB_DEBOUNCE_TIMER = setTimeout(fetchRiwayatHargaBahan_, 350); // debounce biar tidak nembak tiap ketikan
+}
+async function fetchRiwayatHargaBahan_(){
+  const wrap = document.getElementById('rhb-table');
+  const q = (document.getElementById('rhb-cari').value||'').trim();
+  wrap.innerHTML = '<div class="sp" style="margin:10px auto;"></div>';
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=getRiwayatHargaBahan&nama_bahan=' + encodeURIComponent(q) + '&t=' + Date.now());
+    if(!j || !j.success){ wrap.innerHTML = `<div class="empty" style="padding:10px;"><p style="font-size:12px;">${j?.message||'Gagal memuat.'}</p></div>`; return; }
+    const data = j.data || [];
+    if(!data.length){
+      wrap.innerHTML = '<div class="empty" style="padding:10px;"><p style="font-size:12px;">Belum ada riwayat harga' + (q?' utk "'+q+'".':'.') + '</p></div>';
+      return;
+    }
+    let html = '<table style="width:100%;border-collapse:collapse;font-size:12px;min-width:360px;">';
+    html += '<tr style="background:#faf5ee;text-align:left;"><th style="padding:6px;">Tanggal</th><th style="padding:6px;">Nama Bahan</th><th style="padding:6px;">Harga Satuan</th></tr>';
+    data.forEach(r => {
+      html += `<tr style="border-top:1px solid var(--bdr);">
+        <td style="padding:6px;white-space:nowrap;">${fd(r.tanggal)}</td>
+        <td style="padding:6px;">${r.nama_bahan}</td>
+        <td style="padding:6px;">Rp ${Number(r.harga_satuan||0).toLocaleString('id-ID')}</td>
+      </tr>`;
+    });
+    html += '</table>';
+    wrap.innerHTML = html;
+  }catch(e){ wrap.innerHTML = `<div class="empty" style="padding:10px;"><p style="font-size:12px;">Gagal memuat: ${e.message}</p></div>`; }
+}
+
 async function loadKebutuhanBahanOtomatis(){
   initKboTanggalDefault_();
   const dari = document.getElementById('kbo-dari').value;
