@@ -542,7 +542,8 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     <div id="kbo-riwayat-harga-view" class="hide" style="margin-top:20px;padding-top:14px;border-top:1px solid var(--bdr);">
       <div class="stitle" style="font-size:13px;">📜 Riwayat Harga Bahan <span style="font-weight:400;font-size:10px;color:var(--inks);">(dari proses Permintaan Bahan sebelumnya)</span></div>
       <div style="display:flex;gap:6px;margin-top:6px;">
-        <input type="text" id="rhb-cari" placeholder="🔍 Cari nama bahan… (kosongkan utk 50 terbaru)" oninput="loadRiwayatHargaBahan()" style="flex:1;padding:6px 8px;font-size:12px;">
+        <input type="text" id="rhb-cari" list="rhb-bahan-list" placeholder="🔍 Ketik nama bahan utk lihat riwayat harganya…" oninput="loadRiwayatHargaBahan()" style="flex:1;padding:6px 8px;font-size:12px;">
+        <datalist id="rhb-bahan-list"></datalist>
       </div>
       <div id="rhb-table" style="overflow-x:auto;margin-top:8px;"></div>
     </div>
@@ -4436,7 +4437,10 @@ function goTab(id,btn){
     document.getElementById('kbo-simple-view').classList.toggle('hide', bisaLengkap);
     document.getElementById('kbo-riwayat-harga-view').classList.toggle('hide', !bisaRiwayatHarga);
     if(bisaLengkap) loadKebutuhanBahanOtomatis(); else loadPeringatanBelanjaOtomatisSaja();
-    if(bisaRiwayatHarga) loadRiwayatHargaBahan();
+    if(bisaRiwayatHarga){
+      document.getElementById('rhb-table').innerHTML = '<div class="empty" style="padding:10px;"><p style="font-size:12px;">N/A — ketik nama bahan dulu utk lihat riwayat harganya.</p></div>';
+      muatAutofillRiwayatHarga_();
+    }
   }
 }
 
@@ -5875,6 +5879,18 @@ async function loadPeringatanBelanjaOtomatisSaja(){
 }
 // ── Riwayat Harga Bahan (dari PermintaanBahan) ───────────────────
 let RHB_DEBOUNCE_TIMER = null;
+let RHB_DATALIST_DIMUAT = false;
+async function muatAutofillRiwayatHarga_(){
+  if(RHB_DATALIST_DIMUAT) return; // cukup 1x per sesi, daftarnya jarang berubah drastis
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=getDaftarNamaBahanRiwayat&t=' + Date.now());
+    if(j && j.success){
+      document.getElementById('rhb-bahan-list').innerHTML =
+        (j.data||[]).map(n => `<option value="${String(n).replace(/"/g,'&quot;')}">`).join('');
+      RHB_DATALIST_DIMUAT = true;
+    }
+  }catch(e){ /* autofill gagal tidak fatal, pencarian manual tetap jalan */ }
+}
 function loadRiwayatHargaBahan(){
   clearTimeout(RHB_DEBOUNCE_TIMER);
   RHB_DEBOUNCE_TIMER = setTimeout(fetchRiwayatHargaBahan_, 350); // debounce biar tidak nembak tiap ketikan
@@ -5882,13 +5898,14 @@ function loadRiwayatHargaBahan(){
 async function fetchRiwayatHargaBahan_(){
   const wrap = document.getElementById('rhb-table');
   const q = (document.getElementById('rhb-cari').value||'').trim();
+  if(!q){ wrap.innerHTML = '<div class="empty" style="padding:10px;"><p style="font-size:12px;">N/A — ketik nama bahan dulu utk lihat riwayat harganya.</p></div>'; return; }
   wrap.innerHTML = '<div class="sp" style="margin:10px auto;"></div>';
   try{
     const j = await gasFetch(APP.GAS_URL + '?action=getRiwayatHargaBahan&nama_bahan=' + encodeURIComponent(q) + '&t=' + Date.now());
     if(!j || !j.success){ wrap.innerHTML = `<div class="empty" style="padding:10px;"><p style="font-size:12px;">${j?.message||'Gagal memuat.'}</p></div>`; return; }
     const data = j.data || [];
     if(!data.length){
-      wrap.innerHTML = '<div class="empty" style="padding:10px;"><p style="font-size:12px;">Belum ada riwayat harga' + (q?' utk "'+q+'".':'.') + '</p></div>';
+      wrap.innerHTML = '<div class="empty" style="padding:10px;"><p style="font-size:12px;">Belum ada riwayat harga utk "'+q+'".</p></div>';
       return;
     }
     let html = '<table style="width:100%;border-collapse:collapse;font-size:12px;min-width:360px;">';
