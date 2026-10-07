@@ -3545,10 +3545,12 @@ function renderGrafikChart(j){
     maxVal = Math.max(maxVal, totalBulan);
   });
 
-  // Skala sumbu Y: kelipatan rapi yang selalu bisa dibagi 50.000, target ~5 garis bantu
-  let step = Math.ceil((maxVal/5) / 50000) * 50000;
-  if (step <= 0) step = 50000;
-  const topVal  = Math.ceil(maxVal/step) * step;
+  // Skala sumbu Y GRAFIK BULANAN: tetap kelipatan 25 juta (0, 25jt, 50jt, 75jt, dst),
+  // bukan lagi dihitung otomatis dari data. Batas atas = kelipatan 25jt terdekat di atas
+  // total bulan tertinggi. (Grafik harian di bawah sengaja TIDAK diubah — nilai per hari
+  // jauh lebih kecil, kelipatan 25jt bikin batangnya gepeng.)
+  const step = 25000000;
+  const topVal  = Math.max(step, Math.ceil(maxVal/step) * step);
   const numGrid = topVal/step;
 
   const barMaxH = 160;
