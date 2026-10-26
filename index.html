@@ -3667,14 +3667,16 @@ async function bacaNotaFoto(fileLangsung){
   const st = document.getElementById('bn-status'), btn = document.getElementById('bn-baca-btn');
   if(!f){ toast('Pilih foto nota dulu','err'); return; }
   btn.disabled = true; st.textContent = '⏳ Membaca nota… (±5–15 detik)';
+  let raw = '', tahap = 'kompres foto';
   try{
     const b64 = await kompresFoto_(f);
+    tahap = 'kirim ke server';
     const res = await fetch(APP.GAS_URL, {method:'POST', redirect:'follow', headers:{'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify({action:'bacaNota', id_token: ID_TOKEN, image_base64: b64, mime:'image/jpeg'})});
-    const text = await res.text();
+    const text = await res.text(); raw = text; tahap = 'baca jawaban server';
     if(text.trim().startsWith('<')) throw new Error('GAS return HTML');
     const j = JSON.parse(text);
-    if(!j.success) throw new Error(j.message);
+    if(!j.success) throw new Error(j.message || 'Server menolak tanpa pesan');
     BN_KATEGORI_ = j.kategori_list || [];
     BN_ITEMS_ = j.items || [];
     document.getElementById('bn-tgl').value = j.tanggal || new Date().toISOString().slice(0,10);
@@ -3682,7 +3684,7 @@ async function bacaNotaFoto(fileLangsung){
     renderBnTable_();
     document.getElementById('bn-hasil').classList.remove('hide');
     st.textContent = BN_ITEMS_.length + ' item terbaca. Periksa & koreksi dulu sebelum simpan.';
-  }catch(e){ st.textContent = '⚠️ ' + e.message; }
+  }catch(e){ st.textContent = '⚠️ [' + tahap + '] ' + (e && (e.message || e.name) || String(e)) + (raw ? ' — jawaban server: ' + raw.slice(0,200) : ''); }
   btn.disabled = false;
 }
 function renderBnTable_(){
