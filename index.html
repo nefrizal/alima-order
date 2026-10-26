@@ -574,7 +574,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
         <button class="bico" id="bn-baca-btn" onclick="bacaNotaFoto()">🔍 Baca Nota</button>
       </div>
       <div id="bn-status" style="font-size:11px;color:var(--inks);margin-top:6px;"></div>
-      <div style="font-size:9px;color:var(--inks);opacity:.6;margin-top:4px;">versi Baca Nota: 27okt-3 (login-otomatis)</div>
+      <div style="font-size:9px;color:var(--inks);opacity:.6;margin-top:4px;">versi Baca Nota: 27okt-4</div>
       <div id="bn-hasil" class="hide" style="margin-top:8px;">
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
           <input type="date" id="bn-tgl" style="padding:6px 8px;font-size:12px;">
@@ -3673,7 +3673,7 @@ function renderGrafikChart(j, elId, emptyMsg){
 
 // ══ BACA NOTA (finance & admin) ═══════════════════════════
 let BN_KATEGORI_ = [], BN_ITEMS_ = [];
-function kompresFoto_(file, maxSisi=1600, q=0.8){
+function kompresFoto_(file, maxSisi=1280, q=0.7){
   return new Promise((res, rej)=>{
     const img = new Image(), url = URL.createObjectURL(file);
     img.onload = ()=>{
