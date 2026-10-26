@@ -398,6 +398,9 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   <div id="gf-peng-updated" style="font-size:11px;color:var(--inks);text-align:center;margin-bottom:10px;"></div>
   <div id="gf-peng-chart"><div class="empty"><div class="eico">💸</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
 
+  <div class="stitle" style="margin-top:20px;">💸 Pengeluaran Bahan Baku (Harian, 15 Hari Terakhir)</div>
+  <div id="gf-peng-harian-chart"><div class="empty"><div class="eico">💸</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
+
   <div class="stitle" style="margin-top:20px;">📅 Grafik Harian (15 Hari ke Depan)</div>
   <div id="gf-harian-updated" style="font-size:11px;color:var(--inks);text-align:center;margin-bottom:10px;"></div>
   <div id="gf-harian-chart"><div class="empty"><div class="eico">📅</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
@@ -3615,6 +3618,7 @@ async function loadGrafikPengeluaran(){
     if(!j.success){ chartEl.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>${j.message}</p></div>`; return; }
     if(j.lastUpdated) updEl.textContent = 'Sumber: sheet PermintaanBahan (tanpa status Batal) · ' + new Date(j.lastUpdated).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'});
     renderGrafikChart(j, 'gf-peng-chart', 'Belum ada pengeluaran tercatat sejak Juli 2026.');
+    renderGrafikHarianChart({hariList:j.hariList, kategoriList:j.kategoriHarianList, data:j.dataHarian}, 'gf-peng-harian-chart');
   }catch(e){
     chartEl.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>Gagal memuat: ${e.message}</p></div>`;
   }
@@ -3638,8 +3642,8 @@ async function loadGrafikHarian(){
   }
 }
 
-function renderGrafikHarianChart(j){
-  const chartEl = document.getElementById('gf-harian-chart');
+function renderGrafikHarianChart(j, elId){
+  const chartEl = document.getElementById(elId || 'gf-harian-chart');
   const hariList = j.hariList||[], kategoriList = j.kategoriList||[], data = j.data||{};
   if(!hariList.length){
     chartEl.innerHTML = `<div class="empty"><div class="eico">📅</div><p>Tidak ada data.</p></div>`;
