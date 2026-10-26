@@ -394,6 +394,10 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   <div id="gf-updated" style="font-size:11px;color:var(--inks);text-align:center;margin-bottom:10px;"></div>
   <div id="gf-chart"><div class="empty"><div class="eico">📊</div><p>Klik Refresh untuk memuat grafik.</p></div></div>
 
+  <div class="stitle" style="margin-top:20px;">📉 Rasio BPP (Pembelian ÷ Penjualan, per Bulan)</div>
+  <div id="gf-bpp-note" style="font-size:11px;color:var(--inks);text-align:center;margin-bottom:10px;">Penjualan = total order (tanpa Batal) · Pembelian = PermintaanBahan (tanpa Batal)</div>
+  <div id="gf-bpp-chart"><div class="empty"><div class="eico">📉</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
+
   <div class="stitle" style="margin-top:20px;">💸 Pengeluaran Bahan Baku (per Bulan)</div>
   <div id="gf-peng-updated" style="font-size:11px;color:var(--inks);text-align:center;margin-bottom:10px;"></div>
   <div id="gf-peng-chart"><div class="empty"><div class="eico">💸</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
@@ -3526,6 +3530,7 @@ async function loadGrafik(){
       updEl.textContent = 'Data per: ' + d.toLocaleString('id-ID', {dateStyle:'medium', timeStyle:'short'}) + ' · update otomatis tiap jam 20:00';
     }
     renderGrafikChart(j);
+    GF_JUAL_ = j; renderGrafikBpp_();
   }catch(e){
     chartEl.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>Gagal memuat: ${e.message}</p></div>`;
   }
@@ -3609,6 +3614,37 @@ function renderGrafikChart(j, elId, emptyMsg){
   `;
 }
 
+let GF_JUAL_ = null, GF_BELI_ = null;
+function renderGrafikBpp_(){
+  if(!GF_JUAL_ || !GF_BELI_) return;
+  const el = document.getElementById('gf-bpp-chart');
+  const tot = (j,b)=> Object.values((j.data||{})[b]||{}).reduce((s,v)=>s+(Number(v)||0),0);
+  const bulanList = (GF_JUAL_.bulanList||[]).filter(b=> tot(GF_JUAL_,b) > 0);
+  if(!bulanList.length){ el.innerHTML = '<div class="empty"><div class="eico">📉</div><p>Belum ada data penjualan.</p></div>'; return; }
+  const rows = bulanList.map(b=>({b, jual:tot(GF_JUAL_,b), beli:tot(GF_BELI_,b)}));
+  rows.forEach(r=> r.pct = r.beli/r.jual*100);
+  const maxPct = Math.max(...rows.map(r=>r.pct), 1);
+  const step = 5;
+  const topVal = Math.max(step, Math.ceil(maxPct/step)*step);
+  const numGrid = topVal/step;
+  const barMaxH = 160, leftM = 44, barW = 46, groupW = 66;
+  const totalW = groupW*rows.length + leftM + 20, chartH = barMaxH + 50;
+  let grid = '';
+  for(let g=0; g<=numGrid; g++){
+    const val = g*step, y = barMaxH - (val/topVal)*barMaxH + 20;
+    grid += `<line x1="${leftM}" y1="${y}" x2="${totalW-10}" y2="${y}" stroke="#EDE3D8" stroke-width="1"/>`;
+    grid += `<text x="${leftM-6}" y="${y+3}" font-size="9" fill="#9C8672" text-anchor="end">${val}%</text>`;
+  }
+  let bars = '';
+  rows.forEach((r,i)=>{
+    const x = leftM + 10 + i*groupW, h = (r.pct/topVal)*barMaxH, y = barMaxH - h + 20;
+    bars += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" fill="#C8521A" rx="2"></rect>`;
+    bars += `<text x="${x+barW/2}" y="${y-4}" font-size="10" font-weight="700" fill="#5C4A35" text-anchor="middle">${r.pct.toLocaleString('id-ID',{maximumFractionDigits:1})}%</text>`;
+    bars += `<text x="${x+barW/2}" y="${barMaxH+38}" font-size="10" fill="#5C4A35" text-anchor="middle">${formatBulanLabel_(r.b)}</text>`;
+  });
+  el.innerHTML = `<div style="overflow-x:auto;background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:12px;box-shadow:var(--sh);"><svg width="${totalW}" height="${chartH}" viewBox="0 0 ${totalW} ${chartH}">${grid}${bars}</svg></div>`;
+}
+
 async function loadGrafikPengeluaran(){
   const chartEl = document.getElementById('gf-peng-chart');
   const updEl = document.getElementById('gf-peng-updated');
@@ -3619,6 +3655,7 @@ async function loadGrafikPengeluaran(){
     if(j.lastUpdated) updEl.textContent = 'Sumber: sheet PermintaanBahan (tanpa status Batal) · ' + new Date(j.lastUpdated).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'});
     renderGrafikChart(j, 'gf-peng-chart', 'Belum ada pengeluaran tercatat sejak Juli 2026.');
     renderGrafikHarianChart({hariList:j.hariList, kategoriList:j.kategoriHarianList, data:j.dataHarian}, 'gf-peng-harian-chart');
+    GF_BELI_ = j; renderGrafikBpp_();
   }catch(e){
     chartEl.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>Gagal memuat: ${e.message}</p></div>`;
   }
