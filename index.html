@@ -1942,12 +1942,18 @@ function tokenKedaluwarsa_(tok){
     return !exp || (exp*1000 - Date.now()) < 120000; // sisa < 2 menit dianggap habis
   }catch(e){ return false; }
 }
+function loginUlangPaksa_(){
+  try{ toast('Sesi login habis — memuat ulang untuk login lagi…','err'); }catch(e){}
+  hapusSesiLoginTersimpan_();
+  setTimeout(()=>location.reload(), 1200);
+}
+function adalahErrorToken_(msg){ return /invalid_token|Token login|kedaluwarsa|Unauthorized/i.test(String(msg||'')); }
 async function pastikanTokenSegar_(){
   if(!ID_TOKEN || !tokenKedaluwarsa_(ID_TOKEN)) return;
   const lama = ID_TOKEN;
   try{ google.accounts.id.prompt(); }catch(e){}
   for(let i=0;i<20 && ID_TOKEN===lama;i++) await new Promise(r=>setTimeout(r,500));
-  if(ID_TOKEN===lama) throw new Error('Sesi login Google habis. Tutup lalu buka ulang aplikasi (atau login ulang), lalu coba lagi.');
+  if(ID_TOKEN===lama){ loginUlangPaksa_(); throw new Error('Sesi login Google habis — memuat ulang…'); }
 }
 async function gasFetch(url){
   await pastikanTokenSegar_();
@@ -1957,7 +1963,9 @@ async function gasFetch(url){
   const res=await fetch(url,{method:'GET',redirect:'follow'});
   const text=await res.text();
   if(text.trim().startsWith('<')) throw new Error('GAS return HTML');
-  return JSON.parse(text);
+  const hasil = JSON.parse(text);
+  if(hasil && hasil.success===false && adalahErrorToken_(hasil.message) && /Gagal verifikasi token|invalid_token|kedaluwarsa|Token login/i.test(hasil.message)) loginUlangPaksa_();
+  return hasil;
 }
 
 // ══ INVOICE ═══════════════════════════
@@ -3695,7 +3703,7 @@ async function bacaNotaFoto(fileLangsung){
     const text = await res.text(); raw = text; tahap = 'baca jawaban server';
     if(text.trim().startsWith('<')) throw new Error('GAS return HTML');
     const j = JSON.parse(text);
-    if(!j.success) throw new Error(j.message || 'Server menolak tanpa pesan');
+    if(!j.success){ if(/Gagal verifikasi token|invalid_token|kedaluwarsa|Token login/i.test(j.message||'')) loginUlangPaksa_(); throw new Error(j.message || 'Server menolak tanpa pesan'); }
     BN_KATEGORI_ = j.kategori_list || [];
     BN_ITEMS_ = j.items || [];
     document.getElementById('bn-tgl').value = j.tanggal || new Date().toISOString().slice(0,10);
