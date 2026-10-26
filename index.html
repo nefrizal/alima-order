@@ -161,6 +161,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   <button class="tbtn" id="tab-laporan" onclick="goTab('laporan',this)">📋 Laporan Keluhan</button>
   <button class="tbtn hide" id="tab-keuangan" onclick="goTab('keuangan',this)">💰 Keuangan</button>
   <button class="tbtn hide" id="tab-belanja" onclick="goTab('belanja',this)">🛒 Belanja Otomatis</button>
+  <button class="tbtn hide" id="tab-nota" onclick="goTab('nota',this)">🧾 Baca Nota</button>
 </div>
 <div class="ovl hide" id="ovl"><div class="sp"></div><span id="ovl-msg">Memproses…</span></div>
 <div class="toast" id="toast"></div>
@@ -546,8 +547,25 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       <div id="kbo-warning-simple"></div>
     </div>
 
+    <!-- Riwayat Harga Bahan — dari kolom Harga Satuan di sheet PermintaanBahan.
+         Section TERPISAH dgn rolenya sendiri (pembelian/finance/admin/sales) —
+         beda dari tabel Qty di atas (leader dapur/pembelian/admin), krn ini info
+         harga/biaya yg relevan utk finance & sales, bukan operasional dapur. -->
+    <div id="kbo-riwayat-harga-view" class="hide" style="margin-top:20px;padding-top:14px;border-top:1px solid var(--bdr);">
+      <div class="stitle" style="font-size:13px;">📜 Riwayat Harga Bahan <span style="font-weight:400;font-size:10px;color:var(--inks);">(dari proses Permintaan Bahan sebelumnya)</span></div>
+      <div style="display:flex;gap:6px;margin-top:6px;">
+        <input type="text" id="rhb-cari" list="rhb-bahan-list" placeholder="🔍 Ketik nama bahan utk lihat riwayat harganya…" oninput="loadRiwayatHargaBahan()" style="flex:1;padding:6px 8px;font-size:12px;">
+        <datalist id="rhb-bahan-list"></datalist>
+      </div>
+      <div id="rhb-table" style="overflow-x:auto;margin-top:8px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ BACA NOTA (finance & admin) ═══ -->
+<div class="panel" id="panel-nota">
     <!-- Baca Nota — foto nota → Gemini → PermintaanBahan. Hanya finance & admin. -->
-    <div id="kbo-baca-nota-view" class="hide" style="margin-top:20px;padding-top:14px;border-top:1px solid var(--bdr);">
+    <div id="kbo-baca-nota-view">
       <div class="stitle" style="font-size:13px;">🧾 Baca Nota <span style="font-weight:400;font-size:10px;color:var(--inks);">(foto nota → masuk sheet PermintaanBahan)</span></div>
       <div style="display:flex;gap:6px;margin-top:6px;align-items:center;flex-wrap:wrap;">
         <input type="file" id="bn-cam" accept="image/*" capture="environment" class="hide" onchange="if(this.files[0]){document.getElementById('bn-file').value='';bacaNotaFoto(this.files[0]);}">
@@ -569,19 +587,6 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
         </div>
       </div>
     </div>
-    <!-- Riwayat Harga Bahan — dari kolom Harga Satuan di sheet PermintaanBahan.
-         Section TERPISAH dgn rolenya sendiri (pembelian/finance/admin/sales) —
-         beda dari tabel Qty di atas (leader dapur/pembelian/admin), krn ini info
-         harga/biaya yg relevan utk finance & sales, bukan operasional dapur. -->
-    <div id="kbo-riwayat-harga-view" class="hide" style="margin-top:20px;padding-top:14px;border-top:1px solid var(--bdr);">
-      <div class="stitle" style="font-size:13px;">📜 Riwayat Harga Bahan <span style="font-weight:400;font-size:10px;color:var(--inks);">(dari proses Permintaan Bahan sebelumnya)</span></div>
-      <div style="display:flex;gap:6px;margin-top:6px;">
-        <input type="text" id="rhb-cari" list="rhb-bahan-list" placeholder="🔍 Ketik nama bahan utk lihat riwayat harganya…" oninput="loadRiwayatHargaBahan()" style="flex:1;padding:6px 8px;font-size:12px;">
-        <datalist id="rhb-bahan-list"></datalist>
-      </div>
-      <div id="rhb-table" style="overflow-x:auto;margin-top:8px;"></div>
-    </div>
-  </div>
 </div>
 
 </main>
@@ -1708,6 +1713,7 @@ function terapkanAksesRole_(){
   // lengkap; role lain cuma dapat 2 daftar peringatan (menu/bahan yg perlu dilengkapi)
   // tanpa data harga/stok. Pembagian tampilannya diatur di goTab('belanja', ...).
   document.getElementById('tab-belanja').classList.remove('hide');
+  if (['finance','admin'].includes(CURRENT_USER.role)) document.getElementById('tab-nota').classList.remove('hide'); // Baca Nota
   if (bisaJurnal) {
     document.getElementById('ksub-panel-jurnal').classList.remove('hide');
     applyKeuanganLevelUI();
@@ -1776,6 +1782,7 @@ function applySnackAccess(){
   document.getElementById('tab-grafik').classList.add('hide');
   document.getElementById('tab-absensi').classList.add('hide');
   document.getElementById('tab-laporan').classList.add('hide');
+  document.getElementById('tab-nota').classList.add('hide');
   document.getElementById('tab-belanja').classList.add('hide'); // role snack tetap dibatasi hanya tab Jadwal
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('on'));
@@ -4604,7 +4611,6 @@ function goTab(id,btn){
     document.getElementById('kbo-full-view').classList.toggle('hide', !bisaLengkap);
     document.getElementById('kbo-simple-view').classList.toggle('hide', bisaLengkap);
     document.getElementById('kbo-riwayat-harga-view').classList.toggle('hide', !bisaRiwayatHarga);
-       document.getElementById('kbo-baca-nota-view').classList.toggle('hide', !(CURRENT_USER && ['finance','admin'].includes(CURRENT_USER.role)));
     if(bisaLengkap) loadKebutuhanBahanOtomatis(); else loadPeringatanBelanjaOtomatisSaja();
     if(bisaRiwayatHarga){
       document.getElementById('rhb-table').innerHTML = '<div class="empty" style="padding:10px;"><p style="font-size:12px;">N/A — ketik nama bahan dulu utk lihat riwayat harganya.</p></div>';
