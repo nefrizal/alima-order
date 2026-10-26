@@ -1933,7 +1933,24 @@ async function pickSalesContact(){
 }
 
 // ══ GAS FETCH ═════════════════════════
+// Token Google (ID_TOKEN) hanya berlaku ±1 jam. Kalau aplikasi dibiarkan terbuka lama, token
+// kedaluwarsa → server jawab "invalid_token". Fungsi ini cek masa berlakunya & minta token baru
+// (diam-diam via Google One Tap) sebelum request dikirim; tunggu maks ±10 detik.
+function tokenKedaluwarsa_(tok){
+  try{
+    const exp = JSON.parse(atob(tok.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))).exp;
+    return !exp || (exp*1000 - Date.now()) < 120000; // sisa < 2 menit dianggap habis
+  }catch(e){ return false; }
+}
+async function pastikanTokenSegar_(){
+  if(!ID_TOKEN || !tokenKedaluwarsa_(ID_TOKEN)) return;
+  const lama = ID_TOKEN;
+  try{ google.accounts.id.prompt(); }catch(e){}
+  for(let i=0;i<20 && ID_TOKEN===lama;i++) await new Promise(r=>setTimeout(r,500));
+  if(ID_TOKEN===lama) throw new Error('Sesi login Google habis. Tutup lalu buka ulang aplikasi (atau login ulang), lalu coba lagi.');
+}
 async function gasFetch(url){
+  await pastikanTokenSegar_();
   if (ID_TOKEN && !url.includes('id_token=')) {
     url += (url.includes('?') ? '&' : '?') + 'id_token=' + encodeURIComponent(ID_TOKEN);
   }
@@ -3670,6 +3687,8 @@ async function bacaNotaFoto(fileLangsung){
   let raw = '', tahap = 'kompres foto';
   try{
     const b64 = await kompresFoto_(f);
+    tahap = 'cek login';
+    await pastikanTokenSegar_();
     tahap = 'kirim ke server';
     const res = await fetch(APP.GAS_URL, {method:'POST', redirect:'follow', headers:{'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify({action:'bacaNota', id_token: ID_TOKEN, image_base64: b64, mime:'image/jpeg'})});
