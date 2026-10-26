@@ -550,7 +550,9 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     <div id="kbo-baca-nota-view" class="hide" style="margin-top:20px;padding-top:14px;border-top:1px solid var(--bdr);">
       <div class="stitle" style="font-size:13px;">🧾 Baca Nota <span style="font-weight:400;font-size:10px;color:var(--inks);">(foto nota → masuk sheet PermintaanBahan)</span></div>
       <div style="display:flex;gap:6px;margin-top:6px;align-items:center;flex-wrap:wrap;">
-        <input type="file" id="bn-file" accept="image/*" style="flex:1;min-width:180px;font-size:12px;">
+        <input type="file" id="bn-cam" accept="image/*" capture="environment" class="hide" onchange="if(this.files[0]){document.getElementById('bn-file').value='';bacaNotaFoto(this.files[0]);}">
+        <button class="bico" onclick="document.getElementById('bn-cam').click()">📷 Ambil Foto</button>
+        <input type="file" id="bn-file" accept="image/*" style="flex:1;min-width:160px;font-size:12px;">
         <button class="bico" id="bn-baca-btn" onclick="bacaNotaFoto()">🔍 Baca Nota</button>
       </div>
       <div id="bn-status" style="font-size:11px;color:var(--inks);margin-top:6px;"></div>
@@ -3653,8 +3655,8 @@ function kompresFoto_(file, maxSisi=1600, q=0.8){
     img.src = url;
   });
 }
-async function bacaNotaFoto(){
-  const f = document.getElementById('bn-file').files[0];
+async function bacaNotaFoto(fileLangsung){
+  const f = fileLangsung || document.getElementById('bn-file').files[0];
   const st = document.getElementById('bn-status'), btn = document.getElementById('bn-baca-btn');
   if(!f){ toast('Pilih foto nota dulu','err'); return; }
   btn.disabled = true; st.textContent = '⏳ Membaca nota… (±5–15 detik)';
@@ -3702,6 +3704,7 @@ function resetBacaNota_(){
   BN_ITEMS_ = [];
   document.getElementById('bn-hasil').classList.add('hide');
   document.getElementById('bn-file').value = '';
+  document.getElementById('bn-cam').value = '';
   document.getElementById('bn-status').textContent = '';
 }
 async function simpanNotaKeSheet(){
