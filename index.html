@@ -546,6 +546,27 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       <div id="kbo-warning-simple"></div>
     </div>
 
+    <!-- Baca Nota — foto nota → Gemini → PermintaanBahan. Hanya finance & admin. -->
+    <div id="kbo-baca-nota-view" class="hide" style="margin-top:20px;padding-top:14px;border-top:1px solid var(--bdr);">
+      <div class="stitle" style="font-size:13px;">🧾 Baca Nota <span style="font-weight:400;font-size:10px;color:var(--inks);">(foto nota → masuk sheet PermintaanBahan)</span></div>
+      <div style="display:flex;gap:6px;margin-top:6px;align-items:center;flex-wrap:wrap;">
+        <input type="file" id="bn-file" accept="image/*" style="flex:1;min-width:180px;font-size:12px;">
+        <button class="bico" id="bn-baca-btn" onclick="bacaNotaFoto()">🔍 Baca Nota</button>
+      </div>
+      <div id="bn-status" style="font-size:11px;color:var(--inks);margin-top:6px;"></div>
+      <div id="bn-hasil" class="hide" style="margin-top:8px;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <input type="date" id="bn-tgl" style="padding:6px 8px;font-size:12px;">
+          <input type="text" id="bn-supplier" placeholder="Supplier / toko" style="flex:1;min-width:140px;padding:6px 8px;font-size:12px;">
+        </div>
+        <div style="overflow-x:auto;margin-top:8px;"><table id="bn-table" style="width:100%;font-size:11px;border-collapse:collapse;"></table></div>
+        <div id="bn-total" style="font-size:12px;font-weight:700;text-align:right;margin-top:6px;"></div>
+        <div style="display:flex;gap:6px;margin-top:8px;">
+          <button class="bico" style="flex:1;" onclick="simpanNotaKeSheet()" id="bn-simpan-btn">💾 Simpan ke PermintaanBahan</button>
+          <button class="bico" onclick="resetBacaNota_()">Batal</button>
+        </div>
+      </div>
+    </div>
     <!-- Riwayat Harga Bahan — dari kolom Harga Satuan di sheet PermintaanBahan.
          Section TERPISAH dgn rolenya sendiri (pembelian/finance/admin/sales) —
          beda dari tabel Qty di atas (leader dapur/pembelian/admin), krn ini info
@@ -3614,6 +3635,89 @@ function renderGrafikChart(j, elId, emptyMsg){
   `;
 }
 
+
+// ══ BACA NOTA (finance & admin) ═══════════════════════════
+let BN_KATEGORI_ = [], BN_ITEMS_ = [];
+function kompresFoto_(file, maxSisi=1600, q=0.8){
+  return new Promise((res, rej)=>{
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = ()=>{
+      const r = Math.min(1, maxSisi/Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width*r); c.height = Math.round(img.height*r);
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      URL.revokeObjectURL(url);
+      res(c.toDataURL('image/jpeg', q).split(',')[1]);
+    };
+    img.onerror = ()=>rej(new Error('Foto tidak bisa dibuka.'));
+    img.src = url;
+  });
+}
+async function bacaNotaFoto(){
+  const f = document.getElementById('bn-file').files[0];
+  const st = document.getElementById('bn-status'), btn = document.getElementById('bn-baca-btn');
+  if(!f){ toast('Pilih foto nota dulu','err'); return; }
+  btn.disabled = true; st.textContent = '⏳ Membaca nota… (±5–15 detik)';
+  try{
+    const b64 = await kompresFoto_(f);
+    const res = await fetch(APP.GAS_URL, {method:'POST', redirect:'follow', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({action:'bacaNota', id_token: ID_TOKEN, image_base64: b64, mime:'image/jpeg'})});
+    const text = await res.text();
+    if(text.trim().startsWith('<')) throw new Error('GAS return HTML');
+    const j = JSON.parse(text);
+    if(!j.success) throw new Error(j.message);
+    BN_KATEGORI_ = j.kategori_list || [];
+    BN_ITEMS_ = j.items || [];
+    document.getElementById('bn-tgl').value = j.tanggal || new Date().toISOString().slice(0,10);
+    document.getElementById('bn-supplier').value = j.supplier || '';
+    renderBnTable_();
+    document.getElementById('bn-hasil').classList.remove('hide');
+    st.textContent = BN_ITEMS_.length + ' item terbaca. Periksa & koreksi dulu sebelum simpan.';
+  }catch(e){ st.textContent = '⚠️ ' + e.message; }
+  btn.disabled = false;
+}
+function renderBnTable_(){
+  const esc = v=>String(v==null?'':v).replace(/"/g,'&quot;');
+  const th = 'style="text-align:left;padding:3px;border-bottom:1px solid var(--bdr);"';
+  let h = `<tr><th ${th}>Nama</th><th ${th}>Kategori</th><th ${th}>Qty</th><th ${th}>Satuan</th><th ${th}>Harga</th><th ${th}>Jumlah</th><th></th></tr>`;
+  BN_ITEMS_.forEach((it,i)=>{
+    const opts = '<option value="">— pilih —</option>' + BN_KATEGORI_.map(k=>`<option ${k===it.kategori?'selected':''}>${k}</option>`).join('');
+    const inp = (f,w,t='text')=>`<input type="${t}" value="${esc(it[f])}" style="width:${w};padding:3px;font-size:11px;" onchange="ubahBnItem_(${i},'${f}',this.value)">`;
+    h += `<tr><td>${inp('nama','120px')}${it.di_master?'':'<div style="font-size:9px;color:#C8521A;">baru</div>'}</td>
+      <td><select style="font-size:11px;padding:3px;" onchange="ubahBnItem_(${i},'kategori',this.value)">${opts}</select></td>
+      <td>${inp('qty','52px','number')}</td><td>${inp('satuan','48px')}</td><td>${inp('harga_satuan','72px','number')}</td>
+      <td style="text-align:right;">${Math.round((Number(it.qty)||0)*(Number(it.harga_satuan)||0)).toLocaleString('id-ID')}</td>
+      <td><button onclick="hapusBnItem_(${i})" style="border:0;background:none;cursor:pointer;">✕</button></td></tr>`;
+  });
+  document.getElementById('bn-table').innerHTML = h;
+  const tot = BN_ITEMS_.reduce((s,it)=>s+Math.round((Number(it.qty)||0)*(Number(it.harga_satuan)||0)),0);
+  document.getElementById('bn-total').textContent = 'Total: Rp ' + tot.toLocaleString('id-ID');
+}
+function ubahBnItem_(i,f,v){
+  BN_ITEMS_[i][f] = (f==='qty'||f==='harga_satuan') ? (Number(v)||0) : v;
+  renderBnTable_();
+}
+function hapusBnItem_(i){ BN_ITEMS_.splice(i,1); renderBnTable_(); }
+function resetBacaNota_(){
+  BN_ITEMS_ = [];
+  document.getElementById('bn-hasil').classList.add('hide');
+  document.getElementById('bn-file').value = '';
+  document.getElementById('bn-status').textContent = '';
+}
+async function simpanNotaKeSheet(){
+  if(!BN_ITEMS_.length){ toast('Tidak ada item','err'); return; }
+  const btn = document.getElementById('bn-simpan-btn'); btn.disabled = true;
+  try{
+    const q = new URLSearchParams({action:'simpanNotaPembelian', tanggal:document.getElementById('bn-tgl').value,
+      supplier:document.getElementById('bn-supplier').value, items: JSON.stringify(BN_ITEMS_), t: Date.now()});
+    const j = await gasFetch(APP.GAS_URL + '?' + q.toString());
+    if(!j.success) throw new Error(j.message);
+    toast('✅ Tersimpan: ' + j.no_permintaan + ' (' + j.jumlah_item + ' item)');
+    resetBacaNota_();
+  }catch(e){ toast('Gagal simpan: ' + e.message,'err'); }
+  btn.disabled = false;
+}
+
 let GF_JUAL_ = null, GF_BELI_ = null;
 function renderGrafikBpp_(){
   if(!GF_JUAL_ || !GF_BELI_) return;
@@ -4497,6 +4601,7 @@ function goTab(id,btn){
     document.getElementById('kbo-full-view').classList.toggle('hide', !bisaLengkap);
     document.getElementById('kbo-simple-view').classList.toggle('hide', bisaLengkap);
     document.getElementById('kbo-riwayat-harga-view').classList.toggle('hide', !bisaRiwayatHarga);
+       document.getElementById('kbo-baca-nota-view').classList.toggle('hide', !(CURRENT_USER && ['finance','admin'].includes(CURRENT_USER.role)));
     if(bisaLengkap) loadKebutuhanBahanOtomatis(); else loadPeringatanBelanjaOtomatisSaja();
     if(bisaRiwayatHarga){
       document.getElementById('rhb-table').innerHTML = '<div class="empty" style="padding:10px;"><p style="font-size:12px;">N/A — ketik nama bahan dulu utk lihat riwayat harganya.</p></div>';
