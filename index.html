@@ -389,10 +389,14 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 <!-- ═══ GRAFIK ═══ -->
 <div class="panel" id="panel-grafik">
   <div class="lbar">
-    <button class="bico" onclick="loadGrafik()" style="flex:1;">↻ Refresh Grafik</button>
+    <button class="bico" onclick="loadGrafik();loadGrafikPengeluaran();" style="flex:1;">↻ Refresh Grafik</button>
   </div>
   <div id="gf-updated" style="font-size:11px;color:var(--inks);text-align:center;margin-bottom:10px;"></div>
   <div id="gf-chart"><div class="empty"><div class="eico">📊</div><p>Klik Refresh untuk memuat grafik.</p></div></div>
+
+  <div class="stitle" style="margin-top:20px;">💸 Pengeluaran Bahan Baku (per Bulan)</div>
+  <div id="gf-peng-updated" style="font-size:11px;color:var(--inks);text-align:center;margin-bottom:10px;"></div>
+  <div id="gf-peng-chart"><div class="empty"><div class="eico">💸</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
 
   <div class="stitle" style="margin-top:20px;">📅 Grafik Harian (15 Hari ke Depan)</div>
   <div id="gf-harian-updated" style="font-size:11px;color:var(--inks);text-align:center;margin-bottom:10px;"></div>
@@ -3530,11 +3534,11 @@ function formatRupiahSingkat_(v){
   return String(v);
 }
 
-function renderGrafikChart(j){
-  const chartEl = document.getElementById('gf-chart');
+function renderGrafikChart(j, elId, emptyMsg){
+  const chartEl = document.getElementById(elId || 'gf-chart');
   const bulanList = j.bulanList||[], kategoriList = j.kategoriList||[], data = j.data||{};
   if(!bulanList.length){
-    chartEl.innerHTML = `<div class="empty"><div class="eico">📊</div><p>Belum ada data order sejak Juli 2026.</p></div>`;
+    chartEl.innerHTML = `<div class="empty"><div class="eico">📊</div><p>${emptyMsg || 'Belum ada data order sejak Juli 2026.'}</p></div>`;
     return;
   }
 
@@ -3600,6 +3604,20 @@ function renderGrafikChart(j){
     </div>
     <div style="display:flex;flex-wrap:wrap;margin-top:10px;padding:0 4px;">${legend}</div>
   `;
+}
+
+async function loadGrafikPengeluaran(){
+  const chartEl = document.getElementById('gf-peng-chart');
+  const updEl = document.getElementById('gf-peng-updated');
+  chartEl.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat pengeluaran…</div>';
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=getGrafikPengeluaran&t=' + Date.now());
+    if(!j.success){ chartEl.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>${j.message}</p></div>`; return; }
+    if(j.lastUpdated) updEl.textContent = 'Sumber: sheet PermintaanBahan (tanpa status Batal) · ' + new Date(j.lastUpdated).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'});
+    renderGrafikChart(j, 'gf-peng-chart', 'Belum ada pengeluaran tercatat sejak Juli 2026.');
+  }catch(e){
+    chartEl.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>Gagal memuat: ${e.message}</p></div>`;
+  }
 }
 
 // ══ GRAFIK HARIAN (jumlah total per produk per hari, 15 hari ke depan, dari cache) ═══
@@ -4415,7 +4433,7 @@ function goTab(id,btn){
   btn.classList.add('on');
   if(id==='jadwal'){ if(allOrders.length===0) loadOrders().then(renderJadwal); else renderJadwal(); }
   if(id==='masak'){ if(allOrders.length===0) loadOrders().then(renderJadwalMasak); else renderJadwalMasak(); }
-  if(id==='grafik'){ loadGrafik(); loadGrafikHarian(); }
+  if(id==='grafik'){ loadGrafik(); loadGrafikPengeluaran(); loadGrafikHarian(); }
   if(id==='absensi'){ initAbsensiTab(); if(CURRENT_USER && isFullAccessRole(CURRENT_USER.role)) loadStatusTim(); }
   if(id==='laporan'){ loadLaporanList(); }
   if(id==='keuangan'){
