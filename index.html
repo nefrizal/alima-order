@@ -566,6 +566,11 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 <div class="panel" id="panel-nota">
     <!-- Baca Nota — foto nota → Gemini → PermintaanBahan. Hanya finance & admin. -->
     <div id="kbo-baca-nota-view">
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
+        <input type="text" id="bn-no-cari" inputmode="numeric" maxlength="6" placeholder="🔎 No. nota (6 digit) utk revisi / lihat foto" style="flex:1;padding:6px 8px;font-size:12px;" onkeydown="if(event.key==='Enter')bukaNota()">
+        <button class="bico" onclick="bukaNota()">Buka</button>
+      </div>
+      <div id="bn-daftar" style="font-size:11px;margin-bottom:10px;"></div>
       <div class="stitle" style="font-size:13px;">🧾 Baca Nota <span style="font-weight:400;font-size:10px;color:var(--inks);">(foto nota → masuk sheet PermintaanBahan)</span></div>
       <div style="display:flex;gap:6px;margin-top:6px;align-items:center;flex-wrap:wrap;">
         <input type="file" id="bn-cam" accept="image/*" capture="environment" class="hide" onchange="if(this.files[0]){document.getElementById('bn-file').value='';bacaNotaFoto(this.files[0]);}">
@@ -574,8 +579,9 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
         <button class="bico" id="bn-baca-btn" onclick="bacaNotaFoto()">🔍 Baca Nota</button>
       </div>
       <div id="bn-status" style="font-size:11px;color:var(--inks);margin-top:6px;"></div>
-      <div style="font-size:9px;color:var(--inks);opacity:.6;margin-top:4px;">versi Baca Nota: 27okt-5</div>
+      <div style="font-size:9px;color:var(--inks);opacity:.6;margin-top:4px;">versi Baca Nota: 27okt-6</div>
       <div id="bn-hasil" class="hide" style="margin-top:8px;">
+        <div id="bn-edit-head" class="hide" style="background:#FFF3E0;border:1px solid #F0C48A;border-radius:8px;padding:8px;font-size:12px;margin-bottom:8px;"></div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
           <input type="date" id="bn-tgl" style="padding:6px 8px;font-size:12px;">
           <input type="text" id="bn-supplier" placeholder="Supplier / toko" style="flex:1;min-width:140px;padding:6px 8px;font-size:12px;">
@@ -3673,7 +3679,7 @@ function renderGrafikChart(j, elId, emptyMsg){
 
 
 // ══ BACA NOTA (finance & admin) ═══════════════════════════
-let BN_KATEGORI_ = [], BN_ITEMS_ = [], BN_B64_ = '';
+let BN_KATEGORI_ = [], BN_ITEMS_ = [], BN_B64_ = '', BN_EDIT_NO_ = '';
 function kompresFoto_(file, maxSisi=1280, q=0.7){
   return new Promise((res, rej)=>{
     const img = new Image(), url = URL.createObjectURL(file);
@@ -3740,7 +3746,8 @@ function ubahBnItem_(i,f,v){
 }
 function hapusBnItem_(i){ BN_ITEMS_.splice(i,1); renderBnTable_(); }
 function resetBacaNota_(){
-  BN_ITEMS_ = []; BN_B64_ = '';
+  BN_ITEMS_ = []; BN_B64_ = ''; BN_EDIT_NO_ = '';
+  document.getElementById('bn-edit-head').classList.add('hide');
   document.getElementById('bn-hasil').classList.add('hide');
   document.getElementById('bn-file').value = '';
   document.getElementById('bn-cam').value = '';
@@ -3752,7 +3759,7 @@ async function simpanNotaKeSheet(paksa){
   try{
     await pastikanTokenSegar_();
     const res = await fetch(APP.GAS_URL, {method:'POST', redirect:'follow', headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify({action:'simpanNotaPembelian', id_token: ID_TOKEN, tanggal:document.getElementById('bn-tgl').value,
+      body: JSON.stringify({action:'simpanNotaPembelian', id_token: ID_TOKEN, revisi_no: BN_EDIT_NO_, tanggal:document.getElementById('bn-tgl').value,
         supplier:document.getElementById('bn-supplier').value, items: BN_ITEMS_, image_base64: BN_B64_, paksa: paksa===true})});
     const text = await res.text();
     if(text.trim().startsWith('<')) throw new Error('GAS return HTML');
@@ -3766,10 +3773,44 @@ async function simpanNotaKeSheet(paksa){
       if(/Gagal verifikasi token|invalid_token|kedaluwarsa|Token login/i.test(j.message||'')) loginUlangPaksa_();
       throw new Error(j.message || 'Server menolak tanpa pesan');
     }
-    toast('✅ Tersimpan: ' + j.no_permintaan + ' (' + j.jumlah_item + ' item)' + (j.link_foto && j.link_foto.indexOf('GAGAL')===0 ? ' — foto gagal diarsipkan' : ''));
+    toast('✅ Nota ' + j.no_nota + (j.revisi?' direvisi':' tersimpan') + ' (' + j.jumlah_item + ' item)' + (j.link_foto && j.link_foto.indexOf('GAGAL')===0 ? ' — foto gagal diarsipkan' : ''));
     resetBacaNota_();
+    const stEl = document.getElementById('bn-status');
+    stEl.innerHTML = '<div style="font-size:15px;color:var(--ink);background:#E8F5E9;border:1px solid #A5D6A7;border-radius:8px;padding:10px;">✅ ' + (j.revisi?'Nota direvisi':'Nota tersimpan') + '. <b>No. Nota: <span style="font-size:22px;letter-spacing:2px;">' + j.no_nota + '</span></b><br><span style="font-size:11px;">Tulis nomor ini di nota fisik.</span>' + (j.link_foto && j.link_foto.indexOf('http')===0 ? ' <a href="' + j.link_foto + '" target="_blank" rel="noopener">📷 Lihat foto</a>' : '') + '</div>';
+    loadDaftarNota();
   }catch(e){ toast('Gagal simpan: ' + e.message,'err'); }
   btn.disabled = false;
+}
+
+async function loadDaftarNota(){
+  const el = document.getElementById('bn-daftar');
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=getDaftarNota&t=' + Date.now());
+    if(!j.success){ el.textContent = j.message; return; }
+    if(!j.data.length){ el.innerHTML = '<span style="color:var(--inks);">Belum ada nota tersimpan.</span>'; return; }
+    el.innerHTML = '<div style="color:var(--inks);margin-bottom:3px;">Nota terakhir (klik untuk buka):</div>' + j.data.map(n =>
+      `<div onclick="bukaNota('${n.nomor}')" style="cursor:pointer;padding:4px 6px;border-bottom:1px solid var(--bdr);display:flex;gap:8px;"><b>${n.nomor}</b><span style="flex:1;">${n.tanggal} · ${n.supplier||'-'}</span><span>Rp ${Number(n.total).toLocaleString('id-ID')}</span></div>`).join('');
+  }catch(e){ el.textContent = 'Gagal memuat daftar nota: ' + e.message; }
+}
+async function bukaNota(nomor){
+  nomor = String(nomor || document.getElementById('bn-no-cari').value || '').trim();
+  const st = document.getElementById('bn-status');
+  if(!nomor){ toast('Isi nomor nota dulu','err'); return; }
+  st.textContent = '⏳ Membuka nota ' + nomor + '…';
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=getNotaDetail&nomor=' + encodeURIComponent(nomor) + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+    BN_EDIT_NO_ = j.nomor; BN_B64_ = '';
+    BN_KATEGORI_ = j.kategori_list || []; BN_ITEMS_ = j.items || [];
+    document.getElementById('bn-tgl').value = j.tanggal;
+    document.getElementById('bn-supplier').value = j.supplier;
+    const head = document.getElementById('bn-edit-head');
+    head.innerHTML = '✏️ Revisi <b>Nota ' + j.nomor + '</b>' + (j.link_foto && j.link_foto.indexOf('http')===0 ? ' · <a href="' + j.link_foto + '" target="_blank" rel="noopener">📷 Lihat foto nota</a>' : ' · (tidak ada foto)') + '<br><span style="font-size:10px;color:var(--inks);">Ubah lalu klik Simpan — data lama otomatis diganti.</span>';
+    head.classList.remove('hide');
+    renderBnTable_();
+    document.getElementById('bn-hasil').classList.remove('hide');
+    st.textContent = '';
+  }catch(e){ st.textContent = '⚠️ ' + e.message; }
 }
 
 let GF_JUAL_ = null, GF_BELI_ = null;
@@ -4635,6 +4676,7 @@ function goTab(id,btn){
   if(id==='grafik'){ loadGrafik(); loadGrafikPengeluaran(); loadGrafikHarian(); }
   if(id==='absensi'){ initAbsensiTab(); if(CURRENT_USER && isFullAccessRole(CURRENT_USER.role)) loadStatusTim(); }
   if(id==='laporan'){ loadLaporanList(); }
+  if(id==='nota'){ loadDaftarNota(); }
   if(id==='keuangan'){
     const level = CURRENT_USER ? CURRENT_USER.aksesKeuanganLevel : '';
     if(level === 'Lihat' || level === 'Semua'){
