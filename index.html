@@ -1766,7 +1766,8 @@ function retryLogin(){
 // Karyawan hanya boleh lihat tab Jadwal — tab lain disembunyikan total.
 function applyKaryawanAccess(){
   document.getElementById('tab-form').classList.add('hide');
-  document.getElementById('tab-grafik').classList.add('hide');
+  // Finance boleh lihat tab Grafik (backend juga mengizinkan: GRAFIK_ACTIONS_); role lain disembunyikan
+  if (!CURRENT_USER || CURRENT_USER.role !== 'finance') document.getElementById('tab-grafik').classList.add('hide');
   document.getElementById('tab-laporan').classList.add('hide');
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('on'));
