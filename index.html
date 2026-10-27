@@ -574,7 +574,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
         <button class="bico" id="bn-baca-btn" onclick="bacaNotaFoto()">🔍 Baca Nota</button>
       </div>
       <div id="bn-status" style="font-size:11px;color:var(--inks);margin-top:6px;"></div>
-      <div style="font-size:9px;color:var(--inks);opacity:.6;margin-top:4px;">versi Baca Nota: 27okt-4</div>
+      <div style="font-size:9px;color:var(--inks);opacity:.6;margin-top:4px;">versi Baca Nota: 27okt-5</div>
       <div id="bn-hasil" class="hide" style="margin-top:8px;">
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
           <input type="date" id="bn-tgl" style="padding:6px 8px;font-size:12px;">
@@ -3672,7 +3672,7 @@ function renderGrafikChart(j, elId, emptyMsg){
 
 
 // ══ BACA NOTA (finance & admin) ═══════════════════════════
-let BN_KATEGORI_ = [], BN_ITEMS_ = [];
+let BN_KATEGORI_ = [], BN_ITEMS_ = [], BN_B64_ = '';
 function kompresFoto_(file, maxSisi=1280, q=0.7){
   return new Promise((res, rej)=>{
     const img = new Image(), url = URL.createObjectURL(file);
@@ -3696,6 +3696,7 @@ async function bacaNotaFoto(fileLangsung){
   let raw = '', tahap = 'kompres foto';
   try{
     const b64 = await kompresFoto_(f);
+    BN_B64_ = b64;
     tahap = 'cek login';
     await pastikanTokenSegar_();
     tahap = 'kirim ke server';
@@ -3738,21 +3739,33 @@ function ubahBnItem_(i,f,v){
 }
 function hapusBnItem_(i){ BN_ITEMS_.splice(i,1); renderBnTable_(); }
 function resetBacaNota_(){
-  BN_ITEMS_ = [];
+  BN_ITEMS_ = []; BN_B64_ = '';
   document.getElementById('bn-hasil').classList.add('hide');
   document.getElementById('bn-file').value = '';
   document.getElementById('bn-cam').value = '';
   document.getElementById('bn-status').textContent = '';
 }
-async function simpanNotaKeSheet(){
+async function simpanNotaKeSheet(paksa){
   if(!BN_ITEMS_.length){ toast('Tidak ada item','err'); return; }
   const btn = document.getElementById('bn-simpan-btn'); btn.disabled = true;
   try{
-    const q = new URLSearchParams({action:'simpanNotaPembelian', tanggal:document.getElementById('bn-tgl').value,
-      supplier:document.getElementById('bn-supplier').value, items: JSON.stringify(BN_ITEMS_), t: Date.now()});
-    const j = await gasFetch(APP.GAS_URL + '?' + q.toString());
-    if(!j.success) throw new Error(j.message);
-    toast('✅ Tersimpan: ' + j.no_permintaan + ' (' + j.jumlah_item + ' item)');
+    await pastikanTokenSegar_();
+    const res = await fetch(APP.GAS_URL, {method:'POST', redirect:'follow', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({action:'simpanNotaPembelian', id_token: ID_TOKEN, tanggal:document.getElementById('bn-tgl').value,
+        supplier:document.getElementById('bn-supplier').value, items: BN_ITEMS_, image_base64: BN_B64_, paksa: paksa===true})});
+    const text = await res.text();
+    if(text.trim().startsWith('<')) throw new Error('GAS return HTML');
+    const j = JSON.parse(text);
+    if(!j.success){
+      if(j.duplikat){
+        btn.disabled = false;
+        if(confirm(j.message + '\n\nTetap simpan sebagai nota baru?')) return simpanNotaKeSheet(true);
+        return;
+      }
+      if(/Gagal verifikasi token|invalid_token|kedaluwarsa|Token login/i.test(j.message||'')) loginUlangPaksa_();
+      throw new Error(j.message || 'Server menolak tanpa pesan');
+    }
+    toast('✅ Tersimpan: ' + j.no_permintaan + ' (' + j.jumlah_item + ' item)' + (j.link_foto && j.link_foto.indexOf('GAGAL')===0 ? ' — foto gagal diarsipkan' : ''));
     resetBacaNota_();
   }catch(e){ toast('Gagal simpan: ' + e.message,'err'); }
   btn.disabled = false;
