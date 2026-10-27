@@ -566,11 +566,6 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 <div class="panel" id="panel-nota">
     <!-- Baca Nota — foto nota → Gemini → PermintaanBahan. Hanya finance & admin. -->
     <div id="kbo-baca-nota-view">
-      <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
-        <input type="text" id="bn-no-cari" inputmode="numeric" maxlength="6" placeholder="🔎 No. nota (6 digit) utk revisi / lihat foto" style="flex:1;padding:6px 8px;font-size:12px;" onkeydown="if(event.key==='Enter')bukaNota()">
-        <button class="bico" onclick="bukaNota()">Buka</button>
-      </div>
-      <div id="bn-daftar" style="font-size:11px;margin-bottom:10px;"></div>
       <div class="stitle" style="font-size:13px;">🧾 Baca Nota <span style="font-weight:400;font-size:10px;color:var(--inks);">(foto nota → masuk sheet PermintaanBahan)</span></div>
       <div style="display:flex;gap:6px;margin-top:6px;align-items:center;flex-wrap:wrap;">
         <input type="file" id="bn-cam" accept="image/*" capture="environment" class="hide" onchange="if(this.files[0]){document.getElementById('bn-file').value='';bacaNotaFoto(this.files[0]);}">
@@ -579,12 +574,16 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
         <button class="bico" id="bn-baca-btn" onclick="bacaNotaFoto()">🔍 Baca Nota</button>
       </div>
       <div id="bn-status" style="font-size:11px;color:var(--inks);margin-top:6px;"></div>
-      <div style="font-size:9px;color:var(--inks);opacity:.6;margin-top:4px;">versi Baca Nota: 27okt-6</div>
       <div id="bn-hasil" class="hide" style="margin-top:8px;">
         <div id="bn-edit-head" class="hide" style="background:#FFF3E0;border:1px solid #F0C48A;border-radius:8px;padding:8px;font-size:12px;margin-bottom:8px;"></div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
           <input type="date" id="bn-tgl" style="padding:6px 8px;font-size:12px;">
           <input type="text" id="bn-supplier" placeholder="Supplier / toko" style="flex:1;min-width:140px;padding:6px 8px;font-size:12px;">
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;margin-top:8px;font-size:12px;">
+          <span>Status bayar:</span>
+          <button class="bico" id="bn-st-lunas" onclick="setStatusBayarForm_('Lunas')">✅ Lunas</button>
+          <button class="bico" id="bn-st-hutang" onclick="setStatusBayarForm_('Hutang')">🕓 Hutang</button>
         </div>
         <div style="overflow-x:auto;margin-top:8px;"><table id="bn-table" style="width:100%;font-size:11px;border-collapse:collapse;"></table></div>
         <div id="bn-total" style="font-size:12px;font-weight:700;text-align:right;margin-top:6px;"></div>
@@ -593,6 +592,21 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
           <button class="bico" onclick="resetBacaNota_()">Batal</button>
         </div>
       </div>
+
+      <div style="margin-top:20px;padding-top:14px;border-top:1px solid var(--bdr);">
+        <div class="stitle" style="font-size:13px;">📋 Daftar Nota</div>
+        <div style="display:flex;gap:6px;align-items:center;margin:6px 0;">
+          <input type="text" id="bn-no-cari" inputmode="numeric" maxlength="6" placeholder="🔎 No. nota (6 digit) utk revisi / lihat foto" style="flex:1;padding:6px 8px;font-size:12px;" onkeydown="if(event.key==='Enter')bukaNota()">
+          <button class="bico" onclick="bukaNota()">Buka</button>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:6px;font-size:11px;">
+          <button class="bico" id="bn-f-semua" onclick="filterDaftarNota_('')">Semua</button>
+          <button class="bico" id="bn-f-hutang" onclick="filterDaftarNota_('Hutang')">🕓 Hutang</button>
+          <button class="bico" id="bn-f-lunas" onclick="filterDaftarNota_('Lunas')">✅ Lunas</button>
+        </div>
+        <div id="bn-daftar" style="font-size:11px;"></div>
+      </div>
+      <div style="font-size:9px;color:var(--inks);opacity:.6;margin-top:10px;">versi Baca Nota: 27okt-7</div>
     </div>
 </div>
 
@@ -3679,7 +3693,12 @@ function renderGrafikChart(j, elId, emptyMsg){
 
 
 // ══ BACA NOTA (finance & admin) ═══════════════════════════
-let BN_KATEGORI_ = [], BN_ITEMS_ = [], BN_B64_ = '', BN_EDIT_NO_ = '';
+let BN_KATEGORI_ = [], BN_ITEMS_ = [], BN_B64_ = '', BN_EDIT_NO_ = '', BN_STATUS_ = 'Lunas', BN_DAFTAR_ = [], BN_FILTER_ = '';
+function setStatusBayarForm_(st){
+  BN_STATUS_ = st;
+  const a = document.getElementById('bn-st-lunas'), b = document.getElementById('bn-st-hutang');
+  if(a&&b){ a.style.opacity = st==='Lunas' ? '1' : '.4'; b.style.opacity = st==='Hutang' ? '1' : '.4'; a.style.outline = st==='Lunas' ? '2px solid #2E7D32' : 'none'; b.style.outline = st==='Hutang' ? '2px solid #C8521A' : 'none'; }
+}
 function kompresFoto_(file, maxSisi=1280, q=0.7){
   return new Promise((res, rej)=>{
     const img = new Image(), url = URL.createObjectURL(file);
@@ -3717,6 +3736,7 @@ async function bacaNotaFoto(fileLangsung){
     BN_ITEMS_ = j.items || [];
     document.getElementById('bn-tgl').value = j.tanggal || new Date().toISOString().slice(0,10);
     document.getElementById('bn-supplier').value = j.supplier || '';
+    setStatusBayarForm_('Lunas');
     renderBnTable_();
     document.getElementById('bn-hasil').classList.remove('hide');
     st.textContent = BN_ITEMS_.length + ' item terbaca. Periksa & koreksi dulu sebelum simpan.';
@@ -3746,7 +3766,7 @@ function ubahBnItem_(i,f,v){
 }
 function hapusBnItem_(i){ BN_ITEMS_.splice(i,1); renderBnTable_(); }
 function resetBacaNota_(){
-  BN_ITEMS_ = []; BN_B64_ = ''; BN_EDIT_NO_ = '';
+  BN_ITEMS_ = []; BN_B64_ = ''; BN_EDIT_NO_ = ''; setStatusBayarForm_('Lunas');
   document.getElementById('bn-edit-head').classList.add('hide');
   document.getElementById('bn-hasil').classList.add('hide');
   document.getElementById('bn-file').value = '';
@@ -3759,7 +3779,7 @@ async function simpanNotaKeSheet(paksa){
   try{
     await pastikanTokenSegar_();
     const res = await fetch(APP.GAS_URL, {method:'POST', redirect:'follow', headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify({action:'simpanNotaPembelian', id_token: ID_TOKEN, revisi_no: BN_EDIT_NO_, tanggal:document.getElementById('bn-tgl').value,
+      body: JSON.stringify({action:'simpanNotaPembelian', id_token: ID_TOKEN, revisi_no: BN_EDIT_NO_, status_bayar: BN_STATUS_, tanggal:document.getElementById('bn-tgl').value,
         supplier:document.getElementById('bn-supplier').value, items: BN_ITEMS_, image_base64: BN_B64_, paksa: paksa===true})});
     const text = await res.text();
     if(text.trim().startsWith('<')) throw new Error('GAS return HTML');
@@ -3787,10 +3807,37 @@ async function loadDaftarNota(){
   try{
     const j = await gasFetch(APP.GAS_URL + '?action=getDaftarNota&t=' + Date.now());
     if(!j.success){ el.textContent = j.message; return; }
-    if(!j.data.length){ el.innerHTML = '<span style="color:var(--inks);">Belum ada nota tersimpan.</span>'; return; }
-    el.innerHTML = '<div style="color:var(--inks);margin-bottom:3px;">Nota terakhir (klik untuk buka):</div>' + j.data.map(n =>
-      `<div onclick="bukaNota('${n.nomor}')" style="cursor:pointer;padding:4px 6px;border-bottom:1px solid var(--bdr);display:flex;gap:8px;"><b>${n.nomor}</b><span style="flex:1;">${n.tanggal} · ${n.supplier||'-'}</span><span>Rp ${Number(n.total).toLocaleString('id-ID')}</span></div>`).join('');
+    BN_DAFTAR_ = j.data || [];
+    renderDaftarNota_();
   }catch(e){ el.textContent = 'Gagal memuat daftar nota: ' + e.message; }
+}
+function filterDaftarNota_(st){ BN_FILTER_ = st; renderDaftarNota_(); }
+function renderDaftarNota_(){
+  const el = document.getElementById('bn-daftar');
+  [['bn-f-semua',''],['bn-f-hutang','Hutang'],['bn-f-lunas','Lunas']].forEach(([id,v])=>{ const b=document.getElementById(id); if(b) b.style.opacity = (BN_FILTER_===v)?'1':'.45'; });
+  const data = BN_DAFTAR_.filter(n=> !BN_FILTER_ || n.status_bayar===BN_FILTER_);
+  if(!data.length){ el.innerHTML = '<span style="color:var(--inks);">Tidak ada nota.</span>'; return; }
+  const totHutang = BN_DAFTAR_.filter(n=>n.status_bayar==='Hutang').reduce((s,n)=>s+(Number(n.total)||0),0);
+  el.innerHTML = (totHutang ? `<div style="margin-bottom:4px;color:#C8521A;font-weight:700;">Total hutang (40 nota terakhir): Rp ${totHutang.toLocaleString('id-ID')}</div>` : '') +
+    data.map(n=>{
+      const warna = n.status_bayar==='Hutang' ? '#C8521A' : (n.status_bayar==='Lunas' ? '#2E7D32' : '#999');
+      const label = n.status_bayar || '—';
+      return `<div style="padding:5px 6px;border-bottom:1px solid var(--bdr);display:flex;gap:8px;align-items:center;">
+        <b onclick="bukaNota('${n.nomor}')" style="cursor:pointer;">${n.nomor}</b>
+        <span onclick="bukaNota('${n.nomor}')" style="flex:1;cursor:pointer;">${n.tanggal} · ${n.supplier||'-'}<br>Rp ${Number(n.total).toLocaleString('id-ID')}</span>
+        <button onclick="toggleStatusNota_('${n.nomor}','${n.status_bayar||''}')" style="border:1px solid ${warna};color:${warna};background:none;border-radius:12px;padding:2px 8px;font-size:11px;cursor:pointer;">${label}</button>
+      </div>`; }).join('');
+}
+async function toggleStatusNota_(nomor, sekarang){
+  const baru = sekarang==='Hutang' ? 'Lunas' : 'Hutang';
+  if(!confirm('Ubah status nota ' + nomor + ' menjadi ' + baru.toUpperCase() + '?')) return;
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=setStatusNota&nomor=' + encodeURIComponent(nomor) + '&status=' + baru + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+    const n = BN_DAFTAR_.find(x=>x.nomor===nomor); if(n) n.status_bayar = baru;
+    renderDaftarNota_();
+    toast('Nota ' + nomor + ': ' + baru);
+  }catch(e){ toast('Gagal ubah status: ' + e.message,'err'); }
 }
 async function bukaNota(nomor){
   nomor = String(nomor || document.getElementById('bn-no-cari').value || '').trim();
@@ -3804,6 +3851,7 @@ async function bukaNota(nomor){
     BN_KATEGORI_ = j.kategori_list || []; BN_ITEMS_ = j.items || [];
     document.getElementById('bn-tgl').value = j.tanggal;
     document.getElementById('bn-supplier').value = j.supplier;
+    setStatusBayarForm_(j.status_bayar || 'Lunas');
     const head = document.getElementById('bn-edit-head');
     head.innerHTML = '✏️ Revisi <b>Nota ' + j.nomor + '</b>' + (j.link_foto && j.link_foto.indexOf('http')===0 ? ' · <a href="' + j.link_foto + '" target="_blank" rel="noopener">📷 Lihat foto nota</a>' : ' · (tidak ada foto)') + '<br><span style="font-size:10px;color:var(--inks);">Ubah lalu klik Simpan — data lama otomatis diganti.</span>';
     head.classList.remove('hide');
