@@ -677,6 +677,16 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 </div>
 
 <!-- MODAL DETAIL ORDER -->
+<div class="modal-bg hide" id="gf-day-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="gf-day-title">📅 Order</h2>
+      <button class="modal-close" onclick="document.getElementById('gf-day-modal').classList.add('hide')">×</button>
+    </div>
+    <div id="gf-day-body"></div>
+  </div>
+</div>
+
 <div class="modal-bg hide" id="order-detail-modal">
   <div class="modal">
     <div class="modal-head">
@@ -3604,7 +3614,7 @@ async function loadGrafik(){
     if(!j.success){ chartEl.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>${j.message}</p></div>`; return; }
     if(j.lastUpdated){
       const d = new Date(j.lastUpdated);
-      updEl.textContent = 'Data per: ' + d.toLocaleString('id-ID', {dateStyle:'medium', timeStyle:'short'}) + ' · update otomatis tiap jam 20:00';
+      updEl.textContent = 'Data per: ' + d.toLocaleString('id-ID', {dateStyle:'medium', timeStyle:'short'}) + ' · update otomatis tiap jam';
     }
     renderGrafikChart(j);
     GF_JUAL_ = j; renderGrafikBpp_();
@@ -3908,6 +3918,31 @@ async function loadGrafikPengeluaran(){
   }
 }
 
+// Klik batang grafik harian → popup daftar order hari itu (format sama dgn tab Jadwal; klik paket = detail order)
+async function bukaDetailHariGrafik_(tgl){
+  const modal = document.getElementById('gf-day-modal'), body = document.getElementById('gf-day-body');
+  document.getElementById('gf-day-title').textContent = '📅 Order ' + fd(tgl);
+  body.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat order…</div>';
+  modal.classList.remove('hide');
+  try{
+    if(!allOrders || !allOrders.length) await loadOrders();
+    const rows = allOrders.filter(o => o.status !== 'Batal' && String(o.tanggal_kirim||o.tgl_kirim||'').slice(0,10) === tgl)
+      .sort((a,b) => (a.jam_sampai||'99:99').localeCompare(b.jam_sampai||'99:99'));
+    if(!rows.length){ body.innerHTML = '<div class="empty"><div class="eico">📭</div><p>Tidak ada order di tanggal ini.</p></div>'; return; }
+    const totalQty = rows.reduce((s,o)=> s + (Number(o.qty)||0), 0);
+    body.innerHTML = `<div class="jw-dayhead" style="margin-bottom:6px;"><span class="jw-daydate">${rows.length} order</span><span class="jw-daybadge">${totalQty} pax</span></div>
+      <div class="jw-table">
+        <div class="jw-row head"><div>Berangkat</div><div>Paket</div><div>Qty</div><div>Penerima</div></div>
+        ${rows.map(o => `<div class="jw-row">
+          <div class="jw-jam">${jamBerangkat_(o.jam_sampai)||'—'}</div>
+          <div class="jw-paket" onclick="openOrderDetail('${o.no_order}')">${o.paket||'—'}${o.peralatan_disewa?' 🧰':''}</div>
+          <div class="jw-qty">${o.qty||0}</div>
+          <div class="jw-nama">${o.nama_penerima||o.customer_id||'—'}</div>
+        </div>`).join('')}
+      </div>`;
+  }catch(e){ body.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>Gagal memuat order: ${e.message}</p></div>`; }
+}
+
 // ══ GRAFIK HARIAN (jumlah total per produk per hari, 15 hari ke depan, dari cache) ═══
 async function loadGrafikHarian(){
   const chartEl = document.getElementById('gf-harian-chart');
@@ -3918,15 +3953,15 @@ async function loadGrafikHarian(){
     if(!j.success){ chartEl.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>${j.message}</p></div>`; return; }
     if(j.lastUpdated){
       const d = new Date(j.lastUpdated);
-      updEl.textContent = 'Data per: ' + d.toLocaleString('id-ID', {dateStyle:'medium', timeStyle:'short'}) + ' · update otomatis tiap jam 20:00';
+      updEl.textContent = 'Data per: ' + d.toLocaleString('id-ID', {dateStyle:'medium', timeStyle:'short'}) + ' · update otomatis tiap jam';
     }
-    renderGrafikHarianChart(j);
+    renderGrafikHarianChart(j, 'gf-harian-chart', true);
   }catch(e){
     chartEl.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>Gagal memuat: ${e.message}</p></div>`;
   }
 }
 
-function renderGrafikHarianChart(j, elId){
+function renderGrafikHarianChart(j, elId, bisaKlik){
   const chartEl = document.getElementById(elId || 'gf-harian-chart');
   const hariList = j.hariList||[], kategoriList = j.kategoriList||[], data = j.data||{};
   if(!hariList.length){
@@ -3974,6 +4009,7 @@ function renderGrafikHarianChart(j, elId){
       bars += `<rect x="${x}" y="${y}" width="${barW}" height="${hgt}" fill="${color}" rx="1"></rect>`;
       stackedH += hgt;
     });
+    if (bisaKlik) bars += `<rect x="${x-3}" y="12" width="${barW+6}" height="${barMaxH+34}" fill="transparent" style="cursor:pointer;" onclick="bukaDetailHariGrafik_('${h}')"></rect>`;
     const [, mm, dd] = h.split('-');
     const isToday = h === todayStr;
     const labelColor = isToday ? '#C8521A' : '#5C4A35';
