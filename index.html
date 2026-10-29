@@ -3961,7 +3961,31 @@ async function bukaNota(nomor){
 }
 
 let GF_JUAL_ = null, GF_BELI_ = null;
-let GF_PIE_CTX_ = null;
+let GF_PIE_CTX_ = null, GF_RINCI_ROWS_ = [];
+// Klik tanggal di tabel rincian → buka layar revisi data pembelian itu:
+//  • dari Baca Nota (No Order = 'Baca Nota') → tab Baca Nota, nota terbuka utk direvisi (finance/admin)
+//  • dari Permintaan Bahan biasa → modal Proses Permintaan (pembelian/admin) tempat Qty Dibeli/Harga diubah
+async function revisiDariRincian_(i){
+  const r = GF_RINCI_ROWS_[i]; if(!r) return;
+  const tutup = () => ['gf-rinci-modal','gf-pie-modal'].forEach(id => document.getElementById(id).classList.add('hide'));
+  if(String(r.no_order).toLowerCase() === 'baca nota'){
+    if(!(CURRENT_USER && Array.isArray(CURRENT_USER.aksesTab) ? CURRENT_USER.aksesTab.includes('nota') : ['admin','finance'].includes(CURRENT_USER.role))){ toast('Revisi nota hanya untuk finance/admin.','err'); return; }
+    tutup(); goTab('nota', document.getElementById('tab-nota'));
+    bukaNota(r.no);
+    return;
+  }
+  if(!(CURRENT_USER && ['pembelian','admin'].includes(CURRENT_USER.role))){ toast('Revisi data pembelian hanya untuk pembelian/admin.','err'); return; }
+  try{
+    showOvl('Membuka data…');
+    const qs = new URLSearchParams({action:'getPermintaan', mulai:r.tanggal, sampai:r.tanggal, status:''}).toString();
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    hideOvl();
+    if(!j.success) throw new Error(j.message);
+    PERMINTAAN_CACHE = j.data || [];
+    if(!PERMINTAAN_CACHE.some(t => t.no_permintaan === r.no)) throw new Error('Permintaan ' + r.no + ' tidak ditemukan.');
+    tutup(); openProsesPermintaanModal(r.no);
+  }catch(e){ try{ hideOvl(); }catch(_){} toast('Gagal membuka: ' + e.message,'err'); }
+}
 // Klik segmen kategori di grafik BPP → diagram lingkaran per "Nama Bahan" (nilai = Rupiah, top 5 + Lainnya)
 function bukaPieBahan_(bulan, kategori, ki){
   GF_PIE_CTX_ = { bulan, kategori, items: (((GF_BELI_||{}).dataBppBahan||{})[bulan]||{})[kategori] || [] };
@@ -4005,14 +4029,15 @@ async function bukaRincianBahan_(i){
     else q.set('nama', it.nama);
     const j = await gasFetch(APP.GAS_URL + '?' + q.toString());
     if(!j.success) throw new Error(j.message);
+    GF_RINCI_ROWS_ = j.data;
     const rp = v => Math.round(v).toLocaleString('id-ID');
     const th = 'style="text-align:left;padding:4px;border-bottom:1px solid var(--bdr);white-space:nowrap;"';
     const thr = 'style="text-align:right;padding:4px;border-bottom:1px solid var(--bdr);white-space:nowrap;"';
     const td = 'style="padding:4px;border-bottom:1px solid var(--bdr);"';
     const tdr = 'style="padding:4px;border-bottom:1px solid var(--bdr);text-align:right;white-space:nowrap;"';
-    body.innerHTML = j.data.length ? `<div style="overflow-x:auto;"><table style="width:100%;font-size:11px;border-collapse:collapse;">
+    body.innerHTML = j.data.length ? `<div style="font-size:10px;color:var(--inks);margin-bottom:4px;">Klik tanggal untuk merevisi data pembeliannya.</div><div style="overflow-x:auto;"><table style="width:100%;font-size:11px;border-collapse:collapse;">
       <tr><th ${th}>Tanggal</th>${it.lainnya?`<th ${th}>Bahan</th>`:''}<th ${thr}>Qty</th><th ${th}>Satuan</th><th ${thr}>Harga Satuan</th><th ${thr}>Total</th></tr>
-      ${j.data.map(r=>`<tr><td ${td}>${fd(r.tanggal)}</td>${it.lainnya?`<td ${td}>${r.nama}</td>`:''}<td ${tdr}>${Number(r.qty).toLocaleString('id-ID')}</td><td ${td}>${r.satuan}</td><td ${tdr}>${rp(r.harga_satuan)}</td><td ${tdr}>${rp(r.total)}</td></tr>`).join('')}
+      ${j.data.map((r,ri)=>`<tr><td ${td}><a href="#" onclick="revisiDariRincian_(${ri});return false;" title="Klik utk revisi data ini" style="color:var(--blu);text-decoration:underline;">${fd(r.tanggal)}</a></td>${it.lainnya?`<td ${td}>${r.nama}</td>`:''}<td ${tdr}>${Number(r.qty).toLocaleString('id-ID')}</td><td ${td}>${r.satuan}</td><td ${tdr}>${rp(r.harga_satuan)}</td><td ${tdr}>${rp(r.total)}</td></tr>`).join('')}
       <tr style="font-weight:700;"><td ${td} colspan="${it.lainnya?5:4}">Total (Rp)</td><td ${tdr}>${rp(j.total)}</td></tr>
     </table></div>` : '<div class="empty"><div class="eico">📭</div><p>Tidak ada rincian.</p></div>';
   }catch(e){ body.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>Gagal memuat: ${e.message}</p></div>`; }
