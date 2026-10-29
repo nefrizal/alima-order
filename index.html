@@ -438,7 +438,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 <!-- ═══ LAPORAN KELUHAN ═══ -->
 <div class="panel" id="panel-laporan">
   <div class="lbar">
-    <button class="bico" onclick="openLaporanModal()" style="flex:1;background:var(--or);">➕ Buat Laporan Baru</button>
+    <button class="bico lap-kelola-only" onclick="openLaporanModal()" style="flex:1;background:var(--or);">➕ Buat Laporan Baru</button>
     <button class="bico" onclick="loadLaporanList()">↻</button>
   </div>
   <div class="stitle">📊 Jumlah Keluhan per Bulan <span style="font-weight:400;font-size:10px;color:var(--inks);">· klik batang = detail keluhan</span></div>
@@ -1113,7 +1113,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     </div>
     <input id="lap-no-laporan" type="hidden">
 
-    <div class="sec" style="margin-bottom:14px;">
+    <div class="sec lap-kelola-only" style="margin-bottom:14px;">
       <div class="stitle" style="font-size:13px;">🔎 Order Terkait</div>
       <div style="display:flex;gap:8px;align-items:flex-end;">
         <div class="fld" style="flex:1;margin:0;">
@@ -1156,11 +1156,11 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     <div class="fld"><label>Tindakan Perbaikan</label><textarea id="lap-perbaikan" style="min-height:60px;" placeholder="Apa yang dilakukan untuk memperbaiki masalah ini…"></textarea></div>
     <div class="fld"><label>Tindakan Pencegahan</label><textarea id="lap-pencegahan" style="min-height:60px;" placeholder="Apa yang dilakukan supaya tidak terulang…"></textarea></div>
 
-    <button class="bsub" id="btn-simpan-laporan" onclick="simpanLaporanSaja()" style="margin-top:10px;">💾 Simpan Saja</button>
-    <button class="bico" id="btn-simpan-pdf-laporan" style="width:100%;margin-top:8px;background:#1565C0;" onclick="previewPdfLaporan()">👁️ Preview PDF</button>
-    <div style="font-size:10px;color:var(--inks);margin-top:6px;">Kalau laporan belum pernah disimpan, "Preview PDF" otomatis menyimpan dulu. Kalau sudah pernah tersimpan, tombol ini langsung preview tanpa menyimpan ulang.</div>
+    <button class="bsub lap-kelola-only" id="btn-simpan-laporan" onclick="simpanLaporanSaja()" style="margin-top:10px;">💾 Simpan Saja</button>
+    <button class="bico lap-kelola-only" id="btn-simpan-pdf-laporan" style="width:100%;margin-top:8px;background:#1565C0;" onclick="previewPdfLaporan()">👁️ Preview PDF</button>
+    <div class="lap-kelola-only" style="font-size:10px;color:var(--inks);margin-top:6px;">Kalau laporan belum pernah disimpan, "Preview PDF" otomatis menyimpan dulu. Kalau sudah pernah tersimpan, tombol ini langsung preview tanpa menyimpan ulang.</div>
 
-    <div id="lap-hasil-box" style="display:none;background:var(--grnl);border:1px solid #b7dfc9;border-radius:10px;padding:14px;margin-top:14px;">
+    <div id="lap-hasil-box" class="lap-kelola-only" style="display:none;background:var(--grnl);border:1px solid #b7dfc9;border-radius:10px;padding:14px;margin-top:14px;">
       <p style="font-size:13px;color:var(--grn);font-weight:700;margin-bottom:8px;">✅ Laporan tersimpan!</p>
       <a id="lap-doc-link" href="#" target="_blank" style="font-size:12px;color:var(--blu);word-break:break-all;">📄 Buka/Edit Dokumen di Google Docs</a>
 
@@ -4803,7 +4803,7 @@ function goTab(id,btn){
   if(id==='masak'){ if(allOrders.length===0) loadOrders().then(renderJadwalMasak); else renderJadwalMasak(); }
   if(id==='grafik'){ loadGrafikSemua_(); }
   if(id==='absensi'){ initAbsensiTab(); if(CURRENT_USER && isFullAccessRole(CURRENT_USER.role)) loadStatusTim(); }
-  if(id==='laporan'){ loadLaporanList(); }
+  if(id==='laporan'){ document.querySelectorAll('#panel-laporan .lap-kelola-only').forEach(e => e.style.display = bisaKelolaLaporan_() ? '' : 'none'); loadLaporanList(); }
   if(id==='nota'){ loadDaftarNota(); }
   if(id==='keuangan'){
     const level = CURRENT_USER ? CURRENT_USER.aksesKeuanganLevel : '';
@@ -4899,10 +4899,27 @@ function isiUlangEmailPengirim_(){
   if(np && !np.value) np.value = localStorage.getItem('alima_lap_nama_pengirim') || 'Alima Boga Batam';
 }
 
+// Akses penuh Laporan Keluhan (buat/ubah/PDF/kirim) = baris 'laporan keluhan kelola' di sheet AksesTab (default admin & Sales).
+function bisaKelolaLaporan_(){
+  if(CURRENT_USER && Array.isArray(CURRENT_USER.aksesTab)) return CURRENT_USER.aksesTab.includes('laporan_kelola');
+  return !!CURRENT_USER && ['admin','sales'].includes(CURRENT_USER.role);
+}
+// Mode LIHAT SAJA utk yg tidak punya akses penuh: semua isian dikunci, tombol simpan/PDF/kirim & pencarian order disembunyikan.
+function terapkanModeLaporan_(){
+  const kelola = bisaKelolaLaporan_();
+  document.querySelectorAll('.lap-kelola-only').forEach(e => { if(e.id !== 'lap-hasil-box') e.style.display = kelola ? '' : 'none'; });
+  const hb = document.getElementById('lap-hasil-box'); if(hb && !kelola) hb.style.display = 'none';
+  document.querySelectorAll('#laporan-modal input:not([type=hidden]), #laporan-modal textarea').forEach(e => {
+    if(e.dataset.ro === undefined) e.dataset.ro = e.readOnly ? '1' : '0'; // simpan status readonly asli (mis. No. Order)
+    e.readOnly = kelola ? e.dataset.ro === '1' : true;
+  });
+}
+
 function openLaporanModal(){
   resetLaporanModal();
   document.getElementById('lap-dibuat-oleh').value = CURRENT_USER?.nama || '';
   document.getElementById('lap-modal-title').textContent = '📋 Buat Laporan Keluhan';
+  terapkanModeLaporan_();
   document.getElementById('laporan-modal').classList.remove('hide');
 }
 function closeLaporanModal(){
@@ -5225,12 +5242,13 @@ async function bukaLaporanUntukEdit(noLaporan){
     document.getElementById('lap-perbaikan').value = pecahan.perbaikan;
     document.getElementById('lap-pencegahan').value = pecahan.pencegahan;
 
-    document.getElementById('lap-modal-title').textContent = '✏️ Edit Laporan — ' + d.No_Laporan;
-    if(d.Doc_URL){
+    document.getElementById('lap-modal-title').textContent = (bisaKelolaLaporan_() ? '✏️ Edit Laporan — ' : '👁️ Laporan — ') + d.No_Laporan;
+    if(d.Doc_URL && bisaKelolaLaporan_()){
       document.getElementById('lap-doc-link').href = d.Doc_URL;
       document.getElementById('lap-hasil-box').style.display = 'block';
       isiUlangEmailPengirim_();
     }
+    terapkanModeLaporan_();
   }catch(e){
     toast('Gagal memuat laporan: '+e.message,'err');
     closeLaporanModal();
