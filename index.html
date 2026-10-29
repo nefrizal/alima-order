@@ -402,7 +402,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   <div id="gf-chart"><div class="empty"><div class="eico">📊</div><p>Klik Refresh untuk memuat grafik.</p></div></div>
 
   <div class="stitle" style="margin-top:20px;">📉 Rasio BPP (Pembelian ÷ Penjualan, per Bulan)</div>
-  <div id="gf-bpp-note" style="font-size:11px;color:var(--inks);text-align:center;margin-bottom:10px;">Penjualan = total order (tanpa Batal) · Pembelian = PermintaanBahan (tanpa Batal) · warna = kategori, angka di atas = total BPP</div>
+  <div id="gf-bpp-note" style="font-size:11px;color:var(--inks);text-align:center;margin-bottom:10px;">Penjualan = total order (tanpa Batal) · Pembelian = PermintaanBahan berstatus Sudah Dicetak = Ya (tanpa Batal) · warna = kategori, angka di atas = total BPP</div>
   <div id="gf-bpp-chart"><div class="empty"><div class="eico">📉</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
 
   <div class="stitle" style="margin-top:20px;">💸 Pengeluaran Bahan Baku (per Bulan)</div>
@@ -3926,7 +3926,7 @@ function renderGrafikBpp_(){
   // Tiap segmen = pembelian kategori itu bulan tsb ÷ total penjualan bulan tsb (%); total tumpukan = rasio BPP bulan itu.
   const rows = bulanList.map(b=>{
     const jual = tot(GF_JUAL_,b);
-    const seg = {}; kategoriList.forEach(k => { seg[k] = (((GF_BELI_.data||{})[b]||{})[k]||0) / jual * 100; });
+    const seg = {}; kategoriList.forEach(k => { seg[k] = (((GF_BELI_.dataBpp||{})[b]||{})[k]||0) / jual * 100; });
     return {b, jual, seg, pct: kategoriList.reduce((s,k)=>s+seg[k],0)};
   });
   const maxPct = Math.max(...rows.map(r=>r.pct), 1);
@@ -3955,7 +3955,8 @@ function renderGrafikBpp_(){
     bars += `<text x="${x+barW/2}" y="${barMaxH - stackedH + 20 - 4}" font-size="10" font-weight="700" fill="#5C4A35" text-anchor="middle">${fmt(r.pct)}%</text>`;
     bars += `<text x="${x+barW/2}" y="${barMaxH+38}" font-size="10" fill="#5C4A35" text-anchor="middle">${formatBulanLabel_(r.b)}</text>`;
   });
-  const legend = kategoriList.map((k,ki) => `
+  const adaBpp = new Set(GF_BELI_.kategoriBppList||[]);
+  const legend = kategoriList.map((k,ki) => !adaBpp.has(k) ? '' : `
     <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--inkm);margin:3px 10px 3px 0;">
       <span style="width:10px;height:10px;border-radius:2px;background:${GRAFIK_COLORS[ki%GRAFIK_COLORS.length]};display:inline-block;flex-shrink:0;"></span>${k}
     </div>`).join('');
