@@ -402,7 +402,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   <div id="gf-chart"><div class="empty"><div class="eico">📊</div><p>Klik Refresh untuk memuat grafik.</p></div></div>
 
   <div class="stitle" style="margin-top:20px;">📉 Rasio BPP (Pembelian ÷ Penjualan, per Bulan)</div>
-  <div id="gf-bpp-note" style="font-size:11px;color:var(--inks);text-align:center;margin-bottom:10px;">Penjualan = total order (tanpa Batal) · Pembelian = PermintaanBahan (tanpa Batal)</div>
+  <div id="gf-bpp-note" style="font-size:11px;color:var(--inks);text-align:center;margin-bottom:10px;">Penjualan = total order (tanpa Batal) · Pembelian = PermintaanBahan (tanpa Batal) · warna = kategori, angka di atas = total BPP</div>
   <div id="gf-bpp-chart"><div class="empty"><div class="eico">📉</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
 
   <div class="stitle" style="margin-top:20px;">💸 Pengeluaran Bahan Baku (per Bulan)</div>
@@ -3921,8 +3921,14 @@ function renderGrafikBpp_(){
   const tot = (j,b)=> Object.values((j.data||{})[b]||{}).reduce((s,v)=>s+(Number(v)||0),0);
   const bulanList = (GF_JUAL_.bulanList||[]).filter(b=> tot(GF_JUAL_,b) > 0);
   if(!bulanList.length){ el.innerHTML = '<div class="empty"><div class="eico">📉</div><p>Belum ada data penjualan.</p></div>'; return; }
-  const rows = bulanList.map(b=>({b, jual:tot(GF_JUAL_,b), beli:tot(GF_BELI_,b)}));
-  rows.forEach(r=> r.pct = r.beli/r.jual*100);
+  // Urutan & warna kategori SAMA dgn grafik Pengeluaran Bahan Baku (kategoriList dari data pembelian)
+  const kategoriList = GF_BELI_.kategoriList || [];
+  // Tiap segmen = pembelian kategori itu bulan tsb ÷ total penjualan bulan tsb (%); total tumpukan = rasio BPP bulan itu.
+  const rows = bulanList.map(b=>{
+    const jual = tot(GF_JUAL_,b);
+    const seg = {}; kategoriList.forEach(k => { seg[k] = (((GF_BELI_.data||{})[b]||{})[k]||0) / jual * 100; });
+    return {b, jual, seg, pct: kategoriList.reduce((s,k)=>s+seg[k],0)};
+  });
   const maxPct = Math.max(...rows.map(r=>r.pct), 1);
   const step = 5;
   const topVal = Math.max(step, Math.ceil(maxPct/step)*step);
@@ -3935,14 +3941,26 @@ function renderGrafikBpp_(){
     grid += `<line x1="${leftM}" y1="${y}" x2="${totalW-10}" y2="${y}" stroke="#EDE3D8" stroke-width="1"/>`;
     grid += `<text x="${leftM-6}" y="${y+3}" font-size="9" fill="#9C8672" text-anchor="end">${val}%</text>`;
   }
+  const fmt = v => v.toLocaleString('id-ID',{maximumFractionDigits:1});
   let bars = '';
   rows.forEach((r,i)=>{
-    const x = leftM + 10 + i*groupW, h = (r.pct/topVal)*barMaxH, y = barMaxH - h + 20;
-    bars += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" fill="#C8521A" rx="2"></rect>`;
-    bars += `<text x="${x+barW/2}" y="${y-4}" font-size="10" font-weight="700" fill="#5C4A35" text-anchor="middle">${r.pct.toLocaleString('id-ID',{maximumFractionDigits:1})}%</text>`;
+    const x = leftM + 10 + i*groupW;
+    let stackedH = 0;
+    kategoriList.forEach((k,ki)=>{
+      const v = r.seg[k]; if(v <= 0) return;
+      const h = (v/topVal)*barMaxH, y = barMaxH - stackedH - h + 20;
+      bars += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" fill="${GRAFIK_COLORS[ki%GRAFIK_COLORS.length]}" rx="1"><title>${k}: ${fmt(v)}%</title></rect>`;
+      stackedH += h;
+    });
+    bars += `<text x="${x+barW/2}" y="${barMaxH - stackedH + 20 - 4}" font-size="10" font-weight="700" fill="#5C4A35" text-anchor="middle">${fmt(r.pct)}%</text>`;
     bars += `<text x="${x+barW/2}" y="${barMaxH+38}" font-size="10" fill="#5C4A35" text-anchor="middle">${formatBulanLabel_(r.b)}</text>`;
   });
-  el.innerHTML = `<div style="overflow-x:auto;background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:12px;box-shadow:var(--sh);"><svg width="${totalW}" height="${chartH}" viewBox="0 0 ${totalW} ${chartH}">${grid}${bars}</svg></div>`;
+  const legend = kategoriList.map((k,ki) => `
+    <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--inkm);margin:3px 10px 3px 0;">
+      <span style="width:10px;height:10px;border-radius:2px;background:${GRAFIK_COLORS[ki%GRAFIK_COLORS.length]};display:inline-block;flex-shrink:0;"></span>${k}
+    </div>`).join('');
+  el.innerHTML = `<div style="overflow-x:auto;background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:12px;box-shadow:var(--sh);"><svg width="${totalW}" height="${chartH}" viewBox="0 0 ${totalW} ${chartH}">${grid}${bars}</svg></div>
+    <div style="display:flex;flex-wrap:wrap;margin-top:10px;padding:0 4px;">${legend}</div>`;
 }
 
 async function loadGrafikPengeluaran(){
