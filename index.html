@@ -701,6 +701,16 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   </div>
 </div>
 
+<div class="modal-bg hide" id="gf-rinci-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="gf-rinci-title">📑 Rincian</h2>
+      <button class="modal-close" onclick="document.getElementById('gf-rinci-modal').classList.add('hide')">×</button>
+    </div>
+    <div id="gf-rinci-body"></div>
+  </div>
+</div>
+
 <div class="modal-bg hide" id="gf-day-modal">
   <div class="modal">
     <div class="modal-head">
@@ -3925,8 +3935,10 @@ async function bukaNota(nomor){
 }
 
 let GF_JUAL_ = null, GF_BELI_ = null;
+let GF_PIE_CTX_ = null;
 // Klik segmen kategori di grafik BPP → diagram lingkaran per "Nama Bahan" (nilai = Rupiah, top 5 + Lainnya)
 function bukaPieBahan_(bulan, kategori, ki){
+  GF_PIE_CTX_ = { bulan, kategori, items: (((GF_BELI_||{}).dataBppBahan||{})[bulan]||{})[kategori] || [] };
   const items = (((GF_BELI_||{}).dataBppBahan||{})[bulan]||{})[kategori] || [];
   const total = items.reduce((t,x)=>t+x.jml,0);
   document.getElementById('gf-pie-title').textContent = '🥧 ' + kategori + ' — ' + formatBulanLabel_(bulan);
@@ -3938,19 +3950,46 @@ function bukaPieBahan_(bulan, kategori, ki){
   let sudut = -Math.PI/2, paths = '';
   items.forEach((it,i)=>{
     const frac = it.jml/total;
-    if(frac >= 0.9999){ paths += `<circle cx="${C}" cy="${C}" r="${R}" fill="${warna(i)}"><title>${it.nama}: ${rp(it.jml)}</title></circle>`; return; }
+    if(frac >= 0.9999){ paths += `<circle cx="${C}" cy="${C}" r="${R}" fill="${warna(i)}" style="cursor:pointer;" onclick="bukaRincianBahan_(${i})"><title>${it.nama}: ${rp(it.jml)}</title></circle>`; return; }
     const a2 = sudut + frac*2*Math.PI;
     const x1 = C + R*Math.cos(sudut), y1 = C + R*Math.sin(sudut), x2 = C + R*Math.cos(a2), y2 = C + R*Math.sin(a2);
-    paths += `<path d="M${C},${C} L${x1.toFixed(2)},${y1.toFixed(2)} A${R},${R} 0 ${frac>0.5?1:0} 1 ${x2.toFixed(2)},${y2.toFixed(2)} Z" fill="${warna(i)}" stroke="#fff" stroke-width="1"><title>${it.nama}: ${rp(it.jml)}</title></path>`;
+    paths += `<path d="M${C},${C} L${x1.toFixed(2)},${y1.toFixed(2)} A${R},${R} 0 ${frac>0.5?1:0} 1 ${x2.toFixed(2)},${y2.toFixed(2)} Z" fill="${warna(i)}" stroke="#fff" stroke-width="1" style="cursor:pointer;" onclick="bukaRincianBahan_(${i})"><title>${it.nama}: ${rp(it.jml)}</title></path>`;
     sudut = a2;
   });
   body.innerHTML = `<div style="text-align:center;font-size:12px;color:var(--inks);margin-bottom:6px;">Total ${kategori}: <b style="color:var(--ink);">${rp(total)}</b></div>
     <div style="text-align:center;"><svg width="180" height="180" viewBox="0 0 180 180">${paths}</svg></div>
-    <div style="margin-top:8px;">${items.map((it,i)=>`<div style="display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 2px;border-bottom:1px solid var(--bdr);">
+    <div style="margin-top:8px;">${items.map((it,i)=>`<div onclick="bukaRincianBahan_(${i})" style="cursor:pointer;display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 2px;border-bottom:1px solid var(--bdr);">
       <span style="width:11px;height:11px;border-radius:2px;background:${warna(i)};flex-shrink:0;"></span>
       <span style="flex:1;">${it.nama}</span><b>${rp(it.jml)}</b></div>`).join('')}</div>
     <div style="font-size:10px;color:var(--inks);margin-top:6px;">Hanya baris Sudah Dicetak = Ya (sama dgn dasar hitung BPP). Nilai dalam Rupiah.</div>`;
   document.getElementById('gf-pie-modal').classList.remove('hide');
+}
+
+// Klik irisan/baris di diagram lingkaran → tabel rincian: tanggal, qty, satuan, harga satuan, total
+async function bukaRincianBahan_(i){
+  const c = GF_PIE_CTX_; if(!c || !c.items[i]) return;
+  const it = c.items[i];
+  const modal = document.getElementById('gf-rinci-modal'), body = document.getElementById('gf-rinci-body');
+  document.getElementById('gf-rinci-title').textContent = '📑 ' + it.nama + ' — ' + formatBulanLabel_(c.bulan);
+  body.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat rincian…</div>';
+  modal.classList.remove('hide');
+  try{
+    const q = new URLSearchParams({action:'getRincianBpp', bulan:c.bulan, kategori:c.kategori, t:Date.now()});
+    if(it.lainnya){ q.set('lainnya','1'); q.set('kecuali', JSON.stringify(c.items.filter(x=>!x.lainnya).map(x=>x.nama))); }
+    else q.set('nama', it.nama);
+    const j = await gasFetch(APP.GAS_URL + '?' + q.toString());
+    if(!j.success) throw new Error(j.message);
+    const rp = v => Math.round(v).toLocaleString('id-ID');
+    const th = 'style="text-align:left;padding:4px;border-bottom:1px solid var(--bdr);white-space:nowrap;"';
+    const thr = 'style="text-align:right;padding:4px;border-bottom:1px solid var(--bdr);white-space:nowrap;"';
+    const td = 'style="padding:4px;border-bottom:1px solid var(--bdr);"';
+    const tdr = 'style="padding:4px;border-bottom:1px solid var(--bdr);text-align:right;white-space:nowrap;"';
+    body.innerHTML = j.data.length ? `<div style="overflow-x:auto;"><table style="width:100%;font-size:11px;border-collapse:collapse;">
+      <tr><th ${th}>Tanggal</th>${it.lainnya?`<th ${th}>Bahan</th>`:''}<th ${thr}>Qty</th><th ${th}>Satuan</th><th ${thr}>Harga Satuan</th><th ${thr}>Total</th></tr>
+      ${j.data.map(r=>`<tr><td ${td}>${fd(r.tanggal)}</td>${it.lainnya?`<td ${td}>${r.nama}</td>`:''}<td ${tdr}>${Number(r.qty).toLocaleString('id-ID')}</td><td ${td}>${r.satuan}</td><td ${tdr}>${rp(r.harga_satuan)}</td><td ${tdr}>${rp(r.total)}</td></tr>`).join('')}
+      <tr style="font-weight:700;"><td ${td} colspan="${it.lainnya?5:4}">Total (Rp)</td><td ${tdr}>${rp(j.total)}</td></tr>
+    </table></div>` : '<div class="empty"><div class="eico">📭</div><p>Tidak ada rincian.</p></div>';
+  }catch(e){ body.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>Gagal memuat: ${e.message}</p></div>`; }
 }
 
 function renderGrafikBpp_(){
