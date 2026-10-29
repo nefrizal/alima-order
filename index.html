@@ -4071,9 +4071,9 @@ function renderGrafikBpp_(){
 let CF_DATA_ = null;
 const CF_KELAS_ = [
   {k:'lunas',    label:'Lunas',                         warna:'#1B7A4A'},
-  {k:'dp',       label:'DP/terbayar (belum lunas)',     warna:'#1565C0'},
-  {k:'piutang',  label:'Piutang (sudah kirim, sisa)',   warna:'#C0392B'},
-  {k:'ke_depan', label:'Sisa tagihan (belum kirim)',    warna:'#B0A89E'}
+  {k:'dp',       label:'DP diterima (acara belum dieksekusi)',     warna:'#1565C0'},
+  {k:'piutang',  label:'Piutang (acara lewat, belum lunas)', warna:'#C0392B'},
+  {k:'ke_depan', label:'Sisa tagihan (acara hari ini/ke depan)',   warna:'#B0A89E'}
 ];
 async function loadCashflow_(){
   const ch = document.getElementById('cf-chart'), pi = document.getElementById('cf-piutang');
@@ -4116,13 +4116,13 @@ function renderCashflowChart_(){
   el.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">${ringkas}</div>
     <div style="overflow-x:auto;background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:12px;box-shadow:var(--sh);"><svg width="${totalW}" height="${chartH}" viewBox="0 0 ${totalW} ${chartH}">${grid}${bars}</svg></div>
     <div style="display:flex;flex-wrap:wrap;margin-top:10px;padding:0 4px;">${legend}</div>
-    <div style="font-size:10px;color:var(--inks);margin-top:4px;">Dasar: sheet Orders (Jumlah Total, Jumlah Bayar, Sisa Bayar), dikelompokkan per bulan tanggal kirim; order Batal tidak dihitung. Tinggi batang = total penjualan bulan itu.</div>`;
+    <div style="font-size:10px;color:var(--inks);margin-top:4px;">Dasar: sheet Orders (Jumlah Total, Jumlah Bayar, Sisa Bayar), dikelompokkan per bulan tanggal kirim; order Batal tidak dihitung. Status order Selesai = Lunas. Piutang = acara sudah lewat tapi belum berstatus Selesai dan masih ada sisa bayar. Tinggi batang = total penjualan bulan itu.</div>`;
 }
 function cfFilter_(kelas, o, today){
   if(kelas==='lunas') return o.sisa<=0;
-  if(kelas==='dp') return o.sisa>0 && o.bayar>0;
-  if(kelas==='piutang') return o.sisa>0 && o.tgl<=today;
-  if(kelas==='ke_depan') return o.sisa>0 && o.tgl>today;
+  if(kelas==='dp') return o.sisa>0 && o.bayar>0 && !o.selesai;
+  if(kelas==='piutang') return o.sisa>0 && o.selesai;
+  if(kelas==='ke_depan') return o.sisa>0 && !o.selesai;
   return false;
 }
 function tampilCfModal_(judul, rows, kolomNilai){
@@ -4146,7 +4146,7 @@ function bukaCfOrder_(bulan, kelas){
 function renderPiutang_(){
   const j = CF_DATA_, el = document.getElementById('cf-piutang');
   const hari = t => Math.floor((new Date(j.today) - new Date(t)) / 86400000);
-  const pt = j.orders.filter(o => o.sisa>0 && o.tgl<=j.today);
+  const pt = j.orders.filter(o => o.sisa>0 && o.selesai);
   const grup = [
     {label:'0–30 hari',  f:o=>hari(o.tgl)<=30,                    warna:'#F9A825'},
     {label:'31–60 hari', f:o=>hari(o.tgl)>30 && hari(o.tgl)<=60,  warna:'#E8600A'},
@@ -4156,7 +4156,7 @@ function renderPiutang_(){
   const per = {};
   pt.forEach(o=>{ const k = o.cust||'—'; (per[k] = per[k]||{nama:k, sisa:0, n:0}); per[k].sisa += o.sisa; per[k].n++; });
   const top = Object.values(per).sort((a,b)=>b.sisa-a.sisa).slice(0,10);
-  el.innerHTML = pt.length ? `<div style="font-size:11px;color:var(--inks);margin-bottom:6px;">Total piutang: <b style="color:#C0392B;">${cfRp_(pt.reduce((s,o)=>s+o.sisa,0))}</b> dari ${pt.length} order (umur dihitung dari tanggal kirim)</div>
+  el.innerHTML = pt.length ? `<div style="font-size:11px;color:var(--inks);margin-bottom:6px;">Total piutang: <b style="color:#C0392B;">${cfRp_(pt.reduce((s,o)=>s+o.sisa,0))}</b> dari ${pt.length} order (acara sudah lewat, belum Selesai/lunas · umur dihitung dari tanggal acara)</div>
     <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">${tiles}</div>
     <div style="font-size:11px;color:var(--inks);margin-bottom:3px;">Piutang terbesar per pelanggan (klik = daftar order):</div>
     ${top.map(c=>`<div onclick="bukaCfPelanggan_('${c.nama.replace(/'/g,"\\'")}')" style="cursor:pointer;display:flex;gap:8px;padding:5px 4px;border-bottom:1px solid var(--bdr);font-size:12px;"><span style="flex:1;">${c.nama}</span><span style="color:var(--inks);">${c.n} order</span><b>${cfRp_(c.sisa)}</b></div>`).join('')}`
