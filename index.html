@@ -691,6 +691,16 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   </div>
 </div>
 
+<div class="modal-bg hide" id="gf-pie-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="gf-pie-title">🥧 Rincian Bahan</h2>
+      <button class="modal-close" onclick="document.getElementById('gf-pie-modal').classList.add('hide')">×</button>
+    </div>
+    <div id="gf-pie-body"></div>
+  </div>
+</div>
+
 <div class="modal-bg hide" id="gf-day-modal">
   <div class="modal">
     <div class="modal-head">
@@ -3915,6 +3925,34 @@ async function bukaNota(nomor){
 }
 
 let GF_JUAL_ = null, GF_BELI_ = null;
+// Klik segmen kategori di grafik BPP → diagram lingkaran per "Nama Bahan" (nilai = Rupiah, top 5 + Lainnya)
+function bukaPieBahan_(bulan, kategori, ki){
+  const items = (((GF_BELI_||{}).dataBppBahan||{})[bulan]||{})[kategori] || [];
+  const total = items.reduce((t,x)=>t+x.jml,0);
+  document.getElementById('gf-pie-title').textContent = '🥧 ' + kategori + ' — ' + formatBulanLabel_(bulan);
+  const rp = v => 'Rp ' + Math.round(v).toLocaleString('id-ID');
+  const body = document.getElementById('gf-pie-body');
+  if(!items.length || total<=0){ body.innerHTML = '<div class="empty"><div class="eico">🥧</div><p>Tidak ada data bahan.</p></div>'; document.getElementById('gf-pie-modal').classList.remove('hide'); return; }
+  const warna = i => items[i].lainnya ? '#B0A89E' : GRAFIK_COLORS[i % GRAFIK_COLORS.length];
+  const R = 80, C = 90;
+  let sudut = -Math.PI/2, paths = '';
+  items.forEach((it,i)=>{
+    const frac = it.jml/total;
+    if(frac >= 0.9999){ paths += `<circle cx="${C}" cy="${C}" r="${R}" fill="${warna(i)}"><title>${it.nama}: ${rp(it.jml)}</title></circle>`; return; }
+    const a2 = sudut + frac*2*Math.PI;
+    const x1 = C + R*Math.cos(sudut), y1 = C + R*Math.sin(sudut), x2 = C + R*Math.cos(a2), y2 = C + R*Math.sin(a2);
+    paths += `<path d="M${C},${C} L${x1.toFixed(2)},${y1.toFixed(2)} A${R},${R} 0 ${frac>0.5?1:0} 1 ${x2.toFixed(2)},${y2.toFixed(2)} Z" fill="${warna(i)}" stroke="#fff" stroke-width="1"><title>${it.nama}: ${rp(it.jml)}</title></path>`;
+    sudut = a2;
+  });
+  body.innerHTML = `<div style="text-align:center;font-size:12px;color:var(--inks);margin-bottom:6px;">Total ${kategori}: <b style="color:var(--ink);">${rp(total)}</b></div>
+    <div style="text-align:center;"><svg width="180" height="180" viewBox="0 0 180 180">${paths}</svg></div>
+    <div style="margin-top:8px;">${items.map((it,i)=>`<div style="display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 2px;border-bottom:1px solid var(--bdr);">
+      <span style="width:11px;height:11px;border-radius:2px;background:${warna(i)};flex-shrink:0;"></span>
+      <span style="flex:1;">${it.nama}</span><b>${rp(it.jml)}</b></div>`).join('')}</div>
+    <div style="font-size:10px;color:var(--inks);margin-top:6px;">Hanya baris Sudah Dicetak = Ya (sama dgn dasar hitung BPP). Nilai dalam Rupiah.</div>`;
+  document.getElementById('gf-pie-modal').classList.remove('hide');
+}
+
 function renderGrafikBpp_(){
   if(!GF_JUAL_ || !GF_BELI_) return;
   const el = document.getElementById('gf-bpp-chart');
@@ -3949,7 +3987,7 @@ function renderGrafikBpp_(){
     kategoriList.forEach((k,ki)=>{
       const v = r.seg[k]; if(v <= 0) return;
       const h = (v/topVal)*barMaxH, y = barMaxH - stackedH - h + 20;
-      bars += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" fill="${GRAFIK_COLORS[ki%GRAFIK_COLORS.length]}" rx="1"><title>${k}: ${fmt(v)}%</title></rect>`;
+      bars += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" fill="${GRAFIK_COLORS[ki%GRAFIK_COLORS.length]}" rx="1" style="cursor:pointer;" onclick="bukaPieBahan_('${r.b}','${k.replace(/'/g,"\\'")}',${ki})"><title>${k}: ${fmt(v)}% — klik utk rincian bahan</title></rect>`;
       stackedH += h;
     });
     bars += `<text x="${x+barW/2}" y="${barMaxH - stackedH + 20 - 4}" font-size="10" font-weight="700" fill="#5C4A35" text-anchor="middle">${fmt(r.pct)}%</text>`;
