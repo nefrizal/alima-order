@@ -441,6 +441,9 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     <button class="bico" onclick="openLaporanModal()" style="flex:1;background:var(--or);">➕ Buat Laporan Baru</button>
     <button class="bico" onclick="loadLaporanList()">↻</button>
   </div>
+  <div class="stitle">📊 Jumlah Keluhan per Bulan <span style="font-weight:400;font-size:10px;color:var(--inks);">· klik batang = detail keluhan</span></div>
+  <div id="lap-chart" style="margin-bottom:14px;"></div>
+  <div class="stitle">📋 Daftar Laporan</div>
   <div id="laporan-list"><div class="empty"><div class="eico">📋</div><p>Klik ↻ untuk memuat daftar laporan.</p></div></div>
 </div>
 
@@ -679,6 +682,16 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 </div>
 
 <!-- MODAL DETAIL ORDER -->
+<div class="modal-bg hide" id="lap-bulan-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="lap-bulan-title">📋 Keluhan</h2>
+      <button class="modal-close" onclick="document.getElementById('lap-bulan-modal').classList.add('hide')">×</button>
+    </div>
+    <div id="lap-bulan-body"></div>
+  </div>
+</div>
+
 <div class="modal-bg hide" id="gf-day-modal">
   <div class="modal">
     <div class="modal-head">
@@ -5105,16 +5118,67 @@ async function fPostFile(target, fileUrl, caption){
   if(!j.status) throw new Error('Fonnte: ' + (j.reason || 'Gagal kirim file'));
 }
 
+let LAP_DATA_ = [];
+function renderGrafikKeluhan_(){
+  const el = document.getElementById('lap-chart');
+  const per = {}; // 'yyyy-MM' -> [laporan]
+  LAP_DATA_.forEach(r => { const b = String(r.Tanggal_Dibuat||'').slice(0,7); if(/^\d{4}-\d{2}$/.test(b)){ (per[b] = per[b]||[]).push(r); } });
+  // Deret bulan menerus: dari bulan tertua (atau 5 bulan lalu, mana yg lebih lama) s/d bulan ini
+  const now = new Date();
+  const akhir = now.getFullYear()*12 + now.getMonth();
+  const tertua = Object.keys(per).sort()[0];
+  let mulai = akhir - 5;
+  if(tertua){ const [ty,tm] = tertua.split('-').map(Number); mulai = Math.min(mulai, ty*12 + tm-1); }
+  const bulanList = [];
+  for(let m=mulai; m<=akhir; m++) bulanList.push(Math.floor(m/12) + '-' + String(m%12+1).padStart(2,'0'));
+  const maxVal = Math.max(1, ...bulanList.map(b => (per[b]||[]).length));
+  const step = maxVal <= 10 ? 1 : (maxVal <= 30 ? 5 : 10);
+  const topVal = Math.max(step, Math.ceil(maxVal/step)*step);
+  const numGrid = topVal/step;
+  const barMaxH = 150, leftM = 34, barW = 40, groupW = 56;
+  const totalW = groupW*bulanList.length + leftM + 20, chartH = barMaxH + 50;
+  let grid = '', bars = '';
+  for(let g=0; g<=numGrid; g++){
+    const val = g*step, y = barMaxH - (val/topVal)*barMaxH + 20;
+    grid += `<line x1="${leftM}" y1="${y}" x2="${totalW-10}" y2="${y}" stroke="#EDE3D8" stroke-width="1"/><text x="${leftM-6}" y="${y+3}" font-size="9" fill="#9C8672" text-anchor="end">${val}</text>`;
+  }
+  bulanList.forEach((b,i) => {
+    const n = (per[b]||[]).length, x = leftM + 10 + i*groupW, h = (n/topVal)*barMaxH, y = barMaxH - h + 20;
+    if(n>0){
+      bars += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" fill="#C0392B" rx="2"></rect><text x="${x+barW/2}" y="${y-4}" font-size="10" font-weight="700" fill="#5C4A35" text-anchor="middle">${n}</text>`;
+    }
+    bars += `<text x="${x+barW/2}" y="${barMaxH+38}" font-size="10" fill="#5C4A35" text-anchor="middle">${formatBulanLabel_(b)}</text>`;
+    bars += `<rect x="${x-4}" y="12" width="${barW+8}" height="${barMaxH+34}" fill="transparent" style="cursor:pointer;" onclick="bukaKeluhanBulan_('${b}')"></rect>`;
+  });
+  el.innerHTML = `<div style="overflow-x:auto;background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:12px;box-shadow:var(--sh);"><svg width="${totalW}" height="${chartH}" viewBox="0 0 ${totalW} ${chartH}">${grid}${bars}</svg></div>`;
+}
+function bukaKeluhanBulan_(b){
+  const rows = LAP_DATA_.filter(r => String(r.Tanggal_Dibuat||'').slice(0,7) === b)
+    .sort((x,y) => String(y.Tanggal_Dibuat).localeCompare(String(x.Tanggal_Dibuat)));
+  document.getElementById('lap-bulan-title').textContent = '📋 Keluhan ' + formatBulanLabel_(b) + ' (' + rows.length + ')';
+  document.getElementById('lap-bulan-body').innerHTML = rows.length ? rows.map(r => `
+    <div class="ocard" onclick="document.getElementById('lap-bulan-modal').classList.add('hide');bukaLaporanUntukEdit('${r.No_Laporan}')" style="cursor:pointer;">
+      <div class="och"><div><div class="ono" style="font-size:13px;">${r.No_Laporan}</div>
+        <div class="odt">${fd(String(r.Tanggal_Dibuat).slice(0,10))} · Order ${r.No_Order||'—'}</div></div>
+        <span class="badge bb">${r.Dibuat_Oleh||'—'}</span></div>
+      <div class="obody"><strong>${r.Nama_Customer||'—'}</strong><br>${r.Keluhan_Apa||''}</div>
+    </div>`).join('') : '<div class="empty"><div class="eico">✅</div><p>Tidak ada keluhan di bulan ini.</p></div>';
+  document.getElementById('lap-bulan-modal').classList.remove('hide');
+}
+
 async function loadLaporanList(){
   const wrap = document.getElementById('laporan-list');
   wrap.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat daftar laporan…</div>';
   try{
     const j = await gasFetch(APP.GAS_URL + '?action=listLaporanKeluhan&t=' + Date.now());
     if(!j.success) throw new Error(j.message);
+    LAP_DATA_ = j.data || [];
     if(!j.data || !j.data.length){
+      renderGrafikKeluhan_();
       wrap.innerHTML = '<div class="empty"><div class="eico">📋</div><p>Belum ada laporan keluhan.</p></div>';
       return;
     }
+    renderGrafikKeluhan_();
     wrap.innerHTML = j.data.map(r => `
       <div class="ocard" onclick="bukaLaporanUntukEdit('${r.No_Laporan}')" style="cursor:pointer;">
         <div class="och">
