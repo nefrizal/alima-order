@@ -146,7 +146,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   </div>
   <div style="display:flex;align-items:center;gap:8px;">
     <span id="who-badge" style="font-size:10px;background:rgba(255,255,255,.2);padding:3px 8px;border-radius:20px;"></span>
-    <button onclick="openInvoiceModal()" title="Buat Invoice"
+    <button id="btn-invoice" onclick="openInvoiceModal()" title="Buat Invoice"
       style="background:rgba(255,255,255,.18);border:none;color:#fff;border-radius:6px;
              padding:5px 9px;font-size:14px;cursor:pointer;line-height:1;">🧾</button>
     <div id="cst">⏳</div>
@@ -390,8 +390,14 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 <!-- ═══ GRAFIK ═══ -->
 <div class="panel" id="panel-grafik">
   <div class="lbar">
-    <button class="bico" onclick="loadGrafik();loadGrafikPengeluaran();" style="flex:1;">↻ Refresh Grafik</button>
+    <button class="bico" onclick="loadGrafikSemua_()" style="flex:1;">↻ Refresh Grafik</button>
   </div>
+
+  <div class="stitle">📅 Sales Harian (15 Hari ke Depan) <span style="font-weight:400;font-size:10px;color:var(--inks);">· klik tanggal = detail order</span></div>
+  <div id="gf-harian-updated" style="font-size:11px;color:var(--inks);text-align:center;margin-bottom:10px;"></div>
+  <div id="gf-harian-chart"><div class="empty"><div class="eico">📅</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
+
+  <div class="stitle" style="margin-top:20px;">📊 Sales Bulanan</div>
   <div id="gf-updated" style="font-size:11px;color:var(--inks);text-align:center;margin-bottom:10px;"></div>
   <div id="gf-chart"><div class="empty"><div class="eico">📊</div><p>Klik Refresh untuk memuat grafik.</p></div></div>
 
@@ -405,10 +411,6 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 
   <div class="stitle" style="margin-top:20px;">💸 Pengeluaran Bahan Baku (Harian, 15 Hari Terakhir)</div>
   <div id="gf-peng-harian-chart"><div class="empty"><div class="eico">💸</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
-
-  <div class="stitle" style="margin-top:20px;">📅 Grafik Harian (15 Hari ke Depan)</div>
-  <div id="gf-harian-updated" style="font-size:11px;color:var(--inks);text-align:center;margin-bottom:10px;"></div>
-  <div id="gf-harian-chart"><div class="empty"><div class="eico">📅</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
 </div>
 
 <!-- ═══ ABSENSI ═══ -->
@@ -1693,8 +1695,9 @@ async function handleGoogleCredential(resp){
       const j = await gasFetch(APP.GAS_URL + '?action=checkAuth&id_token=' + encodeURIComponent(resp.credential) + '&t=' + Date.now());
       if (j.success) {
         ID_TOKEN = resp.credential;
-        CURRENT_USER = { email:j.email, nama:j.nama, role:(j.role||'karyawan').toLowerCase(), aksesKeuanganLevel: j.aksesKeuanganLevel || '' };
+        CURRENT_USER = { email:j.email, nama:j.nama, role:(j.role||'karyawan').toLowerCase(), aksesKeuanganLevel: j.aksesKeuanganLevel || '', aksesTab: j.aksesTab || null };
         simpanSesiLogin_(CURRENT_USER); // perpanjang lagi jendela 24 jam-nya
+        terapkanMatriksTab_(); // segarkan hak akses tab dari sheet AksesTab (idempotent)
       }
       // Kalau gagal (mis. akun dinonaktifkan admin di tengah jalan) — dibiarkan saja,
       // request2 API berikutnya yg bakal mulai gagal & kasih tahu user scr wajar,
@@ -1711,7 +1714,7 @@ async function handleGoogleCredential(resp){
     if (!j.success) { showLoginDenied(j.message || 'Akun tidak terdaftar.'); return; }
 
     ID_TOKEN = resp.credential; // simpan token supaya request selanjutnya ikut terautentikasi
-    CURRENT_USER = { email:j.email, nama:j.nama, role:(j.role||'karyawan').toLowerCase(), aksesKeuanganLevel: j.aksesKeuanganLevel || '' };
+    CURRENT_USER = { email:j.email, nama:j.nama, role:(j.role||'karyawan').toLowerCase(), aksesKeuanganLevel: j.aksesKeuanganLevel || '', aksesTab: j.aksesTab || null };
     simpanSesiLogin_(CURRENT_USER); // sesi ini bisa dipakai lagi tanpa layar login selama 24 jam ke depan
     document.getElementById('login-gate').classList.add('hide');
     document.getElementById('app-content').classList.remove('hide');
@@ -1725,6 +1728,31 @@ async function handleGoogleCredential(resp){
 // Semua logika tampilkan/sembunyikan tab & fitur sesuai role — dipisah jadi fungsi sendiri
 // supaya bisa dipanggil baik dari login normal (handleGoogleCredential) MAUPUN dari jalur
 // "masuk langsung pakai sesi tersimpan" (masukLangsungDenganSesiTersimpan_), tanpa duplikasi.
+// Matriks akses tab dari sheet "AksesTab" (dikirim backend lewat checkAuth → CURRENT_USER.aksesTab).
+// Dijalankan SETELAH logika role lama, lalu menimpa: tab yg tidak dicentang disembunyikan, yg dicentang tampil.
+const TAB_KUNCI_URUT_ = ['form','jadwal','masak','grafik','absensi','laporan','keuangan','belanja','nota'];
+let MATRIKS_INIT_FORM_ = false;
+function terapkanMatriksTab_(){
+  const boleh = CURRENT_USER && Array.isArray(CURRENT_USER.aksesTab) ? CURRENT_USER.aksesTab : null;
+  if(!boleh) return; // backend/sesi lama tanpa matriks → pakai logika role lama
+  TAB_KUNCI_URUT_.forEach(k => {
+    const b = document.getElementById('tab-' + k);
+    if(b) b.classList.toggle('hide', !boleh.includes(k));
+  });
+  // Tombol header Quotation & Invoice juga diatur matriks
+  const bq = document.getElementById('btn-quotation'), bi = document.getElementById('btn-invoice');
+  if(bq) bq.classList.toggle('hide', !boleh.includes('quotation'));
+  if(bi) bi.classList.toggle('hide', !boleh.includes('invoice'));
+  // Tab Order butuh data form (customer, menu, dst). Role non-admin/sales yg diberi akses Order belum pernah menjalankannya.
+  if(boleh.includes('form') && !isFullAccessRole(CURRENT_USER.role) && !MATRIKS_INIT_FORM_){ MATRIKS_INIT_FORM_ = true; try{ initAppContent(); }catch(e){ console.warn(e); } }
+  // Kalau tab yg sedang aktif tidak diizinkan, pindah ke tab pertama yg diizinkan.
+  const aktif = document.querySelector('.tbtn.on');
+  if(!aktif || aktif.classList.contains('hide')){
+    const k = TAB_KUNCI_URUT_.find(x => boleh.includes(x));
+    if(k){ goTab(k, document.getElementById('tab-' + k)); }
+  }
+}
+
 function terapkanAksesRole_(){
   // Tombol Quotation cuma utk role admin/finance/sales
   if (['admin','finance','sales'].includes(CURRENT_USER.role)) {
@@ -1765,6 +1793,7 @@ function terapkanAksesRole_(){
   } else {
     applyKaryawanAccess(); // role lain (Dapur, Finance, Pembelian, Service, dst): Jadwal, Masak, Absensi saja
   }
+  terapkanMatriksTab_(); // matriks sheet "AksesTab" menimpa hasil di atas
 }
 
 // Role dengan akses penuh (semua tab). Role lain di luar ini hanya dapat Jadwal, Masak, Absensi.
@@ -3605,6 +3634,8 @@ function formatBulanLabel_(bulanStr){
   return namaBulan[parseInt(m,10)-1] + ' ' + y;
 }
 
+function loadGrafikSemua_(){ loadGrafikHarian(); loadGrafik(); loadGrafikPengeluaran(); }
+
 async function loadGrafik(){
   const chartEl = document.getElementById('gf-chart');
   const updEl = document.getElementById('gf-updated');
@@ -4757,7 +4788,7 @@ function goTab(id,btn){
   btn.classList.add('on');
   if(id==='jadwal'){ if(allOrders.length===0) loadOrders().then(renderJadwal); else renderJadwal(); }
   if(id==='masak'){ if(allOrders.length===0) loadOrders().then(renderJadwalMasak); else renderJadwalMasak(); }
-  if(id==='grafik'){ loadGrafik(); loadGrafikPengeluaran(); loadGrafikHarian(); }
+  if(id==='grafik'){ loadGrafikSemua_(); }
   if(id==='absensi'){ initAbsensiTab(); if(CURRENT_USER && isFullAccessRole(CURRENT_USER.role)) loadStatusTim(); }
   if(id==='laporan'){ loadLaporanList(); }
   if(id==='nota'){ loadDaftarNota(); }
