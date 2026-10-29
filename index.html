@@ -411,6 +411,13 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 
   <div class="stitle" style="margin-top:20px;">💸 Pengeluaran Bahan Baku (Harian, 15 Hari Terakhir)</div>
   <div id="gf-peng-harian-chart"><div class="empty"><div class="eico">💸</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
+
+  <div id="cf-section">
+    <div class="stitle" style="margin-top:20px;">💰 Posisi Pembayaran per Bulan Kirim <span style="font-weight:400;font-size:10px;color:var(--inks);">· klik warna = daftar order</span></div>
+    <div id="cf-chart"><div class="empty"><div class="eico">💰</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
+    <div class="stitle" style="margin-top:20px;">🧾 Piutang: Umur &amp; Pelanggan</div>
+    <div id="cf-piutang"></div>
+  </div>
 </div>
 
 <!-- ═══ ABSENSI ═══ -->
@@ -708,6 +715,16 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       <button class="modal-close" onclick="document.getElementById('gf-rinci-modal').classList.add('hide')">×</button>
     </div>
     <div id="gf-rinci-body"></div>
+  </div>
+</div>
+
+<div class="modal-bg hide" id="cf-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="cf-modal-title">💰 Order</h2>
+      <button class="modal-close" onclick="document.getElementById('cf-modal').classList.add('hide')">×</button>
+    </div>
+    <div id="cf-modal-body"></div>
   </div>
 </div>
 
@@ -3666,7 +3683,16 @@ function formatBulanLabel_(bulanStr){
   return namaBulan[parseInt(m,10)-1] + ' ' + y;
 }
 
-function loadGrafikSemua_(){ loadGrafikHarian(); loadGrafik(); loadGrafikPengeluaran(); }
+function bisaLihatCashflow_(){
+  if(CURRENT_USER && Array.isArray(CURRENT_USER.aksesTab)) return CURRENT_USER.aksesTab.includes('cashflow');
+  return !!CURRENT_USER && ['admin','sales','finance'].includes(CURRENT_USER.role);
+}
+function loadGrafikSemua_(){
+  loadGrafikHarian(); loadGrafik(); loadGrafikPengeluaran();
+  const sec = document.getElementById('cf-section');
+  if(sec) sec.style.display = bisaLihatCashflow_() ? '' : 'none';
+  if(bisaLihatCashflow_()) loadCashflow_();
+}
 
 async function loadGrafik(){
   const chartEl = document.getElementById('gf-chart');
@@ -4040,6 +4066,106 @@ function renderGrafikBpp_(){
   el.innerHTML = `<div style="overflow-x:auto;background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:12px;box-shadow:var(--sh);"><svg width="${totalW}" height="${chartH}" viewBox="0 0 ${totalW} ${chartH}">${grid}${bars}</svg></div>
     <div style="display:flex;flex-wrap:wrap;margin-top:10px;padding:0 4px;">${legend}</div>`;
 }
+
+// ══ CASHFLOW: posisi pembayaran (Lunas / DP / Piutang / Sisa ke depan) ═══
+let CF_DATA_ = null;
+const CF_KELAS_ = [
+  {k:'lunas',    label:'Lunas',                         warna:'#1B7A4A'},
+  {k:'dp',       label:'DP/terbayar (belum lunas)',     warna:'#1565C0'},
+  {k:'piutang',  label:'Piutang (sudah kirim, sisa)',   warna:'#C0392B'},
+  {k:'ke_depan', label:'Sisa tagihan (belum kirim)',    warna:'#B0A89E'}
+];
+async function loadCashflow_(){
+  const ch = document.getElementById('cf-chart'), pi = document.getElementById('cf-piutang');
+  ch.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat…</div>'; pi.innerHTML = '';
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=getCashflow&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+    CF_DATA_ = j;
+    renderCashflowChart_(); renderPiutang_();
+  }catch(e){ ch.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>${e.message}</p></div>`; }
+}
+function cfRp_(v){ return 'Rp ' + Math.round(v).toLocaleString('id-ID'); }
+function renderCashflowChart_(){
+  const j = CF_DATA_, el = document.getElementById('cf-chart');
+  const bulanList = j.bulanList||[];
+  if(!bulanList.length){ el.innerHTML = '<div class="empty"><div class="eico">💰</div><p>Belum ada data order.</p></div>'; return; }
+  const tot = b => CF_KELAS_.reduce((s,c)=> s + (j.series[b][c.k]||0), 0);
+  const maxVal = Math.max(1, ...bulanList.map(tot));
+  const step = 25000000, topVal = Math.max(step, Math.ceil(maxVal/step)*step), numGrid = topVal/step;
+  const barMaxH = 160, leftM = 54, barW = 46, groupW = 66, totalW = groupW*bulanList.length + leftM + 20, chartH = barMaxH + 50;
+  let grid = '', bars = '';
+  for(let g=0; g<=numGrid; g++){
+    const val = g*step, y = barMaxH - (val/topVal)*barMaxH + 20;
+    grid += `<line x1="${leftM}" y1="${y}" x2="${totalW-10}" y2="${y}" stroke="#EDE3D8" stroke-width="1"/><text x="${leftM-6}" y="${y+3}" font-size="9" fill="#9C8672" text-anchor="end">${formatRupiahSingkat_(val)}</text>`;
+  }
+  bulanList.forEach((b,bi)=>{
+    const x = leftM + 10 + bi*groupW; let st = 0;
+    CF_KELAS_.forEach(c=>{
+      const v = j.series[b][c.k]||0; if(v<=0) return;
+      const h = (v/topVal)*barMaxH, y = barMaxH - st - h + 20;
+      bars += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" fill="${c.warna}" rx="1" style="cursor:pointer;" onclick="bukaCfOrder_('${b}','${c.k}')"><title>${c.label}: ${cfRp_(v)}</title></rect>`;
+      st += h;
+    });
+    bars += `<text x="${x+barW/2}" y="${barMaxH+38}" font-size="10" fill="#5C4A35" text-anchor="middle">${formatBulanLabel_(b)}</text>`;
+  });
+  const legend = CF_KELAS_.map(c=>`<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--inkm);margin:3px 10px 3px 0;"><span style="width:10px;height:10px;border-radius:2px;background:${c.warna};display:inline-block;flex-shrink:0;"></span>${c.label}</div>`).join('');
+  // Ringkasan total semua bulan
+  const sum = k => bulanList.reduce((s,b)=> s + (j.series[b][k]||0), 0);
+  const ringkas = CF_KELAS_.map(c=>`<div style="flex:1;min-width:120px;background:var(--card);border:1px solid var(--bdr);border-radius:8px;padding:8px;border-left:4px solid ${c.warna};"><div style="font-size:10px;color:var(--inks);">${c.label}</div><div style="font-size:13px;font-weight:700;">${cfRp_(sum(c.k))}</div></div>`).join('');
+  el.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">${ringkas}</div>
+    <div style="overflow-x:auto;background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:12px;box-shadow:var(--sh);"><svg width="${totalW}" height="${chartH}" viewBox="0 0 ${totalW} ${chartH}">${grid}${bars}</svg></div>
+    <div style="display:flex;flex-wrap:wrap;margin-top:10px;padding:0 4px;">${legend}</div>
+    <div style="font-size:10px;color:var(--inks);margin-top:4px;">Dasar: sheet Orders (Jumlah Total, Jumlah Bayar, Sisa Bayar), dikelompokkan per bulan tanggal kirim; order Batal tidak dihitung. Tinggi batang = total penjualan bulan itu.</div>`;
+}
+function cfFilter_(kelas, o, today){
+  if(kelas==='lunas') return o.sisa<=0;
+  if(kelas==='dp') return o.sisa>0 && o.bayar>0;
+  if(kelas==='piutang') return o.sisa>0 && o.tgl<=today;
+  if(kelas==='ke_depan') return o.sisa>0 && o.tgl>today;
+  return false;
+}
+function tampilCfModal_(judul, rows, kolomNilai){
+  const body = document.getElementById('cf-modal-body');
+  document.getElementById('cf-modal-title').textContent = judul;
+  const th = 'style="text-align:left;padding:4px;border-bottom:1px solid var(--bdr);white-space:nowrap;"', thr = th.replace('left','right');
+  const td = 'style="padding:4px;border-bottom:1px solid var(--bdr);"', tdr = 'style="padding:4px;border-bottom:1px solid var(--bdr);text-align:right;white-space:nowrap;"';
+  const r = v => Math.round(v).toLocaleString('id-ID');
+  body.innerHTML = rows.length ? `<div style="overflow-x:auto;"><table style="width:100%;font-size:11px;border-collapse:collapse;">
+    <tr><th ${th}>Order</th><th ${th}>Kirim</th><th ${th}>Pelanggan</th><th ${thr}>Total</th><th ${thr}>Dibayar</th><th ${thr}>Sisa</th></tr>
+    ${rows.map(o=>`<tr><td ${td}>${o.no}</td><td ${td}>${fd(o.tgl)}</td><td ${td}>${o.cust||'—'}</td><td ${tdr}>${r(o.total)}</td><td ${tdr}>${r(o.bayar)}</td><td ${tdr}>${r(o.sisa)}</td></tr>`).join('')}
+    <tr style="font-weight:700;"><td ${td} colspan="3">${rows.length} order</td><td ${tdr}>${r(rows.reduce((s,o)=>s+o.total,0))}</td><td ${tdr}>${r(rows.reduce((s,o)=>s+o.bayar,0))}</td><td ${tdr}>${r(rows.reduce((s,o)=>s+o.sisa,0))}</td></tr>
+  </table></div>` : '<div class="empty"><div class="eico">📭</div><p>Tidak ada order.</p></div>';
+  document.getElementById('cf-modal').classList.remove('hide');
+}
+function bukaCfOrder_(bulan, kelas){
+  const j = CF_DATA_; const c = CF_KELAS_.find(x=>x.k===kelas);
+  const rows = j.orders.filter(o => o.tgl.slice(0,7)===bulan && cfFilter_(kelas,o,j.today)).sort((a,b)=>a.tgl<b.tgl?-1:1);
+  tampilCfModal_('💰 ' + c.label + ' — ' + formatBulanLabel_(bulan), rows);
+}
+function renderPiutang_(){
+  const j = CF_DATA_, el = document.getElementById('cf-piutang');
+  const hari = t => Math.floor((new Date(j.today) - new Date(t)) / 86400000);
+  const pt = j.orders.filter(o => o.sisa>0 && o.tgl<=j.today);
+  const grup = [
+    {label:'0–30 hari',  f:o=>hari(o.tgl)<=30,                    warna:'#F9A825'},
+    {label:'31–60 hari', f:o=>hari(o.tgl)>30 && hari(o.tgl)<=60,  warna:'#E8600A'},
+    {label:'> 60 hari',  f:o=>hari(o.tgl)>60,                     warna:'#C0392B'}
+  ];
+  const tiles = grup.map((g,i)=>{ const rows = pt.filter(g.f); return `<div onclick="bukaCfAging_(${i})" style="cursor:pointer;flex:1;min-width:110px;background:var(--card);border:1px solid var(--bdr);border-radius:8px;padding:8px;border-left:4px solid ${g.warna};"><div style="font-size:10px;color:var(--inks);">${g.label} · ${rows.length} order</div><div style="font-size:13px;font-weight:700;">${cfRp_(rows.reduce((s,o)=>s+o.sisa,0))}</div></div>`; }).join('');
+  const per = {};
+  pt.forEach(o=>{ const k = o.cust||'—'; (per[k] = per[k]||{nama:k, sisa:0, n:0}); per[k].sisa += o.sisa; per[k].n++; });
+  const top = Object.values(per).sort((a,b)=>b.sisa-a.sisa).slice(0,10);
+  el.innerHTML = pt.length ? `<div style="font-size:11px;color:var(--inks);margin-bottom:6px;">Total piutang: <b style="color:#C0392B;">${cfRp_(pt.reduce((s,o)=>s+o.sisa,0))}</b> dari ${pt.length} order (umur dihitung dari tanggal kirim)</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">${tiles}</div>
+    <div style="font-size:11px;color:var(--inks);margin-bottom:3px;">Piutang terbesar per pelanggan (klik = daftar order):</div>
+    ${top.map(c=>`<div onclick="bukaCfPelanggan_('${c.nama.replace(/'/g,"\\'")}')" style="cursor:pointer;display:flex;gap:8px;padding:5px 4px;border-bottom:1px solid var(--bdr);font-size:12px;"><span style="flex:1;">${c.nama}</span><span style="color:var(--inks);">${c.n} order</span><b>${cfRp_(c.sisa)}</b></div>`).join('')}`
+    : '<div class="empty"><div class="eico">✅</div><p>Tidak ada piutang.</p></div>';
+  CF_GRUP_ = grup; CF_PT_ = pt;
+}
+let CF_GRUP_ = [], CF_PT_ = [];
+function bukaCfAging_(i){ const g = CF_GRUP_[i]; tampilCfModal_('🧾 Piutang ' + g.label, CF_PT_.filter(g.f).sort((a,b)=>a.tgl<b.tgl?-1:1)); }
+function bukaCfPelanggan_(nama){ tampilCfModal_('🧾 Piutang — ' + nama, CF_PT_.filter(o=>(o.cust||'—')===nama).sort((a,b)=>a.tgl<b.tgl?-1:1)); }
 
 async function loadGrafikPengeluaran(){
   const chartEl = document.getElementById('gf-peng-chart');
