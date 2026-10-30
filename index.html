@@ -4364,8 +4364,8 @@ function Utilities_formatTodayId_(){
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 }
 
-function openOrderDetail(no, infoSaja){
-  const o = allOrders.find(x => String(x.no_order) === String(no));
+function openOrderDetail(no, infoSaja, oPre){
+  const o = oPre || allOrders.find(x => String(x.no_order) === String(no));
   if(!o){ toast('Data order tidak ditemukan (coba refresh).','err'); return; }
 
   const menuFields = [
@@ -4440,8 +4440,18 @@ function openOrderDetail(no, infoSaja){
 }
 // Detail order hanya-lihat (dipakai dari pop up Cashflow): tanpa ubah status / hapus
 async function bukaDetailInfo_(no){
-  try{ if(!allOrders || !allOrders.length){ showOvl('Memuat order…'); await loadOrders(); hideOvl(); } }catch(e){ try{hideOvl();}catch(_){} }
-  openOrderDetail(no, true);
+  // allOrders hanya berisi order hari ini ke depan, jadi order lama diambil satu per satu dari server
+  let o = allOrders.find(x => String(x.no_order) === String(no));
+  if(!o){
+    try{
+      showOvl('Memuat order…');
+      const j = await gasFetch(APP.GAS_URL + '?action=getOrderByNo&no=' + encodeURIComponent(no) + '&t=' + Date.now());
+      hideOvl();
+      if(!j.success) throw new Error(j.message);
+      o = j.data;
+    }catch(e){ try{hideOvl();}catch(_){} toast('Gagal memuat order: ' + e.message,'err'); return; }
+  }
+  openOrderDetail(no, true, o);
 }
 function closeOrderDetail(){
   document.getElementById('order-detail-modal').classList.add('hide');
