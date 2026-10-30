@@ -4150,6 +4150,7 @@ function cfFilter_(kelas, o, today){
   if(kelas==='ke_depan') return o.sisa>0 && !o.selesai;
   return false;
 }
+let CF_REOPEN_ = null;
 function tampilCfModal_(judul, rows, kolomNilai){
   const body = document.getElementById('cf-modal-body');
   document.getElementById('cf-modal-title').textContent = judul;
@@ -4157,15 +4158,16 @@ function tampilCfModal_(judul, rows, kolomNilai){
   const td = 'style="padding:4px;border-bottom:1px solid var(--bdr);"', tdr = 'style="padding:4px;border-bottom:1px solid var(--bdr);text-align:right;white-space:nowrap;"';
   const r = v => Math.round(v).toLocaleString('id-ID');
   body.innerHTML = rows.length ? `<div style="overflow-x:auto;"><table style="width:100%;font-size:11px;border-collapse:collapse;">
-    <tr><th ${th}>Order</th><th ${th}>Kirim</th><th ${th}>Pelanggan</th><th ${thr}>Total</th><th ${thr}>Dibayar</th><th ${thr}>Sisa</th></tr>
-    ${rows.map(o=>`<tr><td ${td}>${o.no}</td><td ${td}>${fd(o.tgl)}</td><td ${td}>${o.cust||'—'}</td><td ${tdr}>${r(o.total)}</td><td ${tdr}>${r(o.bayar)}</td><td ${tdr}>${r(o.sisa)}</td></tr>`).join('')}
+    <tr><th ${th}>Order</th><th ${th}>Kirim</th><th ${th}>Pelanggan</th><th ${thr}>Total</th><th ${thr}>Dibayar</th><th ${thr}>Sisa</th><th ${th}></th></tr>
+    ${rows.map(o=>`<tr><td ${td}>${o.no}</td><td ${td}>${fd(o.tgl)}</td><td ${td}>${o.cust||'—'}</td><td ${tdr}>${r(o.total)}</td><td ${tdr}>${r(o.bayar)}</td><td ${tdr}>${r(o.sisa)}</td><td ${td}><a href="#" onclick="cfEditBayar_('${String(o.no).replace(/'/g,"\\'")}');return false;" style="color:var(--blu);text-decoration:underline;white-space:nowrap;">✏️ Ubah</a></td></tr>`).join('')}
     <tr style="font-weight:700;"><td ${td} colspan="3">${rows.length} order</td><td ${tdr}>${r(rows.reduce((s,o)=>s+o.total,0))}</td><td ${tdr}>${r(rows.reduce((s,o)=>s+o.bayar,0))}</td><td ${tdr}>${r(rows.reduce((s,o)=>s+o.sisa,0))}</td></tr>
-  </table></div>` : '<div class="empty"><div class="eico">📭</div><p>Tidak ada order.</p></div>';
+  </table></div><div id="cf-edit"></div>` : '<div class="empty"><div class="eico">📭</div><p>Tidak ada order.</p></div>';
   document.getElementById('cf-modal').classList.remove('hide');
 }
 function bukaCfOrder_(bulan, kelas){
   const j = CF_DATA_; const c = CF_KELAS_.find(x=>x.k===kelas);
   const rows = j.orders.filter(o => o.tgl.slice(0,7)===bulan && cfFilter_(kelas,o,j.today)).sort((a,b)=>a.tgl<b.tgl?-1:1);
+  CF_REOPEN_ = () => bukaCfOrder_(bulan, kelas);
   tampilCfModal_('💰 ' + c.label + ' — ' + formatBulanLabel_(bulan), rows);
 }
 function renderPiutang_(){
@@ -4189,8 +4191,43 @@ function renderPiutang_(){
   CF_GRUP_ = grup; CF_PT_ = pt;
 }
 let CF_GRUP_ = [], CF_PT_ = [];
-function bukaCfAging_(i){ const g = CF_GRUP_[i]; tampilCfModal_('🧾 Piutang ' + g.label, CF_PT_.filter(g.f).sort((a,b)=>a.tgl<b.tgl?-1:1)); }
-function bukaCfPelanggan_(nama){ tampilCfModal_('🧾 Piutang — ' + nama, CF_PT_.filter(o=>(o.cust||'—')===nama).sort((a,b)=>a.tgl<b.tgl?-1:1)); }
+// Ubah status pembayaran order dari pop up cashflow
+function cfEditBayar_(no){
+  const o = CF_DATA_.orders.find(x => String(x.no) === String(no)); if(!o) return;
+  const st0 = /lunas/i.test(o.status_bayar||'') ? 'Lunas' : (['DP','Invoice','COD'].includes(o.status_bayar) ? o.status_bayar : (o.bayar>0 ? 'DP' : 'Invoice'));
+  const selesai = o.status === 'Selesai';
+  document.getElementById('cf-edit').innerHTML = `<div style="margin-top:10px;padding:10px;border:1px solid var(--bdr);border-radius:8px;background:var(--card);">
+    <div style="font-weight:700;font-size:12px;margin-bottom:6px;">✏️ Status pembayaran — ${o.no} · total Rp ${Math.round(o.total).toLocaleString('id-ID')}</div>
+    <div style="font-size:10px;color:var(--inks);margin-bottom:6px;">Lunas = status order Selesai (otomatis ikut berubah${selesai ? '; jika Anda pilih selain Lunas, status order kembali ke Proses' : ''}).</div>
+    <div class="g2"><div class="fld"><label>Status</label><select id="cf-e-st" onchange="cfEditChg_(${o.total})">
+      ${['Invoice','DP','Lunas','COD'].map(x=>`<option value="${x}" ${x===st0?'selected':''}>${x}</option>`).join('')}</select></div>
+    <div class="fld"><label>Jumlah Bayar (Rp)</label><input id="cf-e-bayar" type="number" min="0" value="${Math.round(st0==='Lunas'?o.total:o.bayar)}"></div></div>
+    <div style="display:flex;gap:6px;margin-top:8px;"><button class="bsub" style="flex:1;" onclick="cfSimpanBayar_('${String(o.no).replace(/'/g,"\\'")}')">💾 Simpan</button>
+    <button class="bsub" style="flex:1;background:var(--card);color:var(--ink);border:1px solid var(--bdr);" onclick="document.getElementById('cf-edit').innerHTML=''">Batal</button></div></div>`;
+  cfEditChg_(o.total, true);
+  document.getElementById('cf-edit').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function cfEditChg_(total, awal){
+  const st = document.getElementById('cf-e-st').value, b = document.getElementById('cf-e-bayar');
+  if(st==='Lunas'){ b.value = Math.round(total); b.disabled = true; }
+  else { b.disabled = false; if(!awal && (st==='DP')) b.value = Math.round(total*0.5); if(!awal && (st==='Invoice'||st==='COD')) b.value = 0; }
+}
+async function cfSimpanBayar_(no){
+  const st = document.getElementById('cf-e-st').value, bayar = document.getElementById('cf-e-bayar').value || 0;
+  try{
+    showOvl('Menyimpan…');
+    const qs = new URLSearchParams({action:'setPembayaranOrder', no, status:st, bayar}).toString();
+    const j = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+    const k = await gasFetch(APP.GAS_URL + '?action=getCashflow&t=' + Date.now());
+    hideOvl();
+    if(k.success){ CF_DATA_ = k; renderCashflowChart_(); renderPiutang_(); }
+    toast('Status pembayaran ' + no + ' diperbarui: ' + st,'ok');
+    if(CF_REOPEN_) CF_REOPEN_();
+  }catch(e){ try{ hideOvl(); }catch(_){} toast('Gagal menyimpan: ' + e.message,'err'); }
+}
+function bukaCfAging_(i){ const g = CF_GRUP_[i]; CF_REOPEN_ = () => bukaCfAging_(i); tampilCfModal_('🧾 Piutang ' + g.label, CF_PT_.filter(g.f).sort((a,b)=>a.tgl<b.tgl?-1:1)); }
+function bukaCfPelanggan_(nama){ CF_REOPEN_ = () => bukaCfPelanggan_(nama); tampilCfModal_('🧾 Piutang — ' + nama, CF_PT_.filter(o=>(o.cust||'—')===nama).sort((a,b)=>a.tgl<b.tgl?-1:1)); }
 
 async function loadGrafikPengeluaran(){
   const chartEl = document.getElementById('gf-peng-chart');
