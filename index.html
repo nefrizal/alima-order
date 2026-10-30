@@ -4159,7 +4159,7 @@ function tampilCfModal_(judul, rows, kolomNilai){
   const r = v => Math.round(v).toLocaleString('id-ID');
   body.innerHTML = rows.length ? `<div style="overflow-x:auto;"><table style="width:100%;font-size:11px;border-collapse:collapse;">
     <tr><th ${th}>Order</th><th ${th}>Kirim</th><th ${th}>Pelanggan</th><th ${thr}>Total</th><th ${thr}>Dibayar</th><th ${thr}>Sisa</th><th ${th}></th></tr>
-    ${rows.map(o=>`<tr><td ${td}>${o.no}</td><td ${td}>${fd(o.tgl)}</td><td ${td}>${o.cust||'—'}</td><td ${tdr}>${r(o.total)}</td><td ${tdr}>${r(o.bayar)}</td><td ${tdr}>${r(o.sisa)}</td><td ${td}><a href="#" onclick="cfEditBayar_('${String(o.no).replace(/'/g,"\\'")}');return false;" style="color:var(--blu);text-decoration:underline;white-space:nowrap;">✏️ Ubah</a></td></tr>`).join('')}
+    ${rows.map(o=>`<tr><td ${td}><a href="#" onclick="bukaDetailInfo_('${String(o.no).replace(/'/g,"\\'")}');return false;" style="color:var(--blu);text-decoration:underline;white-space:nowrap;">${o.no}</a></td><td ${td}>${fd(o.tgl)}</td><td ${td}>${o.cust||'—'}</td><td ${tdr}>${r(o.total)}</td><td ${tdr}>${r(o.bayar)}</td><td ${tdr}>${r(o.sisa)}</td><td ${td}><a href="#" onclick="cfEditBayar_('${String(o.no).replace(/'/g,"\\'")}');return false;" style="color:var(--blu);text-decoration:underline;white-space:nowrap;">✏️ Ubah</a></td></tr>`).join('')}
     <tr style="font-weight:700;"><td ${td} colspan="3">${rows.length} order</td><td ${tdr}>${r(rows.reduce((s,o)=>s+o.total,0))}</td><td ${tdr}>${r(rows.reduce((s,o)=>s+o.bayar,0))}</td><td ${tdr}>${r(rows.reduce((s,o)=>s+o.sisa,0))}</td></tr>
   </table></div><div id="cf-edit"></div>` : '<div class="empty"><div class="eico">📭</div><p>Tidak ada order.</p></div>';
   document.getElementById('cf-modal').classList.remove('hide');
@@ -4364,7 +4364,7 @@ function Utilities_formatTodayId_(){
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 }
 
-function openOrderDetail(no){
+function openOrderDetail(no, infoSaja){
   const o = allOrders.find(x => String(x.no_order) === String(no));
   if(!o){ toast('Data order tidak ditemukan (coba refresh).','err'); return; }
 
@@ -4425,18 +4425,23 @@ function openOrderDetail(no){
       <div class="prow tot" style="color:var(--grn);border-top-color:#b7dfc9;"><span>Sisa</span><span>Rp ${Number(o.sisa_bayar||0).toLocaleString('id-ID')}</span></div>
     </div>`:''}
     ` : ''}
-    <div class="fld" style="margin-top:14px;">
+    ${infoSaja ? '' : `<div class="fld" style="margin-top:14px;">
       <label>Ubah Status</label>
       <select id="od-status" onchange="updStatus('${o.no_order}',this.value); closeOrderDetail();">
         ${['Baru','Proses','Selesai','Batal'].map(s=>`<option ${o.status===s?'selected':''}>${s}</option>`).join('')}
       </select>
-    </div>
+    </div>`}
     <button class="bico" onclick="bukaPrintPreview('${o.no_order}')" style="width:100%;margin-top:12px;background:var(--inkm);">🖨️ Print Menu</button>
-    ${CURRENT_USER && CURRENT_USER.role === 'admin' && o.status === 'Batal' ? `
+    ${!infoSaja && CURRENT_USER && CURRENT_USER.role === 'admin' && o.status === 'Batal' ? `
     <button class="bico" onclick="hapusOrderPermanen('${o.no_order}')" style="width:100%;margin-top:8px;background:var(--red);">🗑️ Hapus Order Permanen</button>
     ` : ''}
   `;
   document.getElementById('order-detail-modal').classList.remove('hide');
+}
+// Detail order hanya-lihat (dipakai dari pop up Cashflow): tanpa ubah status / hapus
+async function bukaDetailInfo_(no){
+  try{ if(!allOrders || !allOrders.length){ showOvl('Memuat order…'); await loadOrders(); hideOvl(); } }catch(e){ try{hideOvl();}catch(_){} }
+  openOrderDetail(no, true);
 }
 function closeOrderDetail(){
   document.getElementById('order-detail-modal').classList.add('hide');
