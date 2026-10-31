@@ -3771,6 +3771,8 @@ function renderGrafikChart(j, elId, emptyMsg){
       bars += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" fill="${color}" rx="1"></rect>`;
       stackedH += h;
     });
+    const totB = kategoriList.reduce((t,k)=> t + ((data[b]&&data[b][k])||0), 0);
+    if(totB > 0) bars += `<text x="${x + barW/2}" y="${barMaxH - stackedH + 20 - 4}" font-size="10" font-weight="700" fill="#5C4A35" text-anchor="middle">${formatRupiahSingkat_(totB)}</text>`;
     bars += `<text x="${x + barW/2}" y="${barMaxH+38}" font-size="10" fill="#5C4A35" text-anchor="middle">${formatBulanLabel_(b)}</text>`;
   });
 
@@ -4132,6 +4134,7 @@ function renderCashflowChart_(){
       bars += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" fill="${c.warna}" rx="1" style="cursor:pointer;" onclick="bukaCfOrder_('${b}','${c.k}')"><title>${c.label}: ${cfRp_(v)}</title></rect>`;
       st += h;
     });
+    if(tot(b) > 0) bars += `<text x="${x+barW/2}" y="${barMaxH - st + 20 - 4}" font-size="10" font-weight="700" fill="#5C4A35" text-anchor="middle" style="pointer-events:none;">${formatRupiahSingkat_(tot(b))}</text>`;
     bars += `<text x="${x+barW/2}" y="${barMaxH+38}" font-size="10" fill="#5C4A35" text-anchor="middle">${formatBulanLabel_(b)}</text>`;
   });
   const legend = CF_KELAS_.map(c=>`<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--inkm);margin:3px 10px 3px 0;"><span style="width:10px;height:10px;border-radius:2px;background:${c.warna};display:inline-block;flex-shrink:0;"></span>${c.label}</div>`).join('');
@@ -4336,6 +4339,8 @@ function renderGrafikHarianChart(j, elId, bisaKlik){
       bars += `<rect x="${x}" y="${y}" width="${barW}" height="${hgt}" fill="${color}" rx="1"></rect>`;
       stackedH += hgt;
     });
+    const totH = kategoriList.reduce((t,k)=> t + ((data[h]&&data[h][k])||0), 0);
+    if(totH > 0) bars += `<text x="${x + barW/2}" y="${barMaxH - stackedH + 20 - 3}" font-size="8" font-weight="700" fill="#5C4A35" text-anchor="middle" style="pointer-events:none;">${formatRupiahSingkat_(totH)}</text>`;
     if (bisaKlik) bars += `<rect x="${x-3}" y="12" width="${barW+6}" height="${barMaxH+34}" fill="transparent" style="cursor:pointer;" onclick="bukaDetailHariGrafik_('${h}')"></rect>`;
     const [, mm, dd] = h.split('-');
     const isToday = h === todayStr;
