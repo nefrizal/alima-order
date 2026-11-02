@@ -1805,6 +1805,13 @@ function terapkanMatriksTab_(){
     const b = document.getElementById('tab-' + k);
     if(b) b.classList.toggle('hide', !boleh.includes(k));
   });
+  // Tab Keuangan = Jurnal ('keuangan') + Bahan Baku ('bahan'); tab tampil kalau salah satunya dicentang.
+  // Panel Bahan Baku & tombol "Buat Permintaan Bahan" diatur baris 'bahan baku' & 'buat permintaan bahan'.
+  const tk = document.getElementById('tab-keuangan');
+  if(tk) tk.classList.toggle('hide', !(boleh.includes('keuangan') || boleh.includes('bahan')));
+  const pj = document.getElementById('ksub-panel-jurnal'); if(pj && !boleh.includes('keuangan')) pj.classList.add('hide');
+  const pb = document.getElementById('ksub-panel-bahan'); if(pb) pb.classList.toggle('hide', !boleh.includes('bahan'));
+  const bbb = document.getElementById('bb-btn-buat-permintaan'); if(bbb) bbb.classList.toggle('hide', !(boleh.includes('bahan') && boleh.includes('bahan_buat')));
   // Tombol header Quotation & Invoice juga diatur matriks
   const bq = document.getElementById('btn-quotation'), bi = document.getElementById('btn-invoice');
   if(bq) bq.classList.toggle('hide', !boleh.includes('quotation'));
@@ -5190,7 +5197,7 @@ function goTab(id,btn){
   if(id==='nota'){ loadDaftarNota(); }
   if(id==='keuangan'){
     const level = CURRENT_USER ? CURRENT_USER.aksesKeuanganLevel : '';
-    if(level === 'Lihat' || level === 'Semua'){
+    if((level === 'Lihat' || level === 'Semua') && !(Array.isArray(CURRENT_USER.aksesTab) && !CURRENT_USER.aksesTab.includes('keuangan'))){
       if(!document.getElementById('kn-filter-mulai').value){
         const now = new Date();
         const awalBulan = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -5199,7 +5206,7 @@ function goTab(id,btn){
       }
       loadJurnalData();
     }
-    const bisaBahan = CURRENT_USER && ['leader dapur','leader service','pembelian','admin'].includes(CURRENT_USER.role);
+    const bisaBahan = CURRENT_USER && (Array.isArray(CURRENT_USER.aksesTab) ? CURRENT_USER.aksesTab.includes('bahan') : ['leader dapur','leader service','pembelian','admin'].includes(CURRENT_USER.role));
     if(bisaBahan){ loadPermintaanList(); }
   }
   if(id==='belanja'){
