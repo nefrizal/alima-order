@@ -4485,7 +4485,7 @@ async function bukaRencanaBelanja_(tgl){
     const th = 'style="text-align:left;padding:4px;border-bottom:1px solid var(--bdr);white-space:nowrap;"', thr = th.replace('left','right');
     const td = 'style="padding:4px;border-bottom:1px solid var(--bdr);"', tdr = 'style="padding:4px;border-bottom:1px solid var(--bdr);text-align:right;white-space:nowrap;"';
     const tanpaResep = (j.menu||[]).filter(m => !m.ada_resep);
-    const tanpaHarga = (j.bahan||[]).filter(b => !(b.harga > 0));
+    const tanpaHarga = (j.bahan||[]).filter(b => !(b.harga > 0) || b.harga_ok === false);
     const totalPorsi = (j.menu||[]).reduce((s,m)=>s+m.porsi,0);
     body.innerHTML = `
       <div style="font-size:11px;color:var(--inks);margin-bottom:8px;">Belanja tanggal <b>${fd(j.tgl)}</b> untuk order yang dikirim <b>${fd(j.tgl_order)}</b>. Total rencana: <b style="color:#5E3FA3;">Rp ${rp(j.total||0)}</b></div>
@@ -4493,15 +4493,15 @@ async function bukaRencanaBelanja_(tgl){
       <div style="font-weight:700;font-size:12px;margin:6px 0 3px;">🍽️ Menu yang dimasak (${j.menu.length} menu · ${rp(totalPorsi)} porsi)</div>
       <div style="overflow-x:auto;"><table style="width:100%;font-size:11px;border-collapse:collapse;">
         <tr><th ${th}>Menu</th><th ${thr}>Porsi</th><th ${th}>Resep</th></tr>
-        ${j.menu.map(m=>`<tr><td ${td}>${m.nama}</td><td ${tdr}>${rp(m.porsi)}</td><td ${td}>${m.ada_resep ? '✓' : '<span style="color:#C0392B;">belum ada gramasi</span>'}</td></tr>`).join('')}
+        ${j.menu.map(m=>`<tr><td ${td}>${m.nama}</td><td ${tdr}>${rp(m.porsi)}</td><td ${td}>${m.ada_resep ? '✓' : `<span data-n="${encodeURIComponent(m.nama)}" onclick="bukaGramasiDariMasak(decodeURIComponent(this.dataset.n))" style="color:#C0392B;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;" title="Klik utk membuat resep gramasinya">belum ada gramasi</span>`}</td></tr>`).join('')}
       </table></div>
       <div style="font-weight:700;font-size:12px;margin:14px 0 3px;">🛒 Bahan yang dibelanjakan (${(j.bahan||[]).length} bahan)</div>
       <div style="overflow-x:auto;"><table style="width:100%;font-size:11px;border-collapse:collapse;">
         <tr><th ${th}>Bahan</th><th ${thr}>Qty</th><th ${th}>Satuan</th><th ${thr}>Harga</th><th ${thr}>Jumlah</th></tr>
-        ${(j.bahan||[]).map(b=>`<tr><td ${td}>${b.nama}</td><td ${tdr}>${Number(b.qty).toLocaleString('id-ID')}</td><td ${td}>${b.satuan||''}</td><td ${tdr}>${b.harga>0 ? rp(b.harga) : '<span style="color:#C0392B;">—</span>'}</td><td ${tdr}>${rp(b.jumlah)}</td></tr>`).join('')}
+        ${(j.bahan||[]).map(b=>`<tr><td ${td}>${b.nama}</td><td ${tdr}>${Number(b.qty).toLocaleString('id-ID')}</td><td ${td}>${b.satuan||''}</td><td ${tdr}>${b.harga>0 ? (Math.round(b.harga*100)/100).toLocaleString('id-ID') + `<div style="font-size:9px;color:var(--inks);">${b.harga_ket||''}</div>` : `<span style="color:#C0392B;">—</span><div style="font-size:9px;color:#C0392B;">${b.harga_ket||''}</div>`}</td><td ${tdr}>${rp(b.jumlah)}</td></tr>`).join('')}
         <tr style="font-weight:700;"><td ${td} colspan="4">Total (Rp)</td><td ${tdr}>${rp(j.total||0)}</td></tr>
       </table></div>
-      ${tanpaResep.length ? `<div style="font-size:10px;color:#C0392B;margin-top:6px;">⚠ ${tanpaResep.length} menu belum punya gramasi (tidak ikut dihitung): ${tanpaResep.map(m=>m.nama).join(', ')}</div>` : ''}
+      ${tanpaResep.length ? `<div style="font-size:10px;color:#C0392B;margin-top:6px;">⚠ ${tanpaResep.length} menu belum punya gramasi (tidak ikut dihitung) — klik <i>belum ada gramasi</i> di tabel utk membuat resepnya.</div>` : ''}
       ${tanpaHarga.length ? `<div style="font-size:10px;color:#C0392B;margin-top:4px;">⚠ ${tanpaHarga.length} bahan belum punya harga (dihitung Rp 0): ${tanpaHarga.map(b=>b.nama).join(', ')}</div>` : ''}
       ` : '<div class="empty"><div class="eico">📭</div><p>Tidak ada order di tanggal ' + fd(j.tgl_order) + '.</p></div>'}`;
   }catch(e){ body.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>Gagal memuat: ${e.message}</p></div>`; }
@@ -7548,7 +7548,7 @@ async function checkConn(){
 }
 </script>
 <!-- MODAL KELOLA MENU GRAMASI (tambah/edit/hapus resep menu utk Kalkulator Gramasi) -->
-<div id="gramasi-modal" class="hide" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:flex-end;justify-content:center;">
+<div id="gramasi-modal" class="hide" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:350;display:flex;align-items:flex-end;justify-content:center;">
   <div style="background:#fff;width:100%;max-width:520px;max-height:90vh;border-radius:16px 16px 0 0;display:flex;flex-direction:column;overflow:hidden;">
     <div style="padding:14px 16px;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center;">
       <strong style="font-size:14px;">📋 Kelola Menu Gramasi</strong>
