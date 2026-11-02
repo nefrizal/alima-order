@@ -715,6 +715,16 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   </div>
 </div>
 
+<div class="modal-bg hide" id="gf-rencana-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="gf-rencana-title">🛒 Rencana Belanja</h2>
+      <button class="modal-close" onclick="document.getElementById('gf-rencana-modal').classList.add('hide')">×</button>
+    </div>
+    <div id="gf-rencana-body"></div>
+  </div>
+</div>
+
 <div class="modal-bg hide" id="gf-pie-modal">
   <div class="modal">
     <div class="modal-head">
@@ -4432,7 +4442,7 @@ function renderGrafikHarianChart(j, elId, bisaKlik){
     if(totH > 0) bars += `<text x="${x + barW/2}" y="${barMaxH - stackedH + 20 - 3}" font-size="8" font-weight="700" fill="#5C4A35" text-anchor="middle" style="pointer-events:none;">${formatRupiahSingkat_(totH)}</text>`;
     if (adaRencana && (rencana[h]||0) > 0) {
       const rh = (rencana[h]/topVal)*barMaxH, rx = x + barW + 2;
-      bars += `<rect x="${rx}" y="${barMaxH - rh + 20}" width="${barW}" height="${rh}" fill="url(#pola-rencana)" stroke="#7E57C2" stroke-width="1" rx="1"><title>Rencana ${h}: ${cfRp_(rencana[h])} (kebutuhan order ${'besok'})</title></rect>`;
+      bars += `<rect x="${rx}" y="${barMaxH - rh + 20}" width="${barW}" height="${rh}" fill="url(#pola-rencana)" stroke="#7E57C2" stroke-width="1" rx="1" style="cursor:pointer;" onclick="bukaRencanaBelanja_('${h}')"><title>Rencana ${h}: ${cfRp_(rencana[h])} — klik utk rincian belanja</title></rect>`;
       bars += `<text x="${rx + barW/2}" y="${barMaxH - rh + 20 - 3}" font-size="8" font-weight="700" fill="#5E3FA3" text-anchor="middle" style="pointer-events:none;">${formatRupiahSingkat_(rencana[h])}</text>`;
     }
     if (bisaKlik) bars += `<rect x="${x-3}" y="12" width="${lebarGrup+6}" height="${barMaxH+34}" fill="transparent" style="cursor:pointer;" onclick="bukaDetailHariGrafik_('${h}')"></rect>`;
@@ -4447,7 +4457,7 @@ function renderGrafikHarianChart(j, elId, bisaKlik){
       <span style="width:10px;height:10px;border-radius:2px;background:${GRAFIK_COLORS[ki%GRAFIK_COLORS.length]};display:inline-block;flex-shrink:0;"></span>${k}
     </div>`).join('');
 
-  const legendRencana = adaRencana ? `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#5E3FA3;margin:3px 10px 3px 0;"><span style="width:10px;height:10px;border-radius:2px;background:#EDE7F6;border:1.5px solid #7E57C2;display:inline-block;flex-shrink:0;"></span>Rencana bahan baku (order hari berikutnya × gramasi)</div>` : '';
+  const legendRencana = adaRencana ? `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#5E3FA3;margin:3px 10px 3px 0;"><span style="width:10px;height:10px;border-radius:2px;background:#EDE7F6;border:1.5px solid #7E57C2;display:inline-block;flex-shrink:0;"></span>Rencana bahan baku (order hari berikutnya × gramasi) · klik batang = rincian</div>` : '';
   const catatRencana = adaRencana ? `<div style="font-size:10px;color:var(--inks);margin-top:4px;">Batang berpola = RENCANA belanja tgl tsb: kebutuhan bahan (tab gramasi × porsi) untuk order yang dikirim esok harinya, dikali harga terbaru bahan.${(j.tanpaHarga&&j.tanpaHarga.length) ? ' <span style="color:#C0392B;">'+j.tanpaHarga.length+' bahan belum punya harga (dihitung Rp 0): '+j.tanpaHarga.slice(0,6).join(', ')+(j.tanpaHarga.length>6?'…':'')+'</span>' : ''}</div>` : '';
   chartEl.innerHTML = `
     <div style="overflow-x:auto;background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:12px;box-shadow:var(--sh);">
@@ -4458,6 +4468,43 @@ function renderGrafikHarianChart(j, elId, bisaKlik){
     </div>
     <div style="display:flex;flex-wrap:wrap;margin-top:10px;padding:0 4px;">${legend}${legendRencana}</div>${catatRencana}
   `;
+}
+
+
+// Klik batang Rencana → daftar menu (order H+1) & bahan yang akan dibelanjakan
+async function bukaRencanaBelanja_(tgl){
+  const body = document.getElementById('gf-rencana-body'), modal = document.getElementById('gf-rencana-modal');
+  document.getElementById('gf-rencana-title').textContent = '🛒 Rencana belanja ' + fd(tgl);
+  body.innerHTML = '<div class="swrap"><div class="sp"></div>Menghitung…</div>';
+  modal.classList.remove('hide');
+  try{
+    const j0 = await gasFetch(APP.GAS_URL + '?' + new URLSearchParams({action:'getRencanaBelanja', tgl, t:Date.now()}).toString());
+    if(!j0.success) throw new Error(j0.message);
+    const j = j0.data || j0;
+    const rp = v => Math.round(v).toLocaleString('id-ID');
+    const th = 'style="text-align:left;padding:4px;border-bottom:1px solid var(--bdr);white-space:nowrap;"', thr = th.replace('left','right');
+    const td = 'style="padding:4px;border-bottom:1px solid var(--bdr);"', tdr = 'style="padding:4px;border-bottom:1px solid var(--bdr);text-align:right;white-space:nowrap;"';
+    const tanpaResep = (j.menu||[]).filter(m => !m.ada_resep);
+    const tanpaHarga = (j.bahan||[]).filter(b => !(b.harga > 0));
+    const totalPorsi = (j.menu||[]).reduce((s,m)=>s+m.porsi,0);
+    body.innerHTML = `
+      <div style="font-size:11px;color:var(--inks);margin-bottom:8px;">Belanja tanggal <b>${fd(j.tgl)}</b> untuk order yang dikirim <b>${fd(j.tgl_order)}</b>. Total rencana: <b style="color:#5E3FA3;">Rp ${rp(j.total||0)}</b></div>
+      ${(j.menu||[]).length ? `
+      <div style="font-weight:700;font-size:12px;margin:6px 0 3px;">🍽️ Menu yang dimasak (${j.menu.length} menu · ${rp(totalPorsi)} porsi)</div>
+      <div style="overflow-x:auto;"><table style="width:100%;font-size:11px;border-collapse:collapse;">
+        <tr><th ${th}>Menu</th><th ${thr}>Porsi</th><th ${th}>Resep</th></tr>
+        ${j.menu.map(m=>`<tr><td ${td}>${m.nama}</td><td ${tdr}>${rp(m.porsi)}</td><td ${td}>${m.ada_resep ? '✓' : '<span style="color:#C0392B;">belum ada gramasi</span>'}</td></tr>`).join('')}
+      </table></div>
+      <div style="font-weight:700;font-size:12px;margin:14px 0 3px;">🛒 Bahan yang dibelanjakan (${(j.bahan||[]).length} bahan)</div>
+      <div style="overflow-x:auto;"><table style="width:100%;font-size:11px;border-collapse:collapse;">
+        <tr><th ${th}>Bahan</th><th ${thr}>Qty</th><th ${th}>Satuan</th><th ${thr}>Harga</th><th ${thr}>Jumlah</th></tr>
+        ${(j.bahan||[]).map(b=>`<tr><td ${td}>${b.nama}</td><td ${tdr}>${Number(b.qty).toLocaleString('id-ID')}</td><td ${td}>${b.satuan||''}</td><td ${tdr}>${b.harga>0 ? rp(b.harga) : '<span style="color:#C0392B;">—</span>'}</td><td ${tdr}>${rp(b.jumlah)}</td></tr>`).join('')}
+        <tr style="font-weight:700;"><td ${td} colspan="4">Total (Rp)</td><td ${tdr}>${rp(j.total||0)}</td></tr>
+      </table></div>
+      ${tanpaResep.length ? `<div style="font-size:10px;color:#C0392B;margin-top:6px;">⚠ ${tanpaResep.length} menu belum punya gramasi (tidak ikut dihitung): ${tanpaResep.map(m=>m.nama).join(', ')}</div>` : ''}
+      ${tanpaHarga.length ? `<div style="font-size:10px;color:#C0392B;margin-top:4px;">⚠ ${tanpaHarga.length} bahan belum punya harga (dihitung Rp 0): ${tanpaHarga.map(b=>b.nama).join(', ')}</div>` : ''}
+      ` : '<div class="empty"><div class="eico">📭</div><p>Tidak ada order di tanggal ' + fd(j.tgl_order) + '.</p></div>'}`;
+  }catch(e){ body.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>Gagal memuat: ${e.message}</p></div>`; }
 }
 
 function Utilities_formatTodayId_(){
