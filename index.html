@@ -4328,7 +4328,7 @@ async function loadGrafikPengeluaran(){
     if(!j.success){ chartEl.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>${j.message}</p></div>`; return; }
     if(j.lastUpdated) updEl.textContent = 'Sumber: sheet PermintaanBahan (tanpa status Batal) · ' + new Date(j.lastUpdated).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'});
     renderGrafikChart(j, 'gf-peng-chart', 'Belum ada pengeluaran tercatat sejak Juli 2026.');
-    renderGrafikHarianChart({hariList:j.hariList, kategoriList:j.kategoriHarianList, data:j.dataHarian}, 'gf-peng-harian-chart');
+    renderGrafikHarianChart({hariList:j.hariList, kategoriList:j.kategoriHarianList, data:j.dataHarian, rencana:j.rencanaHarian, tanpaHarga:j.rencanaTanpaHarga}, 'gf-peng-harian-chart');
     GF_BELI_ = j; renderGrafikBppSemua_();
   }catch(e){
     chartEl.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>Gagal memuat: ${e.message}</p></div>`;
@@ -4381,6 +4381,7 @@ async function loadGrafikHarian(){
 function renderGrafikHarianChart(j, elId, bisaKlik){
   const chartEl = document.getElementById(elId || 'gf-harian-chart');
   const hariList = j.hariList||[], kategoriList = j.kategoriList||[], data = j.data||{};
+  const rencana = j.rencana || null, adaRencana = !!rencana && hariList.some(h => (rencana[h]||0) > 0);
   if(!hariList.length){
     chartEl.innerHTML = `<div class="empty"><div class="eico">📅</div><p>Tidak ada data.</p></div>`;
     return;
@@ -4389,7 +4390,7 @@ function renderGrafikHarianChart(j, elId, bisaKlik){
   let maxVal = 1;
   hariList.forEach(h => {
     const totalHari = kategoriList.reduce((s,k)=> s + ((data[h]&&data[h][k])||0), 0);
-    maxVal = Math.max(maxVal, totalHari);
+    maxVal = Math.max(maxVal, totalHari, adaRencana ? (rencana[h]||0) : 0);
   });
 
   let step = Math.ceil((maxVal/5) / 50000) * 50000;
@@ -4399,12 +4400,13 @@ function renderGrafikHarianChart(j, elId, bisaKlik){
 
   const barMaxH = 160;
   const leftM   = 54;
-  const barW    = 22;
-  const groupW  = 32;
+  const barW    = adaRencana ? 17 : 22;
+  const groupW  = adaRencana ? 44 : 32;
+  const lebarGrup = adaRencana ? barW*2 + 2 : barW;
   const totalW  = groupW * hariList.length + leftM + 20;
   const chartH  = barMaxH + 50;
 
-  let gridLines = '';
+  let gridLines = adaRencana ? '<defs><pattern id="pola-rencana" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="#EDE7F6"/><line x1="0" y1="0" x2="0" y2="5" stroke="#7E57C2" stroke-width="2.5"/></pattern></defs>' : '';
   for(let g=0; g<=numGrid; g++){
     const val = g*step;
     const y = barMaxH - (val/topVal)*barMaxH + 20;
@@ -4428,11 +4430,16 @@ function renderGrafikHarianChart(j, elId, bisaKlik){
     });
     const totH = kategoriList.reduce((t,k)=> t + ((data[h]&&data[h][k])||0), 0);
     if(totH > 0) bars += `<text x="${x + barW/2}" y="${barMaxH - stackedH + 20 - 3}" font-size="8" font-weight="700" fill="#5C4A35" text-anchor="middle" style="pointer-events:none;">${formatRupiahSingkat_(totH)}</text>`;
-    if (bisaKlik) bars += `<rect x="${x-3}" y="12" width="${barW+6}" height="${barMaxH+34}" fill="transparent" style="cursor:pointer;" onclick="bukaDetailHariGrafik_('${h}')"></rect>`;
+    if (adaRencana && (rencana[h]||0) > 0) {
+      const rh = (rencana[h]/topVal)*barMaxH, rx = x + barW + 2;
+      bars += `<rect x="${rx}" y="${barMaxH - rh + 20}" width="${barW}" height="${rh}" fill="url(#pola-rencana)" stroke="#7E57C2" stroke-width="1" rx="1"><title>Rencana ${h}: ${cfRp_(rencana[h])} (kebutuhan order ${'besok'})</title></rect>`;
+      bars += `<text x="${rx + barW/2}" y="${barMaxH - rh + 20 - 3}" font-size="8" font-weight="700" fill="#5E3FA3" text-anchor="middle" style="pointer-events:none;">${formatRupiahSingkat_(rencana[h])}</text>`;
+    }
+    if (bisaKlik) bars += `<rect x="${x-3}" y="12" width="${lebarGrup+6}" height="${barMaxH+34}" fill="transparent" style="cursor:pointer;" onclick="bukaDetailHariGrafik_('${h}')"></rect>`;
     const [, mm, dd] = h.split('-');
     const isToday = h === todayStr;
     const labelColor = isToday ? '#C8521A' : '#5C4A35';
-    bars += `<text x="${x + barW/2}" y="${barMaxH+38}" font-size="9" fill="${labelColor}" font-weight="${isToday?'700':'400'}" text-anchor="middle">${dd}/${mm}</text>`;
+    bars += `<text x="${x + lebarGrup/2}" y="${barMaxH+38}" font-size="9" fill="${labelColor}" font-weight="${isToday?'700':'400'}" text-anchor="middle">${dd}/${mm}</text>`;
   });
 
   const legend = kategoriList.map((k,ki) => `
@@ -4440,6 +4447,8 @@ function renderGrafikHarianChart(j, elId, bisaKlik){
       <span style="width:10px;height:10px;border-radius:2px;background:${GRAFIK_COLORS[ki%GRAFIK_COLORS.length]};display:inline-block;flex-shrink:0;"></span>${k}
     </div>`).join('');
 
+  const legendRencana = adaRencana ? `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#5E3FA3;margin:3px 10px 3px 0;"><span style="width:10px;height:10px;border-radius:2px;background:#EDE7F6;border:1.5px solid #7E57C2;display:inline-block;flex-shrink:0;"></span>Rencana bahan baku (order hari berikutnya × gramasi)</div>` : '';
+  const catatRencana = adaRencana ? `<div style="font-size:10px;color:var(--inks);margin-top:4px;">Batang berpola = RENCANA belanja tgl tsb: kebutuhan bahan (tab gramasi × porsi) untuk order yang dikirim esok harinya, dikali harga terbaru bahan.${(j.tanpaHarga&&j.tanpaHarga.length) ? ' <span style="color:#C0392B;">'+j.tanpaHarga.length+' bahan belum punya harga (dihitung Rp 0): '+j.tanpaHarga.slice(0,6).join(', ')+(j.tanpaHarga.length>6?'…':'')+'</span>' : ''}</div>` : '';
   chartEl.innerHTML = `
     <div style="overflow-x:auto;background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:12px;box-shadow:var(--sh);">
       <svg width="${totalW}" height="${chartH}" viewBox="0 0 ${totalW} ${chartH}">
@@ -4447,7 +4456,7 @@ function renderGrafikHarianChart(j, elId, bisaKlik){
         ${bars}
       </svg>
     </div>
-    <div style="display:flex;flex-wrap:wrap;margin-top:10px;padding:0 4px;">${legend}</div>
+    <div style="display:flex;flex-wrap:wrap;margin-top:10px;padding:0 4px;">${legend}${legendRencana}</div>${catatRencana}
   `;
 }
 
