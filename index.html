@@ -4480,7 +4480,7 @@ async function bukaRencanaBelanja_(tgl){
   try{
     const j0 = await gasFetch(APP.GAS_URL + '?' + new URLSearchParams({action:'getRencanaBelanja', tgl, t:Date.now()}).toString());
     if(!j0.success) throw new Error(j0.message);
-    const j = j0.data || j0;
+    const j = j0.data || j0; RENCANA_J_ = j;
     const rp = v => Math.round(v).toLocaleString('id-ID');
     const th = 'style="text-align:left;padding:4px;border-bottom:1px solid var(--bdr);white-space:nowrap;"', thr = th.replace('left','right');
     const td = 'style="padding:4px;border-bottom:1px solid var(--bdr);"', tdr = 'style="padding:4px;border-bottom:1px solid var(--bdr);text-align:right;white-space:nowrap;"';
@@ -4498,13 +4498,44 @@ async function bukaRencanaBelanja_(tgl){
       <div style="font-weight:700;font-size:12px;margin:14px 0 3px;">🛒 Bahan yang dibelanjakan (${(j.bahan||[]).length} bahan)</div>
       <div style="overflow-x:auto;"><table style="width:100%;font-size:11px;border-collapse:collapse;">
         <tr><th ${th}>Bahan</th><th ${thr}>Qty</th><th ${th}>Satuan</th><th ${thr}>Harga</th><th ${thr}>Jumlah</th></tr>
-        ${(j.bahan||[]).map(b=>`<tr><td ${td}>${b.nama}</td><td ${tdr}>${Number(b.qty).toLocaleString('id-ID')}</td><td ${td}>${b.satuan||''}</td><td ${tdr}>${b.harga>0 ? (Math.round(b.harga*100)/100).toLocaleString('id-ID') + `<div style="font-size:9px;color:var(--inks);">${b.harga_ket||''}</div>` : `<span style="color:#C0392B;">—</span><div style="font-size:9px;color:#C0392B;">${b.harga_ket||''}</div>`}</td><td ${tdr}>${rp(b.jumlah)}</td></tr>`).join('')}
+        ${(j.bahan||[]).map((b,bi)=>`<tr><td ${td}>${b.nama}</td><td ${tdr}>${Number(b.qty).toLocaleString('id-ID')}</td><td ${td}>${b.satuan||''}</td><td ${tdr} id="rh-${bi}">${(b.harga>0 && b.harga_ok!==false) ? (Math.round(b.harga*100)/100).toLocaleString('id-ID') + `<div style="font-size:9px;color:var(--inks);">${b.harga_ket||''}</div>` : `<a href="#" onclick="isiHargaRencana_(${bi});return false;" title="Klik utk mengisi harga" style="color:#C0392B;text-decoration:underline;text-decoration-style:dotted;"><span>—</span><div style="font-size:9px;">${b.harga_ket||'belum ada harga'}</div></a>`}</td><td ${tdr}>${rp(b.jumlah)}</td></tr>`).join('')}
         <tr style="font-weight:700;"><td ${td} colspan="4">Total (Rp)</td><td ${tdr}>${rp(j.total||0)}</td></tr>
       </table></div>
       ${tanpaResep.length ? `<div style="font-size:10px;color:#C0392B;margin-top:6px;">⚠ ${tanpaResep.length} menu belum punya gramasi (tidak ikut dihitung) — klik <i>belum ada gramasi</i> di tabel utk membuat resepnya.</div>` : ''}
       ${tanpaHarga.length ? `<div style="font-size:10px;color:#C0392B;margin-top:4px;">⚠ ${tanpaHarga.length} bahan belum punya harga (dihitung Rp 0): ${tanpaHarga.map(b=>b.nama).join(', ')}</div>` : ''}
       ` : '<div class="empty"><div class="eico">📭</div><p>Tidak ada order di tanggal ' + fd(j.tgl_order) + '.</p></div>'}`;
   }catch(e){ body.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>Gagal memuat: ${e.message}</p></div>`; }
+}
+
+
+// Klik "belum ada harga" di popup rencana → isi harga bahan itu (per satuan yang tampil) utk tanggal order tsb.
+// Disimpan ke HargaBahanOtomatis (sama dgn kolom Harga di Belanja Otomatis) — khusus pembelian/admin.
+let RENCANA_J_ = null;
+function isiHargaRencana_(bi){
+  if(!(CURRENT_USER && ['pembelian','admin'].includes(CURRENT_USER.role))){ toast('Harga bahan diisi oleh bagian pembelian/admin.','err'); return; }
+  const b = RENCANA_J_ && RENCANA_J_.bahan[bi]; if(!b) return;
+  const cell = document.getElementById('rh-' + bi); if(!cell) return;
+  cell.innerHTML = `<div style="display:flex;gap:4px;align-items:center;justify-content:flex-end;">
+      <input id="rh-in-${bi}" type="number" min="0" step="any" placeholder="Rp / ${b.satuan||'satuan'}" style="width:92px;padding:4px;font-size:12px;border:1px solid var(--bdr);border-radius:6px;text-align:right;">
+      <button class="bsub" style="padding:4px 8px;font-size:11px;" onclick="simpanHargaRencana_(${bi})">Simpan</button></div>
+    <div style="font-size:9px;color:var(--inks);">harga per ${b.satuan||'satuan'} · utk order ${fd(RENCANA_J_.tgl_order)}</div>`;
+  const inp = document.getElementById('rh-in-' + bi); if(inp) inp.focus();
+}
+async function simpanHargaRencana_(bi){
+  const b = RENCANA_J_ && RENCANA_J_.bahan[bi]; if(!b) return;
+  const v = document.getElementById('rh-in-' + bi).value;
+  if(v === '' || isNaN(Number(v)) || Number(v) <= 0){ toast('Isi harga yang valid.','err'); return; }
+  try{
+    showOvl('Menyimpan harga…');
+    const q = new URLSearchParams({action:'simpanHargaBahanOtomatis', tanggal:RENCANA_J_.tgl_order, nama_bahan:b.nama, harga:v, t:Date.now()}).toString();
+    const r = await gasFetch(APP.GAS_URL + '?' + q);
+    hideOvl();
+    if(!r.success) throw new Error(r.message);
+    toast('Harga ' + b.nama + ' disimpan.','ok');
+    const tgl = RENCANA_J_.tgl;
+    bukaRencanaBelanja_(tgl);           // hitung ulang popup
+    try{ loadGrafikPengeluaran(); }catch(_){} // perbarui batang Rencana di grafik
+  }catch(e){ try{hideOvl();}catch(_){} toast('Gagal menyimpan: ' + e.message,'err'); }
 }
 
 function Utilities_formatTodayId_(){
