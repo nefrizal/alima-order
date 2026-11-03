@@ -4371,22 +4371,34 @@ async function bukaDetailHariGrafik_(tgl){
 }
 
 // ══ GRAFIK HARIAN (jumlah total per produk per hari, 15 hari ke depan, dari cache) ═══
-async function loadGrafikHarian(){
+async function loadGrafikHarian(diam){
   const chartEl = document.getElementById('gf-harian-chart');
   const updEl = document.getElementById('gf-harian-updated');
-  chartEl.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat grafik harian…</div>';
+  if(!diam) chartEl.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat grafik harian…</div>';
   try{
     const j = await gasFetch(APP.GAS_URL + '?action=getGrafikHarian&t=' + Date.now());
     if(!j.success){ chartEl.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>${j.message}</p></div>`; return; }
-    if(j.lastUpdated){
-      const d = new Date(j.lastUpdated);
-      updEl.textContent = 'Data per: ' + d.toLocaleString('id-ID', {dateStyle:'medium', timeStyle:'short'}) + ' · update otomatis tiap jam';
-    }
+    updEl.textContent = '🟢 Realtime · diperbarui ' + new Date().toLocaleTimeString('id-ID') + ' · auto-refresh tiap 30 dtk';
     renderGrafikHarianChart(j, 'gf-harian-chart', true);
   }catch(e){
+    if(diam) return;
     chartEl.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>Gagal memuat: ${e.message}</p></div>`;
   }
 }
+
+// Auto-refresh realtime grafik Sales Harian: hanya saat tab Grafik terbuka & halaman terlihat
+let GF_HARIAN_BUSY_ = false;
+setInterval(async function(){
+  const p = document.getElementById('panel-grafik');
+  if(!p || !p.classList.contains('on') || document.hidden || GF_HARIAN_BUSY_) return;
+  if(document.querySelector('.modal-bg:not(.hide)')) return; // jangan ganggu popup yang sedang dibuka
+  GF_HARIAN_BUSY_ = true;
+  try{ await loadGrafikHarian(true); }finally{ GF_HARIAN_BUSY_ = false; }
+}, 30000);
+document.addEventListener('visibilitychange', function(){
+  const p = document.getElementById('panel-grafik');
+  if(!document.hidden && p && p.classList.contains('on')) loadGrafikHarian(true);
+});
 
 function renderGrafikHarianChart(j, elId, bisaKlik){
   const chartEl = document.getElementById(elId || 'gf-harian-chart');
