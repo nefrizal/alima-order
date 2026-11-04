@@ -4094,9 +4094,12 @@ function renderGrafikBpp_(besar, modus){
   const kategoriList = GF_BELI_.kategoriList || [];
   // Tiap segmen = pembelian kategori itu bulan tsb ÷ total penjualan bulan tsb (%); total tumpukan = rasio BPP bulan itu.
   const rows = bulanList.map(b=>{
-    const jual = tot(GF_JUAL_,b);
-    const seg = {}; kategoriList.forEach(k => { seg[k] = (NON_BPP_.includes(k) === isNon) ? (((GF_BELI_.dataBpp||{})[b]||{})[k]||0) / jual * 100 : 0; });
-    return {b, jual, seg, pct: kategoriList.reduce((s,k)=>s+seg[k],0)};
+    // Rasio BPP bulan BERJALAN = bahan baku yg sudah dieksekusi ÷ penjualan yg sudah dieksekusi (bulan lalu: penuh)
+    const berjalan = !isNon && b === (GF_BELI_.hariIniStr||'').slice(0,7) && GF_JUAL_.salesEks && GF_JUAL_.salesEks[b] != null && GF_BELI_.dataBppEks;
+    const jual = berjalan ? (Number(GF_JUAL_.salesEks[b])||0) : tot(GF_JUAL_,b);
+    const src = berjalan ? (GF_BELI_.dataBppEks[b]||{}) : ((GF_BELI_.dataBpp||{})[b]||{});
+    const seg = {}; kategoriList.forEach(k => { seg[k] = (NON_BPP_.includes(k) === isNon && jual > 0) ? (src[k]||0) / jual * 100 : 0; });
+    return {b, jual, seg, berjalan, pct: kategoriList.reduce((s,k)=>s+seg[k],0)};
   });
   if(!rows.some(r=>r.pct>0)){ el.innerHTML = '<div class="empty"><div class="eico">📉</div><p>Belum ada data' + (isNon ? ' biaya non-BPP (Bahan Bakar, Gaji, Sales Cost, Expenses, Pajak, Peralatan).' : ' pembelian.') + '</p></div>'; return; }
   const maxPct = Math.max(...rows.map(r=>r.pct), 1);
@@ -4105,7 +4108,7 @@ function renderGrafikBpp_(besar, modus){
   const numGrid = topVal/step;
   const kecil = Math.min(window.innerWidth, window.innerHeight);
   const barMaxH = besar ? Math.max(140, kecil - 200) : 160, leftM = 44, barW = besar ? 64 : 46, groupW = besar ? 90 : 66;
-  const totalW = groupW*rows.length + leftM + 20, chartH = barMaxH + 50;
+  const totalW = groupW*rows.length + leftM + 20, chartH = barMaxH + 56;
   let grid = '';
   for(let g=0; g<=numGrid; g++){
     const val = g*step, y = barMaxH - (val/topVal)*barMaxH + 20;
@@ -4125,14 +4128,16 @@ function renderGrafikBpp_(besar, modus){
     });
     bars += `<text x="${x+barW/2}" y="${barMaxH - stackedH + 20 - 4}" font-size="10" font-weight="700" fill="#5C4A35" text-anchor="middle">${fmt(r.pct)}%</text>`;
     bars += `<text x="${x+barW/2}" y="${barMaxH+38}" font-size="10" fill="#5C4A35" text-anchor="middle">${formatBulanLabel_(r.b)}</text>`;
+    if(r.berjalan) bars += `<text x="${x+barW/2}" y="${barMaxH+48}" font-size="8" fill="#C8521A" text-anchor="middle">s.d. kemarin/hari ini</text>`;
   });
+  const adaBerjalan = rows.some(r=>r.berjalan);
   const adaBpp = new Set((GF_BELI_.kategoriBppList||[]).filter(k => NON_BPP_.includes(k) === isNon));
   const legend = kategoriList.map((k,ki) => !adaBpp.has(k) ? '' : `
     <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--inkm);margin:3px 10px 3px 0;">
       <span style="width:10px;height:10px;border-radius:2px;background:${GRAFIK_COLORS[ki%GRAFIK_COLORS.length]};display:inline-block;flex-shrink:0;"></span>${k}
     </div>`).join('');
   el.innerHTML = `${besar ? '' : '<div style="font-size:10px;color:var(--inks);margin-bottom:4px;">👆 Klik batang = rincian bahan · klik area grafik = tampilan landscape</div>'}<div ${besar ? '' : 'onclick="bukaBppBesar_(\''+modus+'\')" '}style="${besar ? '' : 'cursor:zoom-in;'}overflow-x:auto;background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:12px;box-shadow:var(--sh);"><svg width="${totalW}" height="${chartH}" viewBox="0 0 ${totalW} ${chartH}">${grid}${bars}</svg></div>
-    <div style="display:flex;flex-wrap:wrap;margin-top:10px;padding:0 4px;">${legend}</div>`;
+    <div style="display:flex;flex-wrap:wrap;margin-top:10px;padding:0 4px;">${legend}</div>${adaBerjalan ? '<div style="font-size:10px;color:var(--inks);margin-top:4px;">Bulan berjalan = bahan baku yang sudah dieksekusi (belanja s.d. kemarin, utk order s.d. hari ini) ÷ penjualan yang sudah dieksekusi (tanggal kirim s.d. hari ini).</div>' : ''}`;
 }
 
 
@@ -4425,8 +4430,21 @@ function renderGrafikHarianChart(j, elId, bisaKlik){
   const barW    = adaRencana ? 17 : 22;
   const groupW  = adaRencana ? 44 : 32;
   const lebarGrup = adaRencana ? barW*2 + 2 : barW;
-  const totalW  = groupW * hariList.length + leftM + 20;
+  const rightM  = adaRencana ? 48 : 0; // ruang sumbu Y kanan (akumulasi)
+  const totalW  = groupW * hariList.length + leftM + 20 + rightM;
   const chartH  = barMaxH + 50;
+
+  // Garis akumulasi (sumbu Y KANAN): rencana vs aktual, dihitung kumulatif per hari
+  const cumPlan = [], cumAkt = [];
+  let sp = 0, sa = 0;
+  hariList.forEach(hh => {
+    sp += (rencana && rencana[hh]) || 0;
+    sa += kategoriList.reduce((t,k)=> t + ((data[hh]&&data[hh][k])||0), 0);
+    cumPlan.push(sp); cumAkt.push(sa);
+  });
+  const maxCum = Math.max(1, sp, sa);
+  const stepR = (function(){ const raw = maxCum/5, p = Math.pow(10, Math.floor(Math.log10(raw))); const n = raw/p; return (n<=1?1:n<=2?2:n<=5?5:10)*p; })();
+  const topR = Math.ceil(maxCum/stepR)*stepR;
 
   let gridLines = adaRencana ? '<defs><pattern id="pola-rencana" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="#EDE7F6"/><line x1="0" y1="0" x2="0" y2="5" stroke="#7E57C2" stroke-width="2.5"/></pattern></defs>' : '';
   for(let g=0; g<=numGrid; g++){
@@ -4434,6 +4452,28 @@ function renderGrafikHarianChart(j, elId, bisaKlik){
     const y = barMaxH - (val/topVal)*barMaxH + 20;
     gridLines += `<line x1="${leftM}" y1="${y}" x2="${totalW-10}" y2="${y}" stroke="#EDE3D8" stroke-width="1"/>`;
     gridLines += `<text x="${leftM-6}" y="${y+3}" font-size="9" fill="#9C8672" text-anchor="end">${formatRupiahSingkat_(val)}</text>`;
+  }
+
+  let garis = '';
+  if (adaRencana) {
+    const xR = leftM + 6 + (hariList.length-1)*groupW + lebarGrup + 10;
+    for (let g=0; g<=topR/stepR; g++) {
+      const v = g*stepR, y = barMaxH - (v/topR)*barMaxH + 20;
+      gridLines += `<text x="${xR+4}" y="${y+3}" font-size="9" fill="#7E57C2" text-anchor="start">${formatRupiahSingkat_(v)}</text>`;
+    }
+    gridLines += `<line x1="${xR}" y1="20" x2="${xR}" y2="${barMaxH+20}" stroke="#C9B8E8" stroke-width="1"/>`;
+    const pts = arr => arr.map((v,i)=> (leftM + 6 + i*groupW + lebarGrup/2).toFixed(1)+','+(barMaxH - (v/topR)*barMaxH + 20).toFixed(1));
+    const pP = pts(cumPlan), pA = pts(cumAkt);
+    garis += `<polyline points="${pP.join(' ')}" fill="none" stroke="#7E57C2" stroke-width="2" stroke-dasharray="5 3" style="pointer-events:none;"/>`;
+    garis += `<polyline points="${pA.join(' ')}" fill="none" stroke="#C8521A" stroke-width="2.2" style="pointer-events:none;"/>`;
+    hariList.forEach((hh,i)=>{
+      const [px,py] = pP[i].split(','), [ax,ay] = pA[i].split(',');
+      garis += `<circle cx="${px}" cy="${py}" r="2.6" fill="#fff" stroke="#7E57C2" stroke-width="1.5"><title>Akumulasi rencana s.d. ${hh}: ${cfRp_(cumPlan[i])}</title></circle>`;
+      garis += `<circle cx="${ax}" cy="${ay}" r="2.6" fill="#C8521A"><title>Akumulasi aktual s.d. ${hh}: ${cfRp_(cumAkt[i])}</title></circle>`;
+    });
+    const li = hariList.length-1, [lx,lyP] = pP[li].split(','), lyA = pA[li].split(',')[1];
+    garis += `<text x="${(+lx)-4}" y="${(+lyP)-6}" font-size="8" font-weight="700" fill="#5E3FA3" text-anchor="end" style="pointer-events:none;">${formatRupiahSingkat_(cumPlan[li])}</text>`;
+    garis += `<text x="${(+lx)-4}" y="${(+lyA)+12}" font-size="8" font-weight="700" fill="#C8521A" text-anchor="end" style="pointer-events:none;">${formatRupiahSingkat_(cumAkt[li])}</text>`;
   }
 
   const todayStr = Utilities_formatTodayId_();
@@ -4470,15 +4510,17 @@ function renderGrafikHarianChart(j, elId, bisaKlik){
     </div>`).join('');
 
   const legendRencana = adaRencana ? `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#5E3FA3;margin:3px 10px 3px 0;"><span style="width:10px;height:10px;border-radius:2px;background:#EDE7F6;border:1.5px solid #7E57C2;display:inline-block;flex-shrink:0;"></span>Rencana bahan baku (order hari berikutnya × gramasi) · klik batang = rincian</div>` : '';
+  const legendGaris = adaRencana ? `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--inkm);margin:3px 10px 3px 0;"><svg width="22" height="8"><line x1="0" y1="4" x2="22" y2="4" stroke="#7E57C2" stroke-width="2" stroke-dasharray="5 3"/></svg>Akumulasi rencana (sumbu kanan)</div><div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--inkm);margin:3px 10px 3px 0;"><svg width="22" height="8"><line x1="0" y1="4" x2="22" y2="4" stroke="#C8521A" stroke-width="2.2"/></svg>Akumulasi aktual (sumbu kanan)</div>` : '';
   const catatRencana = adaRencana ? `<div style="font-size:10px;color:var(--inks);margin-top:4px;">Batang berpola = RENCANA belanja tgl tsb: kebutuhan bahan (tab gramasi × porsi) untuk order yang dikirim esok harinya, dikali harga terbaru bahan.${(j.tanpaHarga&&j.tanpaHarga.length) ? ' <span style="color:#C0392B;">'+j.tanpaHarga.length+' bahan belum punya harga (dihitung Rp 0): '+j.tanpaHarga.slice(0,6).join(', ')+(j.tanpaHarga.length>6?'…':'')+'</span>' : ''}</div>` : '';
   chartEl.innerHTML = `
     <div style="overflow-x:auto;background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:12px;box-shadow:var(--sh);">
       <svg width="${totalW}" height="${chartH}" viewBox="0 0 ${totalW} ${chartH}">
         ${gridLines}
         ${bars}
+        ${garis}
       </svg>
     </div>
-    <div style="display:flex;flex-wrap:wrap;margin-top:10px;padding:0 4px;">${legend}${legendRencana}</div>${catatRencana}
+    <div style="display:flex;flex-wrap:wrap;margin-top:10px;padding:0 4px;">${legend}${legendRencana}${legendGaris}</div>${catatRencana}
   `;
 }
 
