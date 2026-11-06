@@ -393,37 +393,56 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     <button class="bico" onclick="loadGrafikSemua_()" style="flex:1;">↻ Refresh Grafik</button>
   </div>
 
+  <div class="gf-sec" data-gf="gf_harian">
   <div class="stitle">📅 Sales Harian (15 Hari ke Depan) <span style="font-weight:400;font-size:10px;color:var(--inks);">· klik tanggal = detail order</span></div>
   <div id="gf-harian-updated" style="font-size:11px;color:var(--inks);text-align:center;margin-bottom:10px;"></div>
   <div id="gf-harian-chart"><div class="empty"><div class="eico">📅</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
+  </div>
 
+  <div class="gf-sec" data-gf="gf_bulanan">
   <div class="stitle" style="margin-top:20px;">📊 Sales Bulanan</div>
   <div id="gf-updated" style="font-size:11px;color:var(--inks);text-align:center;margin-bottom:10px;"></div>
   <div id="gf-chart"><div class="empty"><div class="eico">📊</div><p>Klik Refresh untuk memuat grafik.</p></div></div>
+  </div>
 
+  <div class="gf-sec" data-gf="gf_bpp">
   <div class="stitle" style="margin-top:20px;">📉 Rasio BPP / COGS (Bahan Baku ÷ Penjualan, per Bulan)</div>
   <div id="gf-bpp-note" style="font-size:11px;color:var(--inks);text-align:center;margin-bottom:10px;">Penjualan = total order (tanpa Batal) · Pembelian = PermintaanBahan berstatus Sudah Dicetak = Ya (tanpa Batal) · warna = kategori, angka di atas = total BPP</div>
   <div id="gf-bpp-chart"><div class="empty"><div class="eico">📉</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
+  </div>
 
+  <div class="gf-sec" data-gf="gf_nonbpp">
   <div class="stitle" style="margin-top:20px;">📊 Rasio Biaya Non-BPP (÷ Penjualan, per Bulan)</div>
   <div style="font-size:11px;color:var(--inks);text-align:center;margin-bottom:10px;">Bahan Bakar · Gaji · Sales Cost · Expenses · Pajak · Peralatan (sumber sama: PermintaanBahan Sudah Dicetak = Ya)</div>
   <div id="gf-nonbpp-chart"><div class="empty"><div class="eico">📊</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
+  </div>
 
+  <div class="gf-sec" data-gf="gf_sisa">
   <div class="stitle" style="margin-top:20px;">💹 Sisa: Penjualan − BPP − Non-BPP (per Bulan)</div>
   <div id="gf-sisa-chart"><div class="empty"><div class="eico">💹</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
+  </div>
 
+  <div class="gf-sec" data-gf="gf_peng">
   <div class="stitle" style="margin-top:20px;">💸 Pengeluaran Bahan Baku (per Bulan)</div>
   <div id="gf-peng-updated" style="font-size:11px;color:var(--inks);text-align:center;margin-bottom:10px;"></div>
   <div id="gf-peng-chart"><div class="empty"><div class="eico">💸</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
+  </div>
 
+  <div class="gf-sec" data-gf="gf_peng_harian">
   <div class="stitle" style="margin-top:20px;">💸 Pengeluaran Bahan Baku (Harian, Bulan Berjalan)</div>
   <div id="gf-peng-harian-chart"><div class="empty"><div class="eico">💸</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
+  </div>
 
   <div id="cf-section">
-    <div class="stitle" style="margin-top:20px;">💰 Posisi Pembayaran per Bulan Kirim <span style="font-weight:400;font-size:10px;color:var(--inks);">· klik warna = daftar order</span></div>
+    <div class="gf-sec" data-gf="gf_posisi">
+  <div class="stitle" style="margin-top:20px;">💰 Posisi Pembayaran per Bulan Kirim <span style="font-weight:400;font-size:10px;color:var(--inks);">· klik warna = daftar order</span></div>
     <div id="cf-chart"><div class="empty"><div class="eico">💰</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
+  </div>
+
+  <div class="gf-sec" data-gf="gf_piutang">
     <div class="stitle" style="margin-top:20px;">🧾 Piutang: Umur &amp; Pelanggan</div>
     <div id="cf-piutang"></div>
+    </div>
   </div>
 </div>
 
@@ -1811,6 +1830,7 @@ let MATRIKS_INIT_FORM_ = false;
 function terapkanMatriksTab_(){
   const boleh = CURRENT_USER && Array.isArray(CURRENT_USER.aksesTab) ? CURRENT_USER.aksesTab : null;
   if(!boleh) return; // backend/sesi lama tanpa matriks → pakai logika role lama
+  terapkanAksesGrafik_();
   TAB_KUNCI_URUT_.forEach(k => {
     const b = document.getElementById('tab-' + k);
     if(b) b.classList.toggle('hide', !boleh.includes(k));
@@ -3717,15 +3737,29 @@ function formatBulanLabel_(bulanStr){
   return namaBulan[parseInt(m,10)-1] + ' ' + y;
 }
 
+// Hak akses per grafik (baris "grafik …" di sheet AksesTab). Sesi/backend lama yg hanya punya kunci 'grafik' = semua grafik boleh.
+function gfBoleh_(k){
+  const a = CURRENT_USER && Array.isArray(CURRENT_USER.aksesTab) ? CURRENT_USER.aksesTab : null;
+  if(!a) return !!CURRENT_USER && ['admin','sales','finance'].includes(CURRENT_USER.role);
+  if(a.includes(k)) return true;
+  return a.includes('grafik') && !a.some(x => x.indexOf('gf_') === 0);
+}
+function terapkanAksesGrafik_(){
+  document.querySelectorAll('#panel-grafik .gf-sec').forEach(el => { el.style.display = gfBoleh_(el.dataset.gf) ? '' : 'none'; });
+  const sec = document.getElementById('cf-section');
+  if(sec) sec.style.display = (gfBoleh_('gf_posisi') || gfBoleh_('gf_piutang')) ? '' : 'none';
+}
 function bisaLihatCashflow_(){
-  if(CURRENT_USER && Array.isArray(CURRENT_USER.aksesTab)) return CURRENT_USER.aksesTab.includes('cashflow');
+  if(CURRENT_USER && Array.isArray(CURRENT_USER.aksesTab)) return gfBoleh_('gf_posisi') || gfBoleh_('gf_piutang') || CURRENT_USER.aksesTab.includes('cashflow');
   return !!CURRENT_USER && ['admin','sales','finance'].includes(CURRENT_USER.role);
 }
 function loadGrafikSemua_(){
-  loadGrafikHarian(); loadGrafik(); loadGrafikPengeluaran();
-  const sec = document.getElementById('cf-section');
-  if(sec) sec.style.display = bisaLihatCashflow_() ? '' : 'none';
-  if(bisaLihatCashflow_()) loadCashflow_();
+  terapkanAksesGrafik_();
+  const g = gfBoleh_;
+  if(g('gf_harian')) loadGrafikHarian();
+  if(g('gf_bulanan') || g('gf_bpp') || g('gf_nonbpp') || g('gf_sisa')) loadGrafik();
+  if(g('gf_peng') || g('gf_peng_harian') || g('gf_bpp') || g('gf_nonbpp') || g('gf_sisa')) loadGrafikPengeluaran();
+  if(g('gf_posisi') || g('gf_piutang')) loadCashflow_();
 }
 
 async function loadGrafik(){
@@ -4395,14 +4429,14 @@ async function loadGrafikHarian(diam){
 let GF_HARIAN_BUSY_ = false;
 setInterval(async function(){
   const p = document.getElementById('panel-grafik');
-  if(!p || !p.classList.contains('on') || document.hidden || GF_HARIAN_BUSY_) return;
+  if(!p || !p.classList.contains('on') || document.hidden || GF_HARIAN_BUSY_ || !gfBoleh_('gf_harian')) return;
   if(document.querySelector('.modal-bg:not(.hide)')) return; // jangan ganggu popup yang sedang dibuka
   GF_HARIAN_BUSY_ = true;
   try{ await loadGrafikHarian(true); }finally{ GF_HARIAN_BUSY_ = false; }
 }, 30000);
 document.addEventListener('visibilitychange', function(){
   const p = document.getElementById('panel-grafik');
-  if(!document.hidden && p && p.classList.contains('on')) loadGrafikHarian(true);
+  if(!document.hidden && p && p.classList.contains('on') && gfBoleh_('gf_harian')) loadGrafikHarian(true);
 });
 
 function renderGrafikHarianChart(j, elId, bisaKlik){
