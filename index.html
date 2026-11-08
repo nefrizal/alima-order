@@ -774,6 +774,16 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   </div>
 </div>
 
+<div class="modal-bg hide" id="gf-bahan-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="gf-bahan-title">🧺 Kebutuhan Bahan</h2>
+      <button class="modal-close" onclick="document.getElementById('gf-bahan-modal').classList.add('hide')">×</button>
+    </div>
+    <div id="gf-bahan-body"></div>
+  </div>
+</div>
+
 <div class="modal-bg hide" id="gf-day-modal">
   <div class="modal">
     <div class="modal-head">
@@ -4424,6 +4434,40 @@ async function loadGrafikPengeluaran(){
 }
 
 // Klik batang grafik harian → popup daftar order hari itu (format sama dgn tab Jadwal; klik paket = detail order)
+// Klik bar tanggal di grafik Sales Harian: pembelian & admin → daftar bahan yang dibutuhkan; role lain → daftar order
+function klikHariGrafik_(tgl){
+  if(CURRENT_USER && ['pembelian','admin'].includes(CURRENT_USER.role)) bukaBahanHariGrafik_(tgl);
+  else bukaDetailHariGrafik_(tgl);
+}
+async function bukaBahanHariGrafik_(tgl){
+  const modal = document.getElementById('gf-bahan-modal'), body = document.getElementById('gf-bahan-body');
+  document.getElementById('gf-bahan-title').textContent = '🧺 Bahan dibutuhkan — ' + fd(tgl);
+  body.innerHTML = '<div class="swrap"><div class="sp"></div>Menghitung kebutuhan bahan…</div>';
+  modal.classList.remove('hide');
+  const tombolOrder = `<button type="button" style="margin:0 0 8px;background:var(--or);color:#fff;border:none;border-radius:6px;padding:6px 10px;font-size:11px;cursor:pointer;" onclick="document.getElementById('gf-bahan-modal').classList.add('hide');bukaDetailHariGrafik_('${tgl}')">📋 Lihat daftar order</button>`;
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=hitungKebutuhanBahanDariTanggal&tanggal=' + encodeURIComponent(tgl) + '&t=' + Date.now());
+    if(!j || !j.success){ body.innerHTML = tombolOrder + `<div class="empty"><div class="eico">📭</div><p>${j && j.message || 'Gagal menghitung.'}</p></div>`; return; }
+    const items = (j.items||[]).slice().sort((a,b)=> (a.kategori||'~').localeCompare(b.kategori||'~') || a.nama_bahan.localeCompare(b.nama_bahan));
+    const td = 'padding:5px 6px;border-bottom:1px solid var(--bdr);font-size:12px;';
+    const fq = v => Number(v).toLocaleString('id-ID',{maximumFractionDigits:2});
+    let kat = null, rows = '';
+    items.forEach(it => {
+      const k = it.kategori || 'Belum terdaftar di master';
+      if(k !== kat){ kat = k; rows += `<tr><td colspan="2" style="padding:6px;background:#FFF6EC;font-size:11px;font-weight:700;color:#C8521A;">${k}</td></tr>`; }
+      rows += `<tr><td style="${td}">${it.nama_bahan}</td><td style="${td}text-align:right;white-space:nowrap;">${fq(it.qty)} ${it.satuan||''}</td></tr>`;
+    });
+    const menu = (j.menu_terpakai||[]).slice().sort((a,b)=> b.porsi - a.porsi);
+    const totPorsi = menu.reduce((s,m)=> s + (Number(m.porsi)||0), 0);
+    body.innerHTML = tombolOrder +
+      `<div style="font-size:11px;color:var(--inks);margin-bottom:6px;">${items.length} bahan · dihitung dari ${menu.length} menu (gramasi × porsi order tanggal ini)</div>
+       <table style="width:100%;border-collapse:collapse;"><thead><tr><th style="${td}text-align:left;">Bahan</th><th style="${td}text-align:right;">Kebutuhan</th></tr></thead><tbody>${rows}</tbody></table>
+       ${(j.menu_tidak_ditemukan||[]).length ? `<div style="font-size:11px;color:#C0392B;margin-top:8px;">⚠ ${j.menu_tidak_ditemukan.length} menu belum punya gramasi (tidak ikut dihitung): ${j.menu_tidak_ditemukan.map(n=>`<span data-n="${encodeURIComponent(n)}" onclick="bukaGramasiDariMasak(decodeURIComponent(this.dataset.n))" style="text-decoration:underline;cursor:pointer;">${n}</span>`).join(', ')}</div>` : ''}
+       ${(j.bahan_belum_terdaftar||[]).length ? `<div style="font-size:11px;color:#C0392B;margin-top:6px;">⚠ Bahan belum ada di master: ${j.bahan_belum_terdaftar.join(', ')}</div>` : ''}
+       <details style="margin-top:8px;"><summary style="font-size:11px;cursor:pointer;color:var(--inks);">Menu yang dihitung (${totPorsi.toLocaleString('id-ID')} porsi)</summary>
+         <div style="font-size:11px;margin-top:4px;">${menu.map(m=>`<div style="display:flex;justify-content:space-between;padding:2px 0;"><span>${m.nama_menu}</span><span>${Number(m.porsi).toLocaleString('id-ID')}</span></div>`).join('')}</div></details>`;
+  }catch(e){ body.innerHTML = tombolOrder + `<div class="empty"><div class="eico">⚠️</div><p>Gagal memuat: ${e.message}</p></div>`; }
+}
 async function bukaDetailHariGrafik_(tgl){
   const modal = document.getElementById('gf-day-modal'), body = document.getElementById('gf-day-body');
   document.getElementById('gf-day-title').textContent = '📅 Order ' + fd(tgl);
@@ -4580,7 +4624,7 @@ function renderGrafikHarianChart(j, elId, bisaKlik){
       bars += `<rect x="${rx}" y="${barMaxH - rh + 20}" width="${barW}" height="${rh}" fill="url(#pola-rencana)" stroke="#7E57C2" stroke-width="1" rx="1" style="cursor:pointer;" onclick="bukaRencanaBelanja_('${h}')"><title>Rencana ${h}: ${cfRp_(rencana[h])} — klik utk rincian belanja</title></rect>`;
       bars += `<text x="${rx + barW/2}" y="${barMaxH - rh + 20 - 3}" font-size="8" font-weight="700" fill="#5E3FA3" text-anchor="middle" style="pointer-events:none;">${formatRupiahSingkat_(rencana[h])}</text>`;
     }
-    if (bisaKlik) bars += `<rect x="${x-3}" y="12" width="${lebarGrup+6}" height="${barMaxH+34}" fill="transparent" style="cursor:pointer;" onclick="bukaDetailHariGrafik_('${h}')"></rect>`;
+    if (bisaKlik) bars += `<rect x="${x-3}" y="12" width="${lebarGrup+6}" height="${barMaxH+34}" fill="transparent" style="cursor:pointer;" onclick="klikHariGrafik_('${h}')"></rect>`;
     const [, mm, dd] = h.split('-');
     const isToday = h === todayStr;
     const labelColor = isToday ? '#C8521A' : '#5C4A35';
