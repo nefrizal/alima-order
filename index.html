@@ -1725,6 +1725,7 @@ function ambilSesiLoginTersimpan_(){
 }
 function hapusSesiLoginTersimpan_(){
   try{ localStorage.removeItem(SESI_LOGIN_KEY); }catch(e){}
+  gfCacheHapus_();
 }
 
 // Masuk LANGSUNG pakai identitas dari sesi tersimpan (tanpa nunggu/nampilin layar login),
@@ -3753,29 +3754,60 @@ function bisaLihatCashflow_(){
   if(CURRENT_USER && Array.isArray(CURRENT_USER.aksesTab)) return gfBoleh_('gf_posisi') || gfBoleh_('gf_piutang') || CURRENT_USER.aksesTab.includes('cashflow');
   return !!CURRENT_USER && ['admin','sales','finance'].includes(CURRENT_USER.role);
 }
+// ── Cache grafik di browser (tampilkan data terakhir langsung, perbarui di belakang) ──
+// Dihapus saat logout. Kunci per email+role karena isi grafik bergantung hak akses.
+function gfCacheKey_(k){ return 'gfc1_' + ((CURRENT_USER && (CURRENT_USER.email||'')) + '_' + (CURRENT_USER && CURRENT_USER.role)) + '_' + k; }
+function gfCacheGet_(k){ try{ const s = localStorage.getItem(gfCacheKey_(k)); return s ? JSON.parse(s) : null; }catch(e){ return null; } }
+function gfCachePut_(k, j){ try{ localStorage.setItem(gfCacheKey_(k), JSON.stringify(j)); }catch(e){} }
+function gfCacheHapus_(){ try{ Object.keys(localStorage).filter(x => x.indexOf('gfc1_') === 0).forEach(x => localStorage.removeItem(x)); }catch(e){} }
+
+// ── Muat grafik bertahap: yang paling atas langsung, sisanya saat mendekati layar ──
+let GF_SUDAH_ = {};
+let GF_OBS_ = null;
+function gfMuatGrup_(grup){
+  if(GF_SUDAH_[grup]) return; GF_SUDAH_[grup] = true;
+  const g = gfBoleh_;
+  if(grup === 'jual'){ if(g('gf_bulanan') || g('gf_bpp') || g('gf_nonbpp') || g('gf_sisa')) loadGrafik(); }
+  else if(grup === 'beli'){
+    // rasio BPP/non-BPP/sisa butuh data penjualan & pembelian sekaligus
+    if(g('gf_bpp') || g('gf_nonbpp') || g('gf_sisa')) gfMuatGrup_('jual');
+    if(g('gf_peng') || g('gf_peng_harian') || g('gf_bpp') || g('gf_nonbpp') || g('gf_sisa')) loadGrafikPengeluaran();
+  }
+  else if(grup === 'cash'){ if(g('gf_posisi') || g('gf_piutang')) loadCashflow_(); }
+}
 function loadGrafikSemua_(){
   terapkanAksesGrafik_();
-  const g = gfBoleh_;
-  if(g('gf_harian')) loadGrafikHarian();
-  if(g('gf_bulanan') || g('gf_bpp') || g('gf_nonbpp') || g('gf_sisa')) loadGrafik();
-  if(g('gf_peng') || g('gf_peng_harian') || g('gf_bpp') || g('gf_nonbpp') || g('gf_sisa')) loadGrafikPengeluaran();
-  if(g('gf_posisi') || g('gf_piutang')) loadCashflow_();
+  GF_SUDAH_ = {};
+  if(GF_OBS_){ GF_OBS_.disconnect(); GF_OBS_ = null; }
+  if(gfBoleh_('gf_harian')) loadGrafikHarian();
+  // dua grafik teratas langsung; sisanya menunggu mendekati layar (rootMargin 400px)
+  gfMuatGrup_('jual');
+  const peta = { gf_bpp:'beli', gf_nonbpp:'beli', gf_sisa:'beli', gf_peng:'beli', gf_peng_harian:'beli', gf_posisi:'cash', gf_piutang:'cash' };
+  const secs = Array.from(document.querySelectorAll('#panel-grafik .gf-sec')).filter(el => peta[el.dataset.gf] && gfBoleh_(el.dataset.gf));
+  if(!('IntersectionObserver' in window)){ secs.forEach(el => gfMuatGrup_(peta[el.dataset.gf])); return; }
+  GF_OBS_ = new IntersectionObserver(es => es.forEach(e => { if(e.isIntersecting){ gfMuatGrup_(peta[e.target.dataset.gf]); GF_OBS_.unobserve(e.target); } }), { rootMargin: '400px 0px' });
+  secs.forEach(el => GF_OBS_.observe(el));
 }
 
 async function loadGrafik(){
   const chartEl = document.getElementById('gf-chart');
   const updEl = document.getElementById('gf-updated');
-  chartEl.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat grafik…</div>';
-  try{
-    const j = await gasFetch(APP.GAS_URL + '?action=getGrafikData&t=' + Date.now());
-    if(!j.success){ chartEl.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>${j.message}</p></div>`; return; }
+  const tampil = (j, lama) => {
     if(j.lastUpdated){
       const d = new Date(j.lastUpdated);
-      updEl.textContent = 'Data per: ' + d.toLocaleString('id-ID', {dateStyle:'medium', timeStyle:'short'}) + ' · update otomatis tiap jam';
+      updEl.textContent = 'Data per: ' + d.toLocaleString('id-ID', {dateStyle:'medium', timeStyle:'short'}) + (lama ? ' · memperbarui…' : ' · update otomatis tiap jam');
     }
     renderGrafikChart(j);
     GF_JUAL_ = j; renderGrafikBppSemua_();
+  };
+  const lama = gfCacheGet_('jual');
+  if(lama) tampil(lama, true); else chartEl.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat grafik…</div>';
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=getGrafikData&t=' + Date.now());
+    if(!j.success){ if(!lama) chartEl.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>${j.message}</p></div>`; return; }
+    gfCachePut_('jual', j); tampil(j, false);
   }catch(e){
+    if(lama){ updEl.textContent += ' (gagal memperbarui)'; return; }
     chartEl.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>Gagal memuat: ${e.message}</p></div>`;
   }
 }
@@ -4240,13 +4272,15 @@ const CF_KELAS_ = [
 ];
 async function loadCashflow_(){
   const ch = document.getElementById('cf-chart'), pi = document.getElementById('cf-piutang');
-  ch.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat…</div>'; pi.innerHTML = '';
+  const lama = gfCacheGet_('cash');
+  if(lama){ CF_DATA_ = lama; renderCashflowChart_(); renderPiutang_(); }
+  else { ch.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat…</div>'; pi.innerHTML = ''; }
   try{
     const j = await gasFetch(APP.GAS_URL + '?action=getCashflow&t=' + Date.now());
     if(!j.success) throw new Error(j.message);
-    CF_DATA_ = j;
+    CF_DATA_ = j; gfCachePut_('cash', j);
     renderCashflowChart_(); renderPiutang_();
-  }catch(e){ ch.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>${e.message}</p></div>`; }
+  }catch(e){ if(lama) return; ch.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>${e.message}</p></div>`; }
 }
 function cfRp_(v){ return 'Rp ' + Math.round(v).toLocaleString('id-ID'); }
 function renderCashflowChart_(){
@@ -4371,15 +4405,20 @@ function bukaCfPelanggan_(nama){ CF_REOPEN_ = () => bukaCfPelanggan_(nama); tamp
 async function loadGrafikPengeluaran(){
   const chartEl = document.getElementById('gf-peng-chart');
   const updEl = document.getElementById('gf-peng-updated');
-  chartEl.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat pengeluaran…</div>';
-  try{
-    const j = await gasFetch(APP.GAS_URL + '?action=getGrafikPengeluaran&t=' + Date.now());
-    if(!j.success){ chartEl.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>${j.message}</p></div>`; return; }
-    if(j.lastUpdated) updEl.textContent = 'Sumber: sheet PermintaanBahan (tanpa status Batal) · ' + new Date(j.lastUpdated).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'});
+  const tampil = (j, lama) => {
+    if(j.lastUpdated) updEl.textContent = 'Sumber: sheet PermintaanBahan (tanpa status Batal) · ' + new Date(j.lastUpdated).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'}) + (lama ? ' · memperbarui…' : '');
     renderGrafikChart(j, 'gf-peng-chart', 'Belum ada pengeluaran tercatat sejak Juli 2026.');
     renderGrafikHarianChart({hariList:j.hariList, kategoriList:j.kategoriHarianList, data:j.dataHarian, rencana:j.rencanaHarian, omset:j.omsetBelanja, tanpaHarga:j.rencanaTanpaHarga}, 'gf-peng-harian-chart');
     GF_BELI_ = j; renderGrafikBppSemua_();
+  };
+  const lama = gfCacheGet_('beli');
+  if(lama) tampil(lama, true); else chartEl.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat pengeluaran…</div>';
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=getGrafikPengeluaran&t=' + Date.now());
+    if(!j.success){ if(!lama) chartEl.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>${j.message}</p></div>`; return; }
+    gfCachePut_('beli', j); tampil(j, false);
   }catch(e){
+    if(lama){ updEl.textContent += ' (gagal memperbarui)'; return; }
     chartEl.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>Gagal memuat: ${e.message}</p></div>`;
   }
 }
@@ -4413,14 +4452,17 @@ async function bukaDetailHariGrafik_(tgl){
 async function loadGrafikHarian(diam){
   const chartEl = document.getElementById('gf-harian-chart');
   const updEl = document.getElementById('gf-harian-updated');
-  if(!diam) chartEl.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat grafik harian…</div>';
+  const lama = diam ? null : gfCacheGet_('harian');
+  if(lama){ renderGrafikHarianChart(lama, 'gf-harian-chart', true); updEl.textContent = '⏳ Data tersimpan · memperbarui…'; }
+  else if(!diam) chartEl.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat grafik harian…</div>';
   try{
     const j = await gasFetch(APP.GAS_URL + '?action=getGrafikHarian&t=' + Date.now());
-    if(!j.success){ chartEl.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>${j.message}</p></div>`; return; }
+    if(!j.success){ if(!lama) chartEl.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>${j.message}</p></div>`; return; }
+    gfCachePut_('harian', j);
     updEl.textContent = '🟢 Realtime · diperbarui ' + new Date().toLocaleTimeString('id-ID') + ' · auto-refresh tiap 30 dtk';
     renderGrafikHarianChart(j, 'gf-harian-chart', true);
   }catch(e){
-    if(diam) return;
+    if(diam || lama) return;
     chartEl.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>Gagal memuat: ${e.message}</p></div>`;
   }
 }
@@ -6496,11 +6538,23 @@ async function loadGramasiList(){
   try{
     const j = await gasFetch(APP.GAS_URL + '?action=getDaftarMenuGramasiLengkap&t=' + Date.now());
     GRAMASI_LIST_DATA = (j && j.success) ? j.data : [];
-  }catch(e){ GRAMASI_LIST_DATA = []; }
+    GRAMASI_BELUM_DATA = (j && j.success && j.belum) ? j.belum : [];
+  }catch(e){ GRAMASI_LIST_DATA = []; GRAMASI_BELUM_DATA = []; }
   renderGramasiList();
 }
+let GRAMASI_BELUM_DATA = [];
+// Klik menu yang belum ada gramasinya → form menu baru dengan nama terisi
+function isiGramasiBaru_(nama){ openGramasiForm(); document.getElementById('gf-nama-menu').value = nama; }
 function renderGramasiList(){
   const q = (document.getElementById('gramasi-search').value||'').toLowerCase().trim();
+  const bw = document.getElementById('gramasi-belum');
+  if(bw){
+    const bl = GRAMASI_BELUM_DATA.filter(m => !q || m.nama_menu.toLowerCase().includes(q));
+    bw.innerHTML = GRAMASI_BELUM_DATA.length ? `<details ${q?'open':''} style="border:1px solid #f0c9a8;background:#FFF6EC;border-radius:8px;padding:8px 10px;">
+      <summary style="font-size:12px;font-weight:700;color:#C8521A;cursor:pointer;">⚠ ${GRAMASI_BELUM_DATA.length} menu belum ada gramasi${q?' ('+bl.length+' cocok)':''}</summary>
+      <div style="margin-top:6px;">${bl.map(m => `<div data-n="${encodeURIComponent(m.nama_menu)}" onclick="isiGramasiBaru_(decodeURIComponent(this.dataset.n))" style="padding:6px 2px;border-top:1px solid #f3dcc6;cursor:pointer;display:flex;justify-content:space-between;font-size:12px;"><span>${m.nama_menu}</span><span style="color:var(--inks);">${m.harga_jual?('Rp '+Number(m.harga_jual).toLocaleString('id-ID')):''} ＋</span></div>`).join('') || '<div style="font-size:11px;color:var(--inks);">Tidak ada yang cocok.</div>'}</div>
+    </details>` : '';
+  }
   const wrap = document.getElementById('gramasi-list');
   let data = GRAMASI_LIST_DATA;
   if(q) data = data.filter(m => m.nama_menu.toLowerCase().includes(q));
@@ -7687,6 +7741,7 @@ async function checkConn(){
         <input type="text" id="gramasi-search" placeholder="Cari menu…" oninput="renderGramasiList()" style="flex:1;padding:8px 10px;font-size:12px;">
         <button type="button" onclick="openGramasiForm()" style="background:var(--or);color:#fff;border:none;border-radius:6px;padding:0 12px;font-size:12px;cursor:pointer;white-space:nowrap;">+ Menu Baru</button>
       </div>
+      <div id="gramasi-belum" style="margin-bottom:10px;"></div>
       <div id="gramasi-list"><div class="empty" style="padding:16px;"><p style="font-size:12px;">Memuat…</p></div></div>
     </div>
 
