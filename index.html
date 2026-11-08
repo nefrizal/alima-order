@@ -6550,7 +6550,7 @@ async function bukaGramasiDariMasak(namaMenu){
   document.getElementById('gramasi-modal').classList.remove('hide');
   if(!BAHAN_BAKU_DATA || !BAHAN_BAKU_DATA.length) await loadBahanBakuData(); // boleh gagal diam2 utk role yg tak berhak — datalist-nya saja yg kosong
   renderGfBahanDatalist_();
-  loadGramasiList(); // muat daftar di background biar tombol "←" di form nanti bisa balik
+  await loadGramasiList(); // juga memuat peta Group dari tab Menu (utk kolom Kelompok) & daftar utk tombol "←"
   await openGramasiForm(namaMenu);
 }
 
@@ -6583,12 +6583,24 @@ async function loadGramasiList(){
     const j = await gasFetch(APP.GAS_URL + '?action=getDaftarMenuGramasiLengkap&t=' + Date.now());
     GRAMASI_LIST_DATA = (j && j.success) ? j.data : [];
     GRAMASI_BELUM_DATA = (j && j.success && j.belum) ? j.belum : [];
+    GRAMASI_GRUP_ = (j && j.success && j.grupMenu) || {};
+    GRAMASI_KELOMPOK_LIST_ = (j && j.success && j.kelompokList) || [];
   }catch(e){ GRAMASI_LIST_DATA = []; GRAMASI_BELUM_DATA = []; }
   renderGramasiList();
 }
-let GRAMASI_BELUM_DATA = [];
+let GRAMASI_BELUM_DATA = [], GRAMASI_GRUP_ = {}, GRAMASI_KELOMPOK_LIST_ = [];
+// Kelompok = kolom Group di tab Menu. Menu yang ada di tab Menu → terisi otomatis & dikunci; menu lain → boleh pilih/ketik.
+function terapkanKelompokMenu_(){
+  const nama = (document.getElementById('gf-nama-menu').value || '').trim().toLowerCase();
+  const inp = document.getElementById('gf-kelompok'), hint = document.getElementById('gf-kelompok-hint');
+  const dl = document.getElementById('gf-kelompok-list');
+  if(dl && dl.dataset.n !== String(GRAMASI_KELOMPOK_LIST_.length)){ dl.innerHTML = GRAMASI_KELOMPOK_LIST_.map(k => `<option value="${k}">`).join(''); dl.dataset.n = String(GRAMASI_KELOMPOK_LIST_.length); }
+  const g = GRAMASI_GRUP_[nama];
+  if(g){ inp.value = g; inp.readOnly = true; inp.style.background = '#F3EDE6'; hint.textContent = '(otomatis dari kolom Group di tab Menu)'; }
+  else { inp.readOnly = false; inp.style.background = ''; hint.textContent = nama ? '(menu belum ada di tab Menu — pilih sendiri)' : ''; }
+}
 // Klik menu yang belum ada gramasinya → form menu baru dengan nama terisi
-function isiGramasiBaru_(nama){ openGramasiForm(); document.getElementById('gf-nama-menu').value = nama; }
+function isiGramasiBaru_(nama){ openGramasiForm(); document.getElementById('gf-nama-menu').value = nama; terapkanKelompokMenu_(); }
 function renderGramasiList(){
   const q = (document.getElementById('gramasi-search').value||'').toLowerCase().trim();
   const bw = document.getElementById('gramasi-belum');
@@ -6631,7 +6643,7 @@ async function openGramasiForm(namaMenu){
     document.getElementById('gf-kelompok').value = '';
     document.getElementById('gf-porsi').value = 100;
     GF_BAHAN_ROWS = [{bahan:'', gram:''}];
-    renderGfBahanRows();
+    renderGfBahanRows(); terapkanKelompokMenu_();
     return;
   }
 
@@ -6648,7 +6660,7 @@ async function openGramasiForm(namaMenu){
       document.getElementById('gf-kelompok').value = '';
       document.getElementById('gf-porsi').value = 100;
       GF_BAHAN_ROWS = [{bahan:'', gram:''}];
-      renderGfBahanRows();
+      renderGfBahanRows(); terapkanKelompokMenu_();
       return;
     }
     document.getElementById('gramasi-form-title').textContent = 'Edit: ' + j.nama_menu;
@@ -6657,7 +6669,7 @@ async function openGramasiForm(namaMenu){
     document.getElementById('gf-kelompok').value = j.kelompok;
     document.getElementById('gf-porsi').value = j.porsi;
     GF_BAHAN_ROWS = j.items.length ? j.items.map(it => ({bahan: it.bahan, gram: it.gram})) : [{bahan:'', gram:''}];
-    renderGfBahanRows();
+    renderGfBahanRows(); terapkanKelompokMenu_();
     document.getElementById('gf-hapus-btn').classList.remove('hide');
   }catch(e){ toast('Gagal memuat menu: ' + e.message, 'err'); backToGramasiList(); }
 }
@@ -7797,14 +7809,11 @@ async function checkConn(){
       </div>
       <input type="hidden" id="gf-nama-menu-lama">
       <label style="font-size:11px;color:var(--inks);">Nama Menu</label>
-      <input type="text" id="gf-nama-menu" placeholder="mis. ayam bakar bumbu padang" style="width:100%;padding:8px 10px;font-size:13px;margin-bottom:8px;">
+      <input type="text" id="gf-nama-menu" oninput="terapkanKelompokMenu_()" placeholder="mis. ayam bakar bumbu padang" style="width:100%;padding:8px 10px;font-size:13px;margin-bottom:8px;">
 
-      <label style="font-size:11px;color:var(--inks);">Kelompok</label>
-      <input type="text" id="gf-kelompok" list="gf-kelompok-list" placeholder="mis. lauk utama" style="width:100%;padding:8px 10px;font-size:13px;margin-bottom:8px;">
-      <datalist id="gf-kelompok-list">
-        <option value="lauk utama"><option value="lauk tambahan"><option value="karbo">
-        <option value="sayur"><option value="sambal"><option value="buah">
-      </datalist>
+      <label style="font-size:11px;color:var(--inks);">Kelompok <span id="gf-kelompok-hint" style="font-weight:400;"></span></label>
+      <input type="text" id="gf-kelompok" list="gf-kelompok-list" placeholder="mengikuti kolom Group di tab Menu" style="width:100%;padding:8px 10px;font-size:13px;margin-bottom:8px;">
+      <datalist id="gf-kelompok-list"></datalist>
 
       <label style="font-size:11px;color:var(--inks);">Porsi Basis Resep <span style="font-weight:400;">(jumlah porsi yang jadi patokan angka Gram di bawah — mis. resep ditulis utk 100 porsi, isi 100)</span></label>
       <input type="number" id="gf-porsi" min="1" placeholder="mis. 100" style="width:100%;padding:8px 10px;font-size:13px;margin-bottom:10px;">
