@@ -4121,37 +4121,62 @@ async function revisiDariRincian_(i){
 }
 // Klik segmen kategori di grafik BPP → diagram lingkaran per "Nama Bahan" (nilai = Rupiah, top 5 + Lainnya)
 function bukaPieBahan_(bulan, kategori, ki){
-  GF_PIE_CTX_ = { bulan, kategori, items: (((GF_BELI_||{}).dataBppBahan||{})[bulan]||{})[kategori] || [] };
-  const items = (((GF_BELI_||{}).dataBppBahan||{})[bulan]||{})[kategori] || [];
-  const total = items.reduce((t,x)=>t+x.jml,0);
-  document.getElementById('gf-pie-title').textContent = '🥧 ' + kategori + ' — ' + formatBulanLabel_(bulan);
+  const D = ((GF_BELI_||{}).dataBppBahan||{});
+  const [yy,mm] = bulan.split('-').map(Number);
+  const bl = []; for(let k=2;k>=0;k--){ const d=new Date(yy,mm-1-k,1); bl.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')); }
+  const itemsOf = b => ((D[b]||{})[kategori]||[]);
+  const cur = itemsOf(bulan);
+  GF_PIE_CTX_ = { bulan, kategori, items: cur };
   const rp = v => 'Rp ' + Math.round(v).toLocaleString('id-ID');
+  const jt = v => (v/1e6).toLocaleString('id-ID',{maximumFractionDigits:1});
+  document.getElementById('gf-pie-title').textContent = '📊 ' + kategori + ' — ' + formatBulanLabel_(bulan) + ' — 3 bulan terakhir';
   const body = document.getElementById('gf-pie-body');
-  if(!items.length || total<=0){ body.innerHTML = '<div class="empty"><div class="eico">🥧</div><p>Tidak ada data bahan.</p></div>'; document.getElementById('gf-pie-modal').classList.remove('hide'); return; }
-  const warna = i => items[i].lainnya ? '#B0A89E' : GRAFIK_COLORS[i % GRAFIK_COLORS.length];
-  const R = 80, C = 90;
-  let sudut = -Math.PI/2, paths = '';
-  items.forEach((it,i)=>{
-    const frac = it.jml/total;
-    if(frac >= 0.9999){ paths += `<circle cx="${C}" cy="${C}" r="${R}" fill="${warna(i)}" style="cursor:pointer;" onclick="bukaRincianBahan_(${i})"><title>${it.nama}: ${rp(it.jml)}</title></circle>`; return; }
-    const a2 = sudut + frac*2*Math.PI;
-    const x1 = C + R*Math.cos(sudut), y1 = C + R*Math.sin(sudut), x2 = C + R*Math.cos(a2), y2 = C + R*Math.sin(a2);
-    paths += `<path d="M${C},${C} L${x1.toFixed(2)},${y1.toFixed(2)} A${R},${R} 0 ${frac>0.5?1:0} 1 ${x2.toFixed(2)},${y2.toFixed(2)} Z" fill="${warna(i)}" stroke="#fff" stroke-width="1" style="cursor:pointer;" onclick="bukaRincianBahan_(${i})"><title>${it.nama}: ${rp(it.jml)}</title></path>`;
-    sudut = a2;
+  const names = cur.filter(x=>!x.lainnya).map(x=>x.nama);
+  const tot = b => itemsOf(b).reduce((t,x)=>t+x.jml,0);
+  if(!names.length){ body.innerHTML = '<div class="empty"><div class="eico">📊</div><p>Tidak ada data bahan.</p></div>'; document.getElementById('gf-pie-modal').classList.remove('hide'); return; }
+  GF_PIE_CTX_.names = names; GF_PIE_CTX_.bl = bl;
+  const val = (b,n) => { const it = itemsOf(b).find(x=>!x.lainnya && x.nama===n); return it ? it.jml : 0; };
+  const cols = ['#D9CFC4','#B5A38E','#C2410C'];
+  const maxV = Math.max(1, ...names.flatMap(n=>bl.map(b=>val(b,n))));
+  const rowH = 18, gap = 10, left = 92, W = 330, barMax = W-left-60;
+  const H = names.length*(rowH*3+gap)+10;
+  let svg = '';
+  names.forEach((n,ni)=>{
+    const y0 = ni*(rowH*3+gap)+4;
+    svg += `<text x="0" y="${y0+rowH*1.5}" font-size="10" fill="#3A2A1C">${n.length>14?n.slice(0,13)+'…':n}</text>`;
+    bl.forEach((b,bi)=>{
+      const v = val(b,n), w = Math.max(v>0?2:0, v/maxV*barMax), y = y0+bi*rowH;
+      svg += `<rect x="${left}" y="${y+1}" width="${w.toFixed(1)}" height="${rowH-3}" rx="2" fill="${cols[bi]}" style="cursor:pointer;" onclick="bukaRincianBahan_(${ni},'${b}')"><title>${formatBulanLabel_(b)} — ${n}: ${rp(v)}</title></rect>`;
+      svg += `<text x="${left+w+4}" y="${y+rowH-5}" font-size="9" fill="${bi===2?'#C2410C':'#7A6A58'}" ${bi===2?'font-weight="700"':''}>${v>0?jt(v):'–'}</text>`;
+    });
   });
-  body.innerHTML = `<div style="text-align:center;font-size:12px;color:var(--inks);margin-bottom:6px;">Total ${kategori}: <b style="color:var(--ink);">${rp(total)}</b></div>
-    <div style="text-align:center;"><svg width="180" height="180" viewBox="0 0 180 180">${paths}</svg></div>
-    <div style="margin-top:8px;">${items.map((it,i)=>`<div onclick="bukaRincianBahan_(${i})" style="cursor:pointer;display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 2px;border-bottom:1px solid var(--bdr);">
-      <span style="width:11px;height:11px;border-radius:2px;background:${warna(i)};flex-shrink:0;"></span>
-      <span style="flex:1;">${it.nama}</span><b>${rp(it.jml)}</b></div>`).join('')}</div>
-    <div style="font-size:10px;color:var(--inks);margin-top:6px;">Hanya baris Sudah Dicetak = Ya (sama dgn dasar hitung BPP). Nilai dalam Rupiah.</div>`;
+  const leg = bl.map((b,bi)=>`<span style="display:inline-flex;align-items:center;gap:4px;margin-right:10px;"><i style="width:10px;height:10px;border-radius:2px;background:${cols[bi]};display:inline-block;"></i>${formatBulanLabel_(b)}</span>`).join('');
+  // Tabel pembanding: bulan ini vs rata-rata 3 bulan sebelumnya
+  const rows = names.map((n,ni)=>{
+    const prev = bl.slice(0,2).map(b=>val(b,n)), avg = prev.reduce((t,x)=>t+x,0)/2, c = val(bulan,n);
+    const d = avg>0 ? (c-avg)/avg*100 : null;
+    const flag = d==null ? (c>0?'<span style="color:#C2410C;">baru</span>':'–') : `<b style="color:${d>=30?'#C2410C':d<=-30?'#1D6FA5':'inherit'};">${d>0?'▲':d<0?'▼':''} ${Math.abs(d).toFixed(0)}%</b>`;
+    return `<tr onclick="bukaRincianBahan_(${ni},'${bulan}')" style="cursor:pointer;"><td style="padding:3px 2px;border-bottom:1px solid var(--bdr);">${n}</td><td style="text-align:right;border-bottom:1px solid var(--bdr);">${jt(avg)}</td><td style="text-align:right;border-bottom:1px solid var(--bdr);">${jt(c)}</td><td style="text-align:right;border-bottom:1px solid var(--bdr);">${flag}</td></tr>`;
+  }).join('');
+  const t4 = bl.map(b=>tot(b));
+  body.innerHTML = `<div style="font-size:11px;color:var(--inks);margin-bottom:6px;">Total ${kategori}: ${bl.map((b,i)=>`${formatBulanLabel_(b)} <b style="color:var(--ink);">${jt(t4[i])}jt</b>`).join(' · ')}</div>
+    <div style="font-size:11px;margin-bottom:6px;">${leg}</div>
+    <div style="overflow-x:auto;"><svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${svg}</svg></div>
+    <div style="font-size:11px;font-weight:700;margin:10px 0 4px;">Bulan ini vs rata-rata 2 bulan sebelumnya (juta Rp)</div>
+    <table style="width:100%;font-size:11px;border-collapse:collapse;"><tr style="color:var(--inks);"><th style="text-align:left;">Bahan</th><th style="text-align:right;">Rata-rata 2 bln lalu</th><th style="text-align:right;">Bulan ini</th><th style="text-align:right;">Selisih</th></tr>${rows}</table>
+    <div style="font-size:10px;color:var(--inks);margin-top:6px;">Nilai dalam juta Rupiah. ▲/▼ oranye/biru = selisih ≥30% dari rata-rata. Bahan yang di bulan lain tidak masuk daftar teratas tampil “–”. Klik batang/baris untuk rincian. Hanya Sudah Dicetak = Ya (dasar hitung BPP).</div>`;
   document.getElementById('gf-pie-modal').classList.remove('hide');
 }
 
 // Klik irisan/baris di diagram lingkaran → tabel rincian: tanggal, qty, satuan, harga satuan, total
-async function bukaRincianBahan_(i){
-  const c = GF_PIE_CTX_; if(!c || !c.items[i]) return;
-  const it = c.items[i];
+async function bukaRincianBahan_(i, bln){
+  const c0 = GF_PIE_CTX_; if(!c0) return;
+  let c = c0, it;
+  if(bln && c0.names){
+    const its = (((GF_BELI_||{}).dataBppBahan||{})[bln]||{})[c0.kategori] || [];
+    it = its.find(x=>!x.lainnya && x.nama===c0.names[i]) || {nama:c0.names[i]};
+    c = {bulan:bln, kategori:c0.kategori, items:its};
+  } else { if(!c0.items[i]) return; it = c0.items[i]; }
   const modal = document.getElementById('gf-rinci-modal'), body = document.getElementById('gf-rinci-body');
   document.getElementById('gf-rinci-title').textContent = '📑 ' + it.nama + ' — ' + formatBulanLabel_(c.bulan);
   body.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat rincian…</div>';
