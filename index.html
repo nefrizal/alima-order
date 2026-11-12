@@ -433,6 +433,15 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   <div id="gf-peng-harian-chart"><div class="empty"><div class="eico">💸</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
   </div>
 
+  <div class="gf-sec" data-gf="gf_lauk">
+  <div class="stitle" style="margin-top:20px;">🍗 Lauk Utama: Teori (Order) vs Dibeli <span style="font-weight:400;font-size:10px;color:var(--inks);">· klik baris = rincian</span></div>
+  <div style="display:flex;align-items:center;gap:8px;margin:4px 0 8px;flex-wrap:wrap;">
+    <select id="gf-lauk-bulan" onchange="renderGrafikLauk_()" style="padding:6px 8px;font-size:12px;"></select>
+    <span id="gf-lauk-updated" style="font-size:10px;color:var(--inks);"></span>
+  </div>
+  <div id="gf-lauk-chart"><div class="empty"><div class="eico">🍗</div><p>Memuat…</p></div></div>
+  </div>
+
   <div id="cf-section">
     <div class="gf-sec" data-gf="gf_posisi">
   <div class="stitle" style="margin-top:20px;">💰 Posisi Pembayaran per Bulan Kirim <span style="font-weight:400;font-size:10px;color:var(--inks);">· klik warna = daftar order</span></div>
@@ -772,6 +781,16 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
       <button class="modal-close" onclick="document.getElementById('cf-modal').classList.add('hide')">×</button>
     </div>
     <div id="cf-modal-body"></div>
+  </div>
+</div>
+
+<div class="modal-bg hide" id="gf-lauk-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="gf-lauk-title">🍗 Rincian</h2>
+      <button class="modal-close" onclick="document.getElementById('gf-lauk-modal').classList.add('hide')">×</button>
+    </div>
+    <div id="gf-lauk-body"></div>
   </div>
 </div>
 
@@ -3785,6 +3804,7 @@ function gfMuatGrup_(grup){
     if(g('gf_peng') || g('gf_peng_harian') || g('gf_bpp') || g('gf_nonbpp') || g('gf_sisa')) loadGrafikPengeluaran();
   }
   else if(grup === 'cash'){ if(g('gf_posisi') || g('gf_piutang')) loadCashflow_(); }
+  else if(grup === 'lauk'){ if(g('gf_lauk')) loadGrafikLauk(); }
 }
 function loadGrafikSemua_(){
   terapkanAksesGrafik_();
@@ -3793,7 +3813,7 @@ function loadGrafikSemua_(){
   if(gfBoleh_('gf_harian')) loadGrafikHarian();
   // dua grafik teratas langsung; sisanya menunggu mendekati layar (rootMargin 400px)
   gfMuatGrup_('jual');
-  const peta = { gf_bpp:'beli', gf_nonbpp:'beli', gf_sisa:'beli', gf_peng:'beli', gf_peng_harian:'beli', gf_posisi:'cash', gf_piutang:'cash' };
+  const peta = { gf_bpp:'beli', gf_nonbpp:'beli', gf_sisa:'beli', gf_peng:'beli', gf_peng_harian:'beli', gf_posisi:'cash', gf_piutang:'cash', gf_lauk:'lauk' };
   const secs = Array.from(document.querySelectorAll('#panel-grafik .gf-sec')).filter(el => peta[el.dataset.gf] && gfBoleh_(el.dataset.gf));
   if(!('IntersectionObserver' in window)){ secs.forEach(el => gfMuatGrup_(peta[el.dataset.gf])); return; }
   GF_OBS_ = new IntersectionObserver(es => es.forEach(e => { if(e.isIntersecting){ gfMuatGrup_(peta[e.target.dataset.gf]); GF_OBS_.unobserve(e.target); } }), { rootMargin: '400px 0px' });
@@ -4496,6 +4516,75 @@ async function bukaDetailHariGrafik_(tgl){
 }
 
 // ══ GRAFIK HARIAN (jumlah total per produk per hari, 15 hari ke depan, dari cache) ═══
+// ── Grafik Lauk Utama: teori (order × gramasi) vs dibeli (PermintaanBahan) per bulan ──
+let GF_LAUK_ = null;
+async function loadGrafikLauk(){
+  const el = document.getElementById('gf-lauk-chart');
+  const lama = gfCacheGet_('lauk');
+  if(lama){ GF_LAUK_ = lama; renderGrafikLauk_(); }
+  else el.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat…</div>';
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=getGrafikLauk&t=' + Date.now());
+    if(!j.success){ if(!lama) el.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>${j.message}</p></div>`; return; }
+    gfCachePut_('lauk', j); GF_LAUK_ = j; renderGrafikLauk_();
+  }catch(e){ if(!lama) el.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>Gagal memuat: ${e.message}</p></div>`; }
+}
+function laukFmt_(v, butir){
+  if(butir) return Math.round(v).toLocaleString('id-ID') + ' btr';
+  return (v/1000).toLocaleString('id-ID',{maximumFractionDigits:1}) + ' kg';
+}
+function renderGrafikLauk_(){
+  const j = GF_LAUK_, el = document.getElementById('gf-lauk-chart'), sel = document.getElementById('gf-lauk-bulan');
+  if(!j || !el) return;
+  const bl = (j.bulanList||[]).slice().reverse();
+  if(!bl.length){ el.innerHTML = '<div class="empty"><div class="eico">🍗</div><p>Belum ada data order.</p></div>'; return; }
+  const pilih = sel.value && bl.includes(sel.value) ? sel.value : (bl.includes(j.bulanBerjalan) ? j.bulanBerjalan : bl[0]);
+  sel.innerHTML = bl.map(b => `<option value="${b}"${b===pilih?' selected':''}>${formatBulanLabel_(b)}${b===j.bulanBerjalan?' (s.d. kemarin/hari ini)':''}</option>`).join('');
+  document.getElementById('gf-lauk-updated').textContent = j.lastUpdated ? 'diperbarui ' + new Date(j.lastUpdated).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}) : '';
+  const d = (j.data||{})[pilih] || {};
+  let rows = '';
+  (j.bahan||[]).forEach(b => {
+    const x = d[b.k] || {teori:0, beli:0, tak_terkonversi:0};
+    const mx = Math.max(x.teori, x.beli, 1);
+    const sel_ = x.teori > 0 ? (x.beli - x.teori) / x.teori * 100 : null;
+    const abs = sel_ == null ? null : Math.abs(sel_);
+    const warna = abs == null ? '#9C8672' : abs <= 10 ? '#2E7D32' : abs <= 25 ? '#E08A00' : '#C0392B';
+    const teks = sel_ == null ? (x.beli > 0 ? 'tanpa order' : '—') : (sel_ >= 0 ? '+' : '') + Math.round(sel_) + '%';
+    rows += `<div data-k="${b.k}" onclick="bukaDetailLauk_('${pilih}', this.dataset.k)" style="display:grid;grid-template-columns:78px 1fr 58px;gap:8px;align-items:center;padding:7px 4px;border-bottom:1px solid var(--bdr);cursor:pointer;">
+      <div style="font-size:12px;font-weight:700;color:var(--ink);">${b.label}${x.tak_terkonversi ? `<div style="font-size:9px;font-weight:400;color:#C0392B;">⚠ ${x.tak_terkonversi} baris tak terkonversi</div>` : ''}</div>
+      <div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;"><div style="height:11px;border-radius:2px;background:#7E57C2;width:${x.teori/mx*100}%;min-width:${x.teori>0?2:0}px;"></div><span style="font-size:10px;color:#5E3FA3;white-space:nowrap;">${laukFmt_(x.teori, b.butir)}</span></div>
+        <div style="display:flex;align-items:center;gap:6px;"><div style="height:11px;border-radius:2px;background:#C8521A;width:${x.beli/mx*100}%;min-width:${x.beli>0?2:0}px;"></div><span style="font-size:10px;color:#C8521A;white-space:nowrap;">${laukFmt_(x.beli, b.butir)}</span></div>
+      </div>
+      <div style="text-align:right;font-size:12px;font-weight:700;color:${warna};">${teks}</div>
+    </div>`;
+  });
+  el.innerHTML = `<div style="background:var(--card);border:1px solid var(--bdr);border-radius:10px;padding:8px 10px;">
+    <div style="display:flex;gap:14px;font-size:11px;color:var(--inkm);margin-bottom:4px;">
+      <span><span style="display:inline-block;width:10px;height:10px;background:#7E57C2;border-radius:2px;margin-right:4px;"></span>Teori (order × gramasi)</span>
+      <span><span style="display:inline-block;width:10px;height:10px;background:#C8521A;border-radius:2px;margin-right:4px;"></span>Dibeli</span>
+      <span style="margin-left:auto;">selisih = (dibeli − teori) ÷ teori</span>
+    </div>${rows}
+    <div style="font-size:10px;color:var(--inks);margin-top:6px;">Gramasi per porsi: ayam 100 g · ikan fillet 50 g · daging 50 g · udang 60 g · sotong 60 g · telur 1 butir · beras 100 g · sayur 50 g · cabe 10 g. Hijau ≤ 10%, kuning ≤ 25%, merah &gt; 25%. Bulan berjalan: order s.d. hari ini vs belanja s.d. kemarin.</div>
+  </div>`;
+}
+function bukaDetailLauk_(bulan, k){
+  const j = GF_LAUK_; if(!j) return;
+  const b = (j.bahan||[]).filter(x => x.k === k)[0] || {label:k}, d = ((j.data||{})[bulan]||{})[k] || {teori:0, beli:0};
+  const rc = (((j.rincian||{})[bulan]||{})[k]) || {teori:[], beli:[], tak:[]};
+  document.getElementById('gf-lauk-title').textContent = '🍗 ' + b.label + ' — ' + formatBulanLabel_(bulan);
+  const td = 'padding:4px 6px;border-bottom:1px solid var(--bdr);font-size:12px;';
+  const tb = rc.teori.length ? rc.teori.map(m => `<tr><td style="${td}">${m.nama}</td><td style="${td}text-align:right;">${Number(m.porsi).toLocaleString('id-ID')}</td></tr>`).join('') : `<tr><td colspan="2" style="${td}color:var(--inks);">Tidak ada.</td></tr>`;
+  const bb = rc.beli.length ? rc.beli.map(m => `<tr><td style="${td}">${m.nama}</td><td style="${td}text-align:right;white-space:nowrap;">${Number(m.qty).toLocaleString('id-ID',{maximumFractionDigits:2})} ${m.satuan}</td></tr>`).join('') : `<tr><td colspan="2" style="${td}color:var(--inks);">Tidak ada pembelian terhitung.</td></tr>`;
+  document.getElementById('gf-lauk-body').innerHTML = `
+    <div style="font-size:12px;margin-bottom:8px;">Teori <b>${laukFmt_(d.teori, b.butir)}</b> · Dibeli <b>${laukFmt_(d.beli, b.butir)}</b></div>
+    <div style="font-size:11px;font-weight:700;color:#5E3FA3;margin:6px 0 2px;">Menu di order (porsi) — teratas</div>
+    <table style="width:100%;border-collapse:collapse;">${tb}</table>
+    <div style="font-size:11px;font-weight:700;color:#C8521A;margin:10px 0 2px;">Pembelian yang terhitung</div>
+    <table style="width:100%;border-collapse:collapse;">${bb}</table>
+    ${(rc.tak||[]).length ? `<div style="font-size:11px;color:#C0392B;margin-top:8px;">⚠ Tidak terhitung (satuan tak bisa dikonversi ke gram): ${rc.tak.map(t => t.nama + ' ' + t.qty).join('; ')}</div>` : ''}`;
+  document.getElementById('gf-lauk-modal').classList.remove('hide');
+}
 async function loadGrafikHarian(diam){
   const chartEl = document.getElementById('gf-harian-chart');
   const updEl = document.getElementById('gf-harian-updated');
