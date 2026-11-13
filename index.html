@@ -4585,7 +4585,7 @@ async function loadGrafikPengeluaran(){
   const tampil = (j, lama) => {
     if(j.lastUpdated) updEl.textContent = 'Sumber: sheet PermintaanBahan (tanpa status Batal) · ' + new Date(j.lastUpdated).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'}) + (lama ? ' · memperbarui…' : '');
     renderGrafikChart(j, 'gf-peng-chart', 'Belum ada pengeluaran tercatat sejak Juli 2026.');
-    renderGrafikHarianChart({hariList:j.hariList, kategoriList:j.kategoriHarianList, data:j.dataHarian, rencana:j.rencanaHarian, omset:j.omsetBelanja, tanpaHarga:j.rencanaTanpaHarga}, 'gf-peng-harian-chart');
+    renderGrafikHarianChart({hariList:j.hariList, kategoriList:j.kategoriHarianList, data:j.dataHarian, rencana:j.rencanaHarian, omset:j.omsetBelanja, hariIni:j.hariIniStr, tanpaHarga:j.rencanaTanpaHarga}, 'gf-peng-harian-chart');
     GF_BELI_ = j; renderGrafikBppSemua_(); if(typeof CF_DATA_ !== 'undefined' && CF_DATA_ && CF_DATA_.orders) renderHutangTagihan_();
   };
   const lama = gfCacheGet_('beli');
@@ -4802,8 +4802,10 @@ function renderGrafikHarianChart(j, elId, bisaKlik){
   // Sumbu kanan dalam PERSEN = akumulasi belanja ÷ akumulasi omset (omset aktual = omset teori).
   // Omset tgl belanja H = omset order yang dikirim H+1 (rencana dibuat H-1).
   const cumOmset = []; let so = 0;
-  hariList.forEach(hh => { so += (omsetB && omsetB[hh]) || 0; cumOmset.push(so); });
-  const adaGaris = adaRencana && !!omsetB && so > 0;
+  // Omset = omset BULAN BERJALAN s.d. HARI INI: tgl belanja H dihitung bila order H+1 ≤ hari ini (H < hari ini). Titik garis hanya sampai situ.
+  const nOmset = j.hariIni ? hariList.filter(hh => hh < j.hariIni).length : hariList.length;
+  hariList.forEach((hh,i) => { if(i < nOmset) so += (omsetB && omsetB[hh]) || 0; cumOmset.push(so); });
+  const adaGaris = adaRencana && !!omsetB && so > 0 && nOmset > 0;
   const pctP = cumPlan.map((v,i) => cumOmset[i] > 0 ? v/cumOmset[i]*100 : 0), pctA = cumAkt.map((v,i) => cumOmset[i] > 0 ? v/cumOmset[i]*100 : 0);
   const maxCum = Math.max(5, ...pctP, ...pctA);
   const stepR = (function(){ const raw = maxCum/5; return raw<=2?2:raw<=5?5:raw<=10?10:raw<=20?20:50; })();
@@ -4827,15 +4829,15 @@ function renderGrafikHarianChart(j, elId, bisaKlik){
     }
     gridLines += `<line x1="${xR}" y1="20" x2="${xR}" y2="${barMaxH+20}" stroke="#C9B8E8" stroke-width="1"/>`;
     const pts = arr => arr.map((v,i)=> (leftM + 6 + i*groupW + lebarGrup/2).toFixed(1)+','+(barMaxH - (v/topR)*barMaxH + 20).toFixed(1));
-    const pP = pts(pctP), pA = pts(pctA);
+    const pP = pts(pctP).slice(0,nOmset), pA = pts(pctA).slice(0,nOmset);
     garis += `<polyline points="${pP.join(' ')}" fill="none" stroke="#7E57C2" stroke-width="2" stroke-dasharray="5 3" style="pointer-events:none;"/>`;
     garis += `<polyline points="${pA.join(' ')}" fill="none" stroke="#C8521A" stroke-width="2.2" style="pointer-events:none;"/>`;
-    hariList.forEach((hh,i)=>{
+    hariList.slice(0,nOmset).forEach((hh,i)=>{
       const [px,py] = pP[i].split(','), [ax,ay] = pA[i].split(',');
       garis += `<circle cx="${px}" cy="${py}" r="2.6" fill="#fff" stroke="#7E57C2" stroke-width="1.5"><title>Akumulasi rencana s.d. ${hh}: ${fp(pctP[i])} (belanja ${cfRp_(cumPlan[i])} ÷ omset ${cfRp_(cumOmset[i])})</title></circle>`;
       garis += `<circle cx="${ax}" cy="${ay}" r="2.6" fill="#C8521A"><title>Akumulasi aktual s.d. ${hh}: ${fp(pctA[i])} (belanja ${cfRp_(cumAkt[i])} ÷ omset ${cfRp_(cumOmset[i])})</title></circle>`;
     });
-    const li = hariList.length-1, [lx,lyP] = pP[li].split(','), lyA = pA[li].split(',')[1];
+    const li = nOmset-1, [lx,lyP] = pP[li].split(','), lyA = pA[li].split(',')[1];
     garis += `<text x="${(+lx)-4}" y="${(+lyP)-6}" font-size="8" font-weight="700" fill="#5E3FA3" text-anchor="end" style="pointer-events:none;">${fp(pctP[li])}</text>`;
     garis += `<text x="${(+lx)-4}" y="${(+lyA)+12}" font-size="8" font-weight="700" fill="#C8521A" text-anchor="end" style="pointer-events:none;">${fp(pctA[li])}</text>`;
   }
@@ -4874,7 +4876,7 @@ function renderGrafikHarianChart(j, elId, bisaKlik){
     </div>`).join('');
 
   const legendRencana = adaRencana ? `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#5E3FA3;margin:3px 10px 3px 0;"><span style="width:10px;height:10px;border-radius:2px;background:#EDE7F6;border:1.5px solid #7E57C2;display:inline-block;flex-shrink:0;"></span>Rencana bahan baku (order hari berikutnya × gramasi) · klik batang = rincian</div>` : '';
-  const legendGaris = adaGaris ? `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--inkm);margin:3px 10px 3px 0;"><svg width="22" height="8"><line x1="0" y1="4" x2="22" y2="4" stroke="#7E57C2" stroke-width="2" stroke-dasharray="5 3"/></svg>Akumulasi belanja teori ÷ omset (%, sumbu kanan)</div><div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--inkm);margin:3px 10px 3px 0;"><svg width="22" height="8"><line x1="0" y1="4" x2="22" y2="4" stroke="#C8521A" stroke-width="2.2"/></svg>Akumulasi belanja aktual ÷ omset (%, sumbu kanan)</div>` : '';
+  const legendGaris = adaGaris ? `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--inkm);margin:3px 10px 3px 0;"><svg width="22" height="8"><line x1="0" y1="4" x2="22" y2="4" stroke="#7E57C2" stroke-width="2" stroke-dasharray="5 3"/></svg>Akumulasi belanja teori ÷ omset s.d. hari ini (%, sumbu kanan)</div><div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--inkm);margin:3px 10px 3px 0;"><svg width="22" height="8"><line x1="0" y1="4" x2="22" y2="4" stroke="#C8521A" stroke-width="2.2"/></svg>Akumulasi belanja aktual ÷ omset s.d. hari ini (%, sumbu kanan)</div>` : '';
   const catatRencana = adaRencana ? `<div style="font-size:10px;color:var(--inks);margin-top:4px;">Batang berpola = RENCANA belanja tgl tsb: kebutuhan bahan (tab gramasi × porsi) untuk order yang dikirim esok harinya, dikali harga terbaru bahan.${(j.tanpaHarga&&j.tanpaHarga.length) ? ' <span style="color:#C0392B;">'+j.tanpaHarga.length+' bahan belum punya harga (dihitung Rp 0): '+j.tanpaHarga.slice(0,6).join(', ')+(j.tanpaHarga.length>6?'…':'')+'</span>' : ''}</div>` : '';
   chartEl.innerHTML = `
     <div style="overflow-x:auto;background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:12px;box-shadow:var(--sh);">
