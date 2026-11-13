@@ -4472,13 +4472,37 @@ function renderHutangTagihan_(){
     <div style="overflow-x:auto;text-align:center;"><svg width="${W}" height="${y0+26}" viewBox="0 0 ${W} ${y0+26}">${svg}</svg></div>
     <div style="font-size:10px;color:var(--inks);margin-top:4px;">Hutang = DP / bayar di muka untuk acara yang belum dieksekusi + nota supplier berstatus Hutang (sheet NotaFoto) + gaji karyawan terutang bulan berjalan (20% omset berjalan dikurangi gaji yang sudah dicatat dibayar${beliAda?'':'; data pengeluaran belum termuat, jadi belum dikurangi'}). Piutang = sisa bayar acara yang sudah selesai tapi belum diterima.</div>`;
 }
+// Hutang supplier: klik batang → diagram lingkaran per supplier → klik irisan/baris → daftar nota supplier itu
+let CF_NOTA_SUP_ = [];
 function bukaNotaHutang_(){
-  const n = (CF_HT_.nota||[]).slice().sort((a,b)=>a.tgl<b.tgl?-1:1);
-  tampilCfModal_('🏭 Hutang supplier (nota berstatus Hutang)', []);
+  const n = CF_HT_.nota || [];
+  const per = {}; n.forEach(x => { const k = x.supplier || '—'; (per[k] = per[k] || {nama:k, total:0, n:0}); per[k].total += x.total; per[k].n++; });
+  const sup = Object.values(per).sort((a,b)=>b.total-a.total); CF_NOTA_SUP_ = sup;
+  const tot = sup.reduce((t,x)=>t+x.total,0), r = v => 'Rp ' + Math.round(v).toLocaleString('id-ID');
+  tampilCfModal_('🏭 Hutang supplier', []);
+  if(!sup.length){ document.getElementById('cf-modal-body').innerHTML = '<div class="empty"><div class="eico">✅</div><p>Tidak ada nota berstatus Hutang.</p></div>'; return; }
+  const warna = i => GRAFIK_COLORS[i % GRAFIK_COLORS.length];
+  const R = 80, C = 90; let a0 = -Math.PI/2, paths = '';
+  sup.forEach((x,i)=>{
+    const f = x.total/tot;
+    if(f >= 0.9999){ paths += `<circle cx="${C}" cy="${C}" r="${R}" fill="${warna(i)}" style="cursor:pointer;" onclick="bukaNotaSupplier_(${i})"><title>${x.nama}: ${r(x.total)}</title></circle>`; return; }
+    const a1 = a0 + f*2*Math.PI;
+    paths += `<path d="M${C},${C} L${(C+R*Math.cos(a0)).toFixed(2)},${(C+R*Math.sin(a0)).toFixed(2)} A${R},${R} 0 ${f>0.5?1:0} 1 ${(C+R*Math.cos(a1)).toFixed(2)},${(C+R*Math.sin(a1)).toFixed(2)} Z" fill="${warna(i)}" stroke="#fff" stroke-width="1" style="cursor:pointer;" onclick="bukaNotaSupplier_(${i})"><title>${x.nama}: ${r(x.total)}</title></path>`;
+    a0 = a1;
+  });
+  document.getElementById('cf-modal-body').innerHTML = `<div style="text-align:center;font-size:12px;color:var(--inks);margin-bottom:6px;">Total hutang supplier: <b style="color:var(--ink);">${r(tot)}</b></div>
+    <div style="text-align:center;"><svg width="180" height="180" viewBox="0 0 180 180">${paths}</svg></div>
+    <div style="margin-top:8px;">${sup.map((x,i)=>`<div onclick="bukaNotaSupplier_(${i})" style="cursor:pointer;display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 2px;border-bottom:1px solid var(--bdr);"><span style="width:11px;height:11px;border-radius:2px;background:${warna(i)};flex-shrink:0;"></span><span style="flex:1;">${x.nama} <span style="color:var(--inks);">(${x.n} nota · ${Math.round(x.total/tot*100)}%)</span></span><b>${r(x.total)}</b></div>`).join('')}</div>
+    <div style="font-size:10px;color:var(--inks);margin-top:6px;">Klik irisan atau baris untuk melihat daftar nota supplier tersebut.</div>`;
+}
+function bukaNotaSupplier_(i){
+  const sp = CF_NOTA_SUP_[i]; if(!sp) return;
+  const n = (CF_HT_.nota||[]).filter(x => (x.supplier||'—') === sp.nama).sort((a,b)=>a.tgl<b.tgl?-1:1);
+  tampilCfModal_('🏭 ' + sp.nama + ' — nota berstatus Hutang', []);
   const r = v => Math.round(v).toLocaleString('id-ID'), td = 'style="padding:4px;border-bottom:1px solid var(--bdr);"', tdr = 'style="padding:4px;border-bottom:1px solid var(--bdr);text-align:right;white-space:nowrap;"';
-  document.getElementById('cf-modal-body').innerHTML = n.length ? `<div style="overflow-x:auto;"><table style="width:100%;font-size:11px;border-collapse:collapse;"><tr style="color:var(--inks);"><th style="text-align:left;">Tanggal</th><th style="text-align:left;">No Nota</th><th style="text-align:left;">Supplier</th><th style="text-align:right;">Total</th></tr>
-    ${n.map(x=>`<tr><td ${td}>${fd(x.tgl)}</td><td ${td}>${x.no}</td><td ${td}>${x.supplier||'—'}</td><td ${tdr}>${r(x.total)}</td></tr>`).join('')}
-    <tr style="font-weight:700;"><td ${td} colspan="3">Total (Rp)</td><td ${tdr}>${r(n.reduce((t,x)=>t+x.total,0))}</td></tr></table></div>` : '<div class="empty"><div class="eico">✅</div><p>Tidak ada nota berstatus Hutang.</p></div>';
+  document.getElementById('cf-modal-body').innerHTML = `<div style="margin-bottom:6px;"><a href="#" onclick="bukaNotaHutang_();return false;" style="font-size:12px;color:var(--blu);">← Kembali ke diagram</a></div><div style="overflow-x:auto;"><table style="width:100%;font-size:11px;border-collapse:collapse;"><tr style="color:var(--inks);"><th style="text-align:left;">Tanggal</th><th style="text-align:left;">No Nota</th><th style="text-align:right;">Total</th></tr>
+    ${n.map(x=>`<tr><td ${td}>${fd(x.tgl)}</td><td ${td}>${x.no}</td><td ${tdr}>${r(x.total)}</td></tr>`).join('')}
+    <tr style="font-weight:700;"><td ${td} colspan="2">Total (Rp)</td><td ${tdr}>${r(n.reduce((t,x)=>t+x.total,0))}</td></tr></table></div>`;
 }
 function bukaGajiTerutang_(){
   const g = CF_HT_.gaji; if(!g) return;
