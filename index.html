@@ -452,6 +452,11 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     <div class="stitle" style="margin-top:20px;">🧾 Piutang: Umur &amp; Pelanggan</div>
     <div id="cf-piutang"></div>
     </div>
+
+  <div class="gf-sec" data-gf="gf_piutang">
+    <div class="stitle" style="margin-top:20px;">📊 Hutang (DP) &amp; Tagihan per Bulan Kirim <span style="font-weight:400;font-size:10px;color:var(--inks);">· klik batang = daftar order</span></div>
+    <div id="cf-hutang"></div>
+  </div>
   </div>
 </div>
 
@@ -4331,13 +4336,13 @@ const CF_KELAS_ = [
 async function loadCashflow_(){
   const ch = document.getElementById('cf-chart'), pi = document.getElementById('cf-piutang');
   const lama = gfCacheGet_('cash');
-  if(lama){ CF_DATA_ = lama; renderCashflowChart_(); renderPiutang_(); }
+  if(lama){ CF_DATA_ = lama; renderCashflowChart_(); renderPiutang_(); renderHutangTagihan_(); }
   else { ch.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat…</div>'; pi.innerHTML = ''; }
   try{
     const j = await gasFetch(APP.GAS_URL + '?action=getCashflow&t=' + Date.now());
     if(!j.success) throw new Error(j.message);
     CF_DATA_ = j; gfCachePut_('cash', j);
-    renderCashflowChart_(); renderPiutang_();
+    renderCashflowChart_(); renderPiutang_(); renderHutangTagihan_();
   }catch(e){ if(lama) return; ch.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>${e.message}</p></div>`; }
 }
 function cfRp_(v){ return 'Rp ' + Math.round(v).toLocaleString('id-ID'); }
@@ -4422,6 +4427,68 @@ function renderPiutang_(){
   CF_GRUP_ = grup; CF_PT_ = pt;
 }
 let CF_GRUP_ = [], CF_PT_ = [];
+// Hutang = uang yang SUDAH diterima (DP / bayar di muka) untuk acara yang BELUM dieksekusi (tgl ≥ hari ini).
+// Tagihan = sisa bayar acara yang SUDAH selesai (tgl < hari ini) tapi belum diterima (= piutang).
+const GAJI_PCT_ = 0.20; // gaji karyawan = 20% omset
+let CF_HT_ = {hutang:[], tagihan:[]};
+function renderHutangTagihan_(){
+  const j = CF_DATA_, el = document.getElementById('cf-hutang'); if(!j || !el) return;
+  const hutang = j.orders.filter(o => !o.selesai && o.bayar > 0);
+  const tagihan = j.orders.filter(o => o.selesai && o.sisa > 0);
+  CF_HT_ = {hutang, tagihan};
+  const sum = (rows,f) => rows.reduce((t,o)=>t+f(o),0);
+  // Gaji karyawan terutang = 20% omset terlaksana BULAN BERJALAN − gaji yang sudah tercatat dibayar (kategori Gaji di PermintaanBahan)
+  const bIni = String(j.today||'').slice(0,7);
+  const omsetIni = sum(j.orders.filter(o=>o.tgl.slice(0,7)===bIni && o.tgl<=j.today), o=>o.total);
+  const gajiBayar = (GF_BELI_ && GF_BELI_.dataBpp && GF_BELI_.dataBpp[bIni]) ? (Number(GF_BELI_.dataBpp[bIni]['Gaji'])||0) : 0;
+  const beliAda = !!(GF_BELI_ && GF_BELI_.dataBpp);
+  const gaji = Math.max(0, omsetIni * GAJI_PCT_ - gajiBayar);
+  CF_HT_.gaji = {bulan:bIni, omset:omsetIni, bayar:gajiBayar, nilai:gaji, beliAda};
+  const tH = sum(hutang,o=>o.bayar) + gaji, tT = sum(tagihan,o=>o.sisa);
+  const per = {};
+  hutang.forEach(o=>{ const b=o.tgl.slice(0,7); (per[b]=per[b]||{h:0,g:0,t:0}).h += o.bayar; });
+  if(gaji>0) (per[bIni]=per[bIni]||{h:0,g:0,t:0}).g += gaji;
+  tagihan.forEach(o=>{ const b=o.tgl.slice(0,7); (per[b]=per[b]||{h:0,g:0,t:0}).t += o.sisa; });
+  const bl = Object.keys(per).sort();
+  const ringkas = `<div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+    <div onclick="bukaHutangTagihan_('hutang','')" style="cursor:pointer;flex:1;min-width:130px;background:var(--card);border:1px solid var(--bdr);border-radius:10px;padding:8px 10px;"><div style="font-size:10px;color:var(--inks);">Total Hutang (DP + gaji)</div><div style="font-size:15px;font-weight:700;color:#1D6FA5;">${cfRp_(tH)}</div><div style="font-size:10px;color:var(--inks);">${hutang.length} order DP${gaji>0?' + gaji '+cfRp_(gaji):''}</div></div>
+    <div onclick="bukaHutangTagihan_('tagihan','')" style="cursor:pointer;flex:1;min-width:130px;background:var(--card);border:1px solid var(--bdr);border-radius:10px;padding:8px 10px;"><div style="font-size:10px;color:var(--inks);">Total Tagihan (belum diterima)</div><div style="font-size:15px;font-weight:700;color:#C0392B;">${cfRp_(tT)}</div><div style="font-size:10px;color:var(--inks);">${tagihan.length} order</div></div></div>`;
+  if(!bl.length){ el.innerHTML = ringkas + '<div class="empty"><div class="eico">✅</div><p>Tidak ada hutang maupun tagihan.</p></div>'; return; }
+  const mx = Math.max(1, ...bl.flatMap(b=>[per[b].h+per[b].g, per[b].t]));
+  const barMaxH = 150, leftM = 8, gw = 84, bw = 30, W = leftM + gw*bl.length + 10, H = barMaxH + 50;
+  const jt = v => v>0 ? (v/1e6).toLocaleString('id-ID',{maximumFractionDigits:1}) : '';
+  let svg = '';
+  bl.forEach((b,i)=>{
+    const x = leftM + i*gw + 6;
+    { // batang hutang bertumpuk: DP (biru tua) + gaji (biru muda)
+      const hD = per[b].h/mx*barMaxH, hG = per[b].g/mx*barMaxH, tot = per[b].h+per[b].g;
+      if(per[b].h>0) svg += `<rect x="${x}" y="${20+barMaxH-hD}" width="${bw}" height="${hD}" rx="2" fill="#1D6FA5" style="cursor:pointer;" onclick="bukaHutangTagihan_('hutang','${b}')"><title>DP ${formatBulanLabel_(b)}: ${cfRp_(per[b].h)}</title></rect>`;
+      if(per[b].g>0) svg += `<rect x="${x}" y="${20+barMaxH-hD-hG}" width="${bw}" height="${hG}" rx="2" fill="#7FB5DB" style="cursor:pointer;" onclick="bukaGajiTerutang_()"><title>Gaji terutang: ${cfRp_(per[b].g)}</title></rect>`;
+      if(tot>0) svg += `<text x="${x+bw/2}" y="${20+barMaxH-hD-hG-3}" font-size="9" text-anchor="middle" fill="#1D6FA5">${jt(tot)}</text>`;
+      const v = per[b].t, h = v/mx*barMaxH, bx = x+bw+4;
+      if(v>0) svg += `<rect x="${bx}" y="${20+barMaxH-h}" width="${bw}" height="${h}" rx="2" fill="#C0392B" style="cursor:pointer;" onclick="bukaHutangTagihan_('tagihan','${b}')"><title>Tagihan ${formatBulanLabel_(b)}: ${cfRp_(v)}</title></rect><text x="${bx+bw/2}" y="${20+barMaxH-h-3}" font-size="9" text-anchor="middle" fill="#C0392B">${jt(v)}</text>`;
+    }
+    svg += `<text x="${x+bw+2}" y="${barMaxH+36}" font-size="10" text-anchor="middle" fill="#7A6A58">${formatBulanLabel_(b)}</text>`;
+  });
+  el.innerHTML = ringkas + `<div style="font-size:11px;margin-bottom:4px;"><span style="color:#1D6FA5;">■</span> Hutang: DP &nbsp;<span style="color:#7FB5DB;">■</span> gaji &nbsp; <span style="color:#C0392B;">■</span> Tagihan <span style="color:var(--inks);">(label dalam juta Rp)</span></div>
+    <div style="overflow-x:auto;"><svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><line x1="${leftM}" y1="${20+barMaxH}" x2="${W-6}" y2="${20+barMaxH}" stroke="#EDE3D8"/>${svg}</svg></div>
+    <div style="font-size:10px;color:var(--inks);margin-top:4px;">Hutang = uang yang sudah diterima (DP / bayar di muka) untuk acara yang belum dieksekusi + gaji karyawan terutang bulan berjalan (20% omset terlaksana dikurangi gaji yang sudah dicatat dibayar${beliAda?'':'; data pengeluaran belum termuat, jadi belum dikurangi'}). Tagihan = sisa bayar acara yang sudah selesai tapi belum diterima. Dikelompokkan per bulan tanggal kirim.</div>`;
+}
+function bukaGajiTerutang_(){
+  const g = CF_HT_.gaji; if(!g) return;
+  tampilCfModal_('👥 Gaji karyawan terutang — ' + formatBulanLabel_(g.bulan), []);
+  document.getElementById('cf-modal-body').innerHTML = `<table style="width:100%;font-size:12px;border-collapse:collapse;">
+    <tr><td style="padding:5px 2px;">Omset terlaksana bulan ini</td><td style="text-align:right;">${cfRp_(g.omset)}</td></tr>
+    <tr><td style="padding:5px 2px;">Gaji ${Math.round(GAJI_PCT_*100)}% omset</td><td style="text-align:right;">${cfRp_(g.omset*GAJI_PCT_)}</td></tr>
+    <tr><td style="padding:5px 2px;">Gaji sudah dicatat dibayar (kategori Gaji)</td><td style="text-align:right;">− ${cfRp_(g.bayar)}</td></tr>
+    <tr style="font-weight:700;border-top:1px solid var(--bdr);"><td style="padding:5px 2px;">Gaji terutang</td><td style="text-align:right;">${cfRp_(g.nilai)}</td></tr></table>`;
+}
+function bukaHutangTagihan_(jenis, bulan){
+  const rows = (CF_HT_[jenis]||[]).filter(o=>!bulan || o.tgl.slice(0,7)===bulan).sort((a,b)=>a.tgl<b.tgl?-1:1);
+  CF_REOPEN_ = () => bukaHutangTagihan_(jenis, bulan);
+  tampilCfModal_((jenis==='hutang'?'📥 Hutang (DP diterima)':'🧾 Tagihan belum diterima') + (bulan?' — '+formatBulanLabel_(bulan):''), rows);
+}
+
 // Ubah status pembayaran order dari pop up cashflow
 function cfEditBayar_(no){
   const o = CF_DATA_.orders.find(x => String(x.no) === String(no)); if(!o) return;
@@ -4452,7 +4519,7 @@ async function cfSimpanBayar_(no){
     if(!j.success) throw new Error(j.message);
     const k = await gasFetch(APP.GAS_URL + '?action=getCashflow&t=' + Date.now());
     hideOvl();
-    if(k.success){ CF_DATA_ = k; renderCashflowChart_(); renderPiutang_(); }
+    if(k.success){ CF_DATA_ = k; renderCashflowChart_(); renderPiutang_(); renderHutangTagihan_(); }
     toast('Status pembayaran ' + no + ' diperbarui: ' + st,'ok');
     if(CF_REOPEN_) CF_REOPEN_();
   }catch(e){ try{ hideOvl(); }catch(_){} toast('Gagal menyimpan: ' + e.message,'err'); }
@@ -4467,7 +4534,7 @@ async function loadGrafikPengeluaran(){
     if(j.lastUpdated) updEl.textContent = 'Sumber: sheet PermintaanBahan (tanpa status Batal) · ' + new Date(j.lastUpdated).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'}) + (lama ? ' · memperbarui…' : '');
     renderGrafikChart(j, 'gf-peng-chart', 'Belum ada pengeluaran tercatat sejak Juli 2026.');
     renderGrafikHarianChart({hariList:j.hariList, kategoriList:j.kategoriHarianList, data:j.dataHarian, rencana:j.rencanaHarian, omset:j.omsetBelanja, tanpaHarga:j.rencanaTanpaHarga}, 'gf-peng-harian-chart');
-    GF_BELI_ = j; renderGrafikBppSemua_();
+    GF_BELI_ = j; renderGrafikBppSemua_(); if(typeof CF_DATA_ !== 'undefined' && CF_DATA_ && CF_DATA_.orders) renderHutangTagihan_();
   };
   const lama = gfCacheGet_('beli');
   if(lama) tampil(lama, true); else chartEl.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat pengeluaran…</div>';
