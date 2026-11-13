@@ -1863,7 +1863,15 @@ async function handleGoogleCredential(resp){
 // Dijalankan SETELAH logika role lama, lalu menimpa: tab yg tidak dicentang disembunyikan, yg dicentang tampil.
 const TAB_KUNCI_URUT_ = ['form','jadwal','masak','grafik','absensi','laporan','keuangan','belanja','nota'];
 let MATRIKS_INIT_FORM_ = false;
+// Urutan tab: khusus admin, Grafik paling kiri (lalu Order, Jadwal, dst). Role lain tetap urutan standar.
+function urutkanTabRole_(){
+  const g = document.getElementById('tab-grafik'), box = g && g.parentNode; if(!g || !box) return;
+  const admin = CURRENT_USER && CURRENT_USER.role === 'admin';
+  if(admin){ if(box.firstElementChild !== g) box.insertBefore(g, box.firstElementChild); }
+  else { const ab = document.getElementById('tab-absensi'); if(ab && g.nextElementSibling !== ab) box.insertBefore(g, ab); }
+}
 function terapkanMatriksTab_(){
+  urutkanTabRole_();
   const boleh = CURRENT_USER && Array.isArray(CURRENT_USER.aksesTab) ? CURRENT_USER.aksesTab : null;
   if(!boleh) return; // backend/sesi lama tanpa matriks → pakai logika role lama
   terapkanAksesGrafik_();
@@ -1893,6 +1901,7 @@ function terapkanMatriksTab_(){
 }
 
 function terapkanAksesRole_(){
+  urutkanTabRole_();
   // Tombol Quotation cuma utk role admin/finance/sales
   if (['admin','finance','sales'].includes(CURRENT_USER.role)) {
     document.getElementById('btn-quotation').classList.remove('hide');
@@ -4429,7 +4438,7 @@ function renderPiutang_(){
 let CF_GRUP_ = [], CF_PT_ = [];
 // Hutang = uang yang SUDAH diterima (DP / bayar di muka) untuk acara yang BELUM dieksekusi (tgl ≥ hari ini).
 // Tagihan = sisa bayar acara yang SUDAH selesai (tgl < hari ini) tapi belum diterima (= piutang).
-const LABA_KOTOR_PCT_ = 0.30; // perkiraan laba kotor = 30% order belum eksekusi
+const LABA_KOTOR_PCT_ = 0.15; // perkiraan laba kotor = 15% order belum eksekusi
 const GAJI_PCT_ = 0.20; // gaji karyawan = 20% omset
 let CF_HT_ = {hutang:[], tagihan:[]};
 function renderHutangTagihan_(){
@@ -4463,18 +4472,18 @@ function renderHutangTagihan_(){
   const belumEks = j.orders.filter(o => !o.selesai && o.tgl.slice(0,7) === bIni);
   const tBelum = sum(belumEks, o=>o.total), tLaba = tBelum * LABA_KOTOR_PCT_;
   CF_HT_.belumEks = belumEks;
-  const mx = Math.max(tH, tT, tLaba, 1), barMaxH = 150, bw = 80, W = 330, y0 = 20 + barMaxH;
-  const hD = tDP/mx*barMaxH, hG = gaji/mx*barMaxH, hN = tNota/mx*barMaxH, hT = tT/mx*barMaxH, hL = tLaba/mx*barMaxH, x1 = 20, x2 = 120, x3 = 225;
+  const mx = Math.max(tH, tT + tLaba, 1), barMaxH = 150, bw = 90, W = 280, y0 = 20 + barMaxH;
+  const hD = tDP/mx*barMaxH, hG = gaji/mx*barMaxH, hN = tNota/mx*barMaxH, hT = tT/mx*barMaxH, hL = tLaba/mx*barMaxH, x1 = 40, x2 = 160;
   const jt = v => (v/1e6).toLocaleString('id-ID',{maximumFractionDigits:1}) + ' jt';
   let svg = `<line x1="10" y1="${y0}" x2="${W-10}" y2="${y0}" stroke="#EDE3D8"/>`;
   if(tDP>0) svg += `<rect x="${x1}" y="${y0-hD}" width="${bw}" height="${hD}" fill="#1D6FA5" style="cursor:pointer;" onclick="bukaHutangTagihan_('hutang','')"><title>DP: ${cfRp_(tDP)}</title></rect>`;
   if(gaji>0) svg += `<rect x="${x1}" y="${y0-hD-hG}" width="${bw}" height="${hG}" fill="#7FB5DB" style="cursor:pointer;" onclick="bukaGajiTerutang_()"><title>Gaji terutang: ${cfRp_(gaji)}</title></rect>`;
   if(tNota>0) svg += `<rect x="${x1}" y="${y0-hD-hG-hN}" width="${bw}" height="${hN}" fill="#E08A00" style="cursor:pointer;" onclick="bukaNotaHutang_()"><title>Hutang supplier: ${cfRp_(tNota)}</title></rect>`;
   if(tH>0) svg += `<text x="${x1+bw/2}" y="${y0-hD-hG-hN-5}" font-size="11" font-weight="700" text-anchor="middle" fill="#1D6FA5">${jt(tH)}</text>`;
-  if(tT>0) svg += `<rect x="${x2}" y="${y0-hT}" width="${bw}" height="${hT}" fill="#C0392B" style="cursor:pointer;" onclick="bukaHutangTagihan_('tagihan','')"><title>Piutang: ${cfRp_(tT)}</title></rect><text x="${x2+bw/2}" y="${y0-hT-5}" font-size="11" font-weight="700" text-anchor="middle" fill="#C0392B">${jt(tT)}</text>`;
-  if(tLaba>0) svg += `<rect x="${x3}" y="${y0-hL}" width="${bw}" height="${hL}" fill="#2E7D32" style="cursor:pointer;" onclick="bukaLabaPerkiraan_()"><title>Perkiraan laba kotor: ${cfRp_(tLaba)}</title></rect><text x="${x3+bw/2}" y="${y0-hL-5}" font-size="11" font-weight="700" text-anchor="middle" fill="#2E7D32">${jt(tLaba)}</text>`;
-  svg += `<text x="${x3+bw/2}" y="${y0+16}" font-size="11" text-anchor="middle" fill="#3A2A1C">Perkiraan laba kotor</text>`;
-  svg += `<text x="${x1+bw/2}" y="${y0+16}" font-size="11" text-anchor="middle" fill="#3A2A1C">Hutang</text><text x="${x2+bw/2}" y="${y0+16}" font-size="11" text-anchor="middle" fill="#3A2A1C">Piutang</text>`;
+  if(tT>0) svg += `<rect x="${x2}" y="${y0-hT}" width="${bw}" height="${hT}" fill="#C0392B" style="cursor:pointer;" onclick="bukaHutangTagihan_('tagihan','')"><title>Piutang: ${cfRp_(tT)}</title></rect>`;
+  if(tLaba>0) svg += `<rect x="${x2}" y="${y0-hT-hL}" width="${bw}" height="${hL}" fill="#2E7D32" style="cursor:pointer;" onclick="bukaLabaPerkiraan_()"><title>Perkiraan laba kotor: ${cfRp_(tLaba)}</title></rect>`;
+  if(tT+tLaba>0) svg += `<text x="${x2+bw/2}" y="${y0-hT-hL-5}" font-size="11" font-weight="700" text-anchor="middle" fill="#C0392B">${jt(tT)}${tLaba>0?' + '+jt(tLaba):''}</text>`;
+  svg += `<text x="${x1+bw/2}" y="${y0+16}" font-size="11" text-anchor="middle" fill="#3A2A1C">Hutang</text><text x="${x2+bw/2}" y="${y0+16}" font-size="11" text-anchor="middle" fill="#3A2A1C">Piutang + perkiraan laba</text>`;
   el.innerHTML = ringkas + `<div style="font-size:11px;margin-bottom:4px;"><span style="color:#1D6FA5;">■</span> DP &nbsp;<span style="color:#7FB5DB;">■</span> gaji terutang &nbsp;<span style="color:#E08A00;">■</span> supplier (bahan baku, gas, kotak, dll) &nbsp;<span style="color:#C0392B;">■</span> piutang &nbsp;<span style="color:#2E7D32;">■</span> perkiraan laba kotor</div>
     <div style="overflow-x:auto;text-align:center;"><svg width="${W}" height="${y0+26}" viewBox="0 0 ${W} ${y0+26}">${svg}</svg></div>
     <div style="font-size:10px;color:var(--inks);margin-top:4px;">Hutang = DP / bayar di muka untuk acara yang belum dieksekusi + nota supplier berstatus Hutang (sheet NotaFoto) + gaji karyawan terutang bulan berjalan (20% omset berjalan dikurangi gaji yang sudah dicatat dibayar${beliAda?'':'; data pengeluaran belum termuat, jadi belum dikurangi'}). Piutang = sisa bayar acara yang sudah selesai tapi belum diterima. Perkiraan laba kotor = ${Math.round(LABA_KOTOR_PCT_*100)}% × total order bulan berjalan yang belum dieksekusi (${cfRp_(tBelum)}).</div>`;
