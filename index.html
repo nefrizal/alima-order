@@ -454,7 +454,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     </div>
 
   <div class="gf-sec" data-gf="gf_piutang">
-    <div class="stitle" style="margin-top:20px;">📊 Hutang (DP) &amp; Tagihan per Bulan Kirim <span style="font-weight:400;font-size:10px;color:var(--inks);">· klik batang = daftar order</span></div>
+    <div class="stitle" style="margin-top:20px;">📊 Hutang &amp; Piutang <span style="font-weight:400;font-size:10px;color:var(--inks);">· klik batang = daftar order</span></div>
     <div id="cf-hutang"></div>
   </div>
   </div>
@@ -4444,35 +4444,41 @@ function renderHutangTagihan_(){
   const beliAda = !!(GF_BELI_ && GF_BELI_.dataBpp);
   const gaji = Math.max(0, omsetIni * GAJI_PCT_ - gajiBayar);
   CF_HT_.gaji = {bulan:bIni, omset:omsetIni, bayar:gajiBayar, nilai:gaji, beliAda};
-  const tH = sum(hutang,o=>o.bayar) + gaji, tT = sum(tagihan,o=>o.sisa);
+  const nota = Array.isArray(j.hutangNota) ? j.hutangNota : [];
+  const tNota = nota.reduce((t,n)=>t+n.total,0);
+  CF_HT_.nota = nota;
+  const tH = sum(hutang,o=>o.bayar) + gaji + tNota, tT = sum(tagihan,o=>o.sisa);
   const per = {};
   hutang.forEach(o=>{ const b=o.tgl.slice(0,7); (per[b]=per[b]||{h:0,g:0,t:0}).h += o.bayar; });
   if(gaji>0) (per[bIni]=per[bIni]||{h:0,g:0,t:0}).g += gaji;
   tagihan.forEach(o=>{ const b=o.tgl.slice(0,7); (per[b]=per[b]||{h:0,g:0,t:0}).t += o.sisa; });
   const bl = Object.keys(per).sort();
   const ringkas = `<div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
-    <div onclick="bukaHutangTagihan_('hutang','')" style="cursor:pointer;flex:1;min-width:130px;background:var(--card);border:1px solid var(--bdr);border-radius:10px;padding:8px 10px;"><div style="font-size:10px;color:var(--inks);">Total Hutang (DP + gaji)</div><div style="font-size:15px;font-weight:700;color:#1D6FA5;">${cfRp_(tH)}</div><div style="font-size:10px;color:var(--inks);">${hutang.length} order DP${gaji>0?' + gaji '+cfRp_(gaji):''}</div></div>
-    <div onclick="bukaHutangTagihan_('tagihan','')" style="cursor:pointer;flex:1;min-width:130px;background:var(--card);border:1px solid var(--bdr);border-radius:10px;padding:8px 10px;"><div style="font-size:10px;color:var(--inks);">Total Tagihan (belum diterima)</div><div style="font-size:15px;font-weight:700;color:#C0392B;">${cfRp_(tT)}</div><div style="font-size:10px;color:var(--inks);">${tagihan.length} order</div></div></div>`;
-  if(!bl.length){ el.innerHTML = ringkas + '<div class="empty"><div class="eico">✅</div><p>Tidak ada hutang maupun tagihan.</p></div>'; return; }
-  const mx = Math.max(1, ...bl.flatMap(b=>[per[b].h+per[b].g, per[b].t]));
-  const barMaxH = 150, leftM = 8, gw = 84, bw = 30, W = leftM + gw*bl.length + 10, H = barMaxH + 50;
-  const jt = v => v>0 ? (v/1e6).toLocaleString('id-ID',{maximumFractionDigits:1}) : '';
-  let svg = '';
-  bl.forEach((b,i)=>{
-    const x = leftM + i*gw + 6;
-    { // batang hutang bertumpuk: DP (biru tua) + gaji (biru muda)
-      const hD = per[b].h/mx*barMaxH, hG = per[b].g/mx*barMaxH, tot = per[b].h+per[b].g;
-      if(per[b].h>0) svg += `<rect x="${x}" y="${20+barMaxH-hD}" width="${bw}" height="${hD}" rx="2" fill="#1D6FA5" style="cursor:pointer;" onclick="bukaHutangTagihan_('hutang','${b}')"><title>DP ${formatBulanLabel_(b)}: ${cfRp_(per[b].h)}</title></rect>`;
-      if(per[b].g>0) svg += `<rect x="${x}" y="${20+barMaxH-hD-hG}" width="${bw}" height="${hG}" rx="2" fill="#7FB5DB" style="cursor:pointer;" onclick="bukaGajiTerutang_()"><title>Gaji terutang: ${cfRp_(per[b].g)}</title></rect>`;
-      if(tot>0) svg += `<text x="${x+bw/2}" y="${20+barMaxH-hD-hG-3}" font-size="9" text-anchor="middle" fill="#1D6FA5">${jt(tot)}</text>`;
-      const v = per[b].t, h = v/mx*barMaxH, bx = x+bw+4;
-      if(v>0) svg += `<rect x="${bx}" y="${20+barMaxH-h}" width="${bw}" height="${h}" rx="2" fill="#C0392B" style="cursor:pointer;" onclick="bukaHutangTagihan_('tagihan','${b}')"><title>Tagihan ${formatBulanLabel_(b)}: ${cfRp_(v)}</title></rect><text x="${bx+bw/2}" y="${20+barMaxH-h-3}" font-size="9" text-anchor="middle" fill="#C0392B">${jt(v)}</text>`;
-    }
-    svg += `<text x="${x+bw+2}" y="${barMaxH+36}" font-size="10" text-anchor="middle" fill="#7A6A58">${formatBulanLabel_(b)}</text>`;
-  });
-  el.innerHTML = ringkas + `<div style="font-size:11px;margin-bottom:4px;"><span style="color:#1D6FA5;">■</span> Hutang: DP &nbsp;<span style="color:#7FB5DB;">■</span> gaji &nbsp; <span style="color:#C0392B;">■</span> Tagihan <span style="color:var(--inks);">(label dalam juta Rp)</span></div>
-    <div style="overflow-x:auto;"><svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><line x1="${leftM}" y1="${20+barMaxH}" x2="${W-6}" y2="${20+barMaxH}" stroke="#EDE3D8"/>${svg}</svg></div>
-    <div style="font-size:10px;color:var(--inks);margin-top:4px;">Hutang = uang yang sudah diterima (DP / bayar di muka) untuk acara yang belum dieksekusi + gaji karyawan terutang bulan berjalan (20% omset terlaksana dikurangi gaji yang sudah dicatat dibayar${beliAda?'':'; data pengeluaran belum termuat, jadi belum dikurangi'}). Tagihan = sisa bayar acara yang sudah selesai tapi belum diterima. Dikelompokkan per bulan tanggal kirim.</div>`;
+    <div onclick="bukaHutangTagihan_('hutang','')" style="cursor:pointer;flex:1;min-width:130px;background:var(--card);border:1px solid var(--bdr);border-radius:10px;padding:8px 10px;"><div style="font-size:10px;color:var(--inks);">Total Hutang (DP + gaji)</div><div style="font-size:15px;font-weight:700;color:#1D6FA5;">${cfRp_(tH)}</div><div style="font-size:10px;color:var(--inks);">DP ${cfRp_(tH-gaji-tNota)} · gaji ${cfRp_(gaji)} · supplier ${cfRp_(tNota)}</div></div>
+    <div onclick="bukaHutangTagihan_('tagihan','')" style="cursor:pointer;flex:1;min-width:130px;background:var(--card);border:1px solid var(--bdr);border-radius:10px;padding:8px 10px;"><div style="font-size:10px;color:var(--inks);">Total Piutang (belum diterima)</div><div style="font-size:15px;font-weight:700;color:#C0392B;">${cfRp_(tT)}</div><div style="font-size:10px;color:var(--inks);">${tagihan.length} order</div></div></div>`;
+  const tDP = tH - gaji - tNota;
+  if(tH<=0 && tT<=0){ el.innerHTML = ringkas + '<div class="empty"><div class="eico">✅</div><p>Tidak ada hutang maupun piutang.</p></div>'; return; }
+  const mx = Math.max(tH, tT, 1), barMaxH = 150, bw = 90, W = 280, y0 = 20 + barMaxH;
+  const hD = tDP/mx*barMaxH, hG = gaji/mx*barMaxH, hN = tNota/mx*barMaxH, hT = tT/mx*barMaxH, x1 = 40, x2 = 160;
+  const jt = v => (v/1e6).toLocaleString('id-ID',{maximumFractionDigits:1}) + ' jt';
+  let svg = `<line x1="10" y1="${y0}" x2="${W-10}" y2="${y0}" stroke="#EDE3D8"/>`;
+  if(tDP>0) svg += `<rect x="${x1}" y="${y0-hD}" width="${bw}" height="${hD}" fill="#1D6FA5" style="cursor:pointer;" onclick="bukaHutangTagihan_('hutang','')"><title>DP: ${cfRp_(tDP)}</title></rect>`;
+  if(gaji>0) svg += `<rect x="${x1}" y="${y0-hD-hG}" width="${bw}" height="${hG}" fill="#7FB5DB" style="cursor:pointer;" onclick="bukaGajiTerutang_()"><title>Gaji terutang: ${cfRp_(gaji)}</title></rect>`;
+  if(tNota>0) svg += `<rect x="${x1}" y="${y0-hD-hG-hN}" width="${bw}" height="${hN}" fill="#E08A00" style="cursor:pointer;" onclick="bukaNotaHutang_()"><title>Hutang supplier: ${cfRp_(tNota)}</title></rect>`;
+  if(tH>0) svg += `<text x="${x1+bw/2}" y="${y0-hD-hG-hN-5}" font-size="11" font-weight="700" text-anchor="middle" fill="#1D6FA5">${jt(tH)}</text>`;
+  if(tT>0) svg += `<rect x="${x2}" y="${y0-hT}" width="${bw}" height="${hT}" fill="#C0392B" style="cursor:pointer;" onclick="bukaHutangTagihan_('tagihan','')"><title>Piutang: ${cfRp_(tT)}</title></rect><text x="${x2+bw/2}" y="${y0-hT-5}" font-size="11" font-weight="700" text-anchor="middle" fill="#C0392B">${jt(tT)}</text>`;
+  svg += `<text x="${x1+bw/2}" y="${y0+16}" font-size="11" text-anchor="middle" fill="#3A2A1C">Hutang</text><text x="${x2+bw/2}" y="${y0+16}" font-size="11" text-anchor="middle" fill="#3A2A1C">Piutang</text>`;
+  el.innerHTML = ringkas + `<div style="font-size:11px;margin-bottom:4px;"><span style="color:#1D6FA5;">■</span> DP &nbsp;<span style="color:#7FB5DB;">■</span> gaji terutang &nbsp;<span style="color:#E08A00;">■</span> supplier (bahan baku, gas, kotak, dll) &nbsp;<span style="color:#C0392B;">■</span> piutang</div>
+    <div style="overflow-x:auto;text-align:center;"><svg width="${W}" height="${y0+26}" viewBox="0 0 ${W} ${y0+26}">${svg}</svg></div>
+    <div style="font-size:10px;color:var(--inks);margin-top:4px;">Hutang = DP / bayar di muka untuk acara yang belum dieksekusi + nota supplier berstatus Hutang (sheet NotaFoto) + gaji karyawan terutang bulan berjalan (20% omset berjalan dikurangi gaji yang sudah dicatat dibayar${beliAda?'':'; data pengeluaran belum termuat, jadi belum dikurangi'}). Piutang = sisa bayar acara yang sudah selesai tapi belum diterima.</div>`;
+}
+function bukaNotaHutang_(){
+  const n = (CF_HT_.nota||[]).slice().sort((a,b)=>a.tgl<b.tgl?-1:1);
+  tampilCfModal_('🏭 Hutang supplier (nota berstatus Hutang)', []);
+  const r = v => Math.round(v).toLocaleString('id-ID'), td = 'style="padding:4px;border-bottom:1px solid var(--bdr);"', tdr = 'style="padding:4px;border-bottom:1px solid var(--bdr);text-align:right;white-space:nowrap;"';
+  document.getElementById('cf-modal-body').innerHTML = n.length ? `<div style="overflow-x:auto;"><table style="width:100%;font-size:11px;border-collapse:collapse;"><tr style="color:var(--inks);"><th style="text-align:left;">Tanggal</th><th style="text-align:left;">No Nota</th><th style="text-align:left;">Supplier</th><th style="text-align:right;">Total</th></tr>
+    ${n.map(x=>`<tr><td ${td}>${fd(x.tgl)}</td><td ${td}>${x.no}</td><td ${td}>${x.supplier||'—'}</td><td ${tdr}>${r(x.total)}</td></tr>`).join('')}
+    <tr style="font-weight:700;"><td ${td} colspan="3">Total (Rp)</td><td ${tdr}>${r(n.reduce((t,x)=>t+x.total,0))}</td></tr></table></div>` : '<div class="empty"><div class="eico">✅</div><p>Tidak ada nota berstatus Hutang.</p></div>';
 }
 function bukaGajiTerutang_(){
   const g = CF_HT_.gaji; if(!g) return;
@@ -4486,7 +4492,7 @@ function bukaGajiTerutang_(){
 function bukaHutangTagihan_(jenis, bulan){
   const rows = (CF_HT_[jenis]||[]).filter(o=>!bulan || o.tgl.slice(0,7)===bulan).sort((a,b)=>a.tgl<b.tgl?-1:1);
   CF_REOPEN_ = () => bukaHutangTagihan_(jenis, bulan);
-  tampilCfModal_((jenis==='hutang'?'📥 Hutang (DP diterima)':'🧾 Tagihan belum diterima') + (bulan?' — '+formatBulanLabel_(bulan):''), rows);
+  tampilCfModal_((jenis==='hutang'?'📥 Hutang (DP diterima)':'🧾 Piutang belum diterima') + (bulan?' — '+formatBulanLabel_(bulan):''), rows);
 }
 
 // Ubah status pembayaran order dari pop up cashflow
