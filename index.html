@@ -454,7 +454,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     </div>
 
   <div class="gf-sec" data-gf="gf_piutang">
-    <div class="stitle" style="margin-top:20px;">📊 Hutang &amp; Piutang <span style="font-weight:400;font-size:10px;color:var(--inks);">· klik batang = daftar order</span></div>
+    <div class="stitle" style="margin-top:20px;">📊 Hutang, Piutang &amp; Perkiraan Laba Kotor <span style="font-weight:400;font-size:10px;color:var(--inks);">· klik batang = daftar order</span></div>
     <div id="cf-hutang"></div>
   </div>
   </div>
@@ -4429,6 +4429,7 @@ function renderPiutang_(){
 let CF_GRUP_ = [], CF_PT_ = [];
 // Hutang = uang yang SUDAH diterima (DP / bayar di muka) untuk acara yang BELUM dieksekusi (tgl ≥ hari ini).
 // Tagihan = sisa bayar acara yang SUDAH selesai (tgl < hari ini) tapi belum diterima (= piutang).
+const LABA_KOTOR_PCT_ = 0.30; // perkiraan laba kotor = 30% order belum eksekusi
 const GAJI_PCT_ = 0.20; // gaji karyawan = 20% omset
 let CF_HT_ = {hutang:[], tagihan:[]};
 function renderHutangTagihan_(){
@@ -4458,8 +4459,12 @@ function renderHutangTagihan_(){
     <div onclick="bukaHutangTagihan_('tagihan','')" style="cursor:pointer;flex:1;min-width:130px;background:var(--card);border:1px solid var(--bdr);border-radius:10px;padding:8px 10px;"><div style="font-size:10px;color:var(--inks);">Total Piutang (belum diterima)</div><div style="font-size:15px;font-weight:700;color:#C0392B;">${cfRp_(tT)}</div><div style="font-size:10px;color:var(--inks);">${tagihan.length} order</div></div></div>`;
   const tDP = tH - gaji - tNota;
   if(tH<=0 && tT<=0){ el.innerHTML = ringkas + '<div class="empty"><div class="eico">✅</div><p>Tidak ada hutang maupun piutang.</p></div>'; return; }
-  const mx = Math.max(tH, tT, 1), barMaxH = 150, bw = 90, W = 280, y0 = 20 + barMaxH;
-  const hD = tDP/mx*barMaxH, hG = gaji/mx*barMaxH, hN = tNota/mx*barMaxH, hT = tT/mx*barMaxH, x1 = 40, x2 = 160;
+  // Perkiraan laba kotor = 30% × order BULAN BERJALAN yang belum dieksekusi (tanggal kirim ≥ hari ini)
+  const belumEks = j.orders.filter(o => !o.selesai && o.tgl.slice(0,7) === bIni);
+  const tBelum = sum(belumEks, o=>o.total), tLaba = tBelum * LABA_KOTOR_PCT_;
+  CF_HT_.belumEks = belumEks;
+  const mx = Math.max(tH, tT, tLaba, 1), barMaxH = 150, bw = 80, W = 330, y0 = 20 + barMaxH;
+  const hD = tDP/mx*barMaxH, hG = gaji/mx*barMaxH, hN = tNota/mx*barMaxH, hT = tT/mx*barMaxH, hL = tLaba/mx*barMaxH, x1 = 20, x2 = 120, x3 = 225;
   const jt = v => (v/1e6).toLocaleString('id-ID',{maximumFractionDigits:1}) + ' jt';
   let svg = `<line x1="10" y1="${y0}" x2="${W-10}" y2="${y0}" stroke="#EDE3D8"/>`;
   if(tDP>0) svg += `<rect x="${x1}" y="${y0-hD}" width="${bw}" height="${hD}" fill="#1D6FA5" style="cursor:pointer;" onclick="bukaHutangTagihan_('hutang','')"><title>DP: ${cfRp_(tDP)}</title></rect>`;
@@ -4467,10 +4472,12 @@ function renderHutangTagihan_(){
   if(tNota>0) svg += `<rect x="${x1}" y="${y0-hD-hG-hN}" width="${bw}" height="${hN}" fill="#E08A00" style="cursor:pointer;" onclick="bukaNotaHutang_()"><title>Hutang supplier: ${cfRp_(tNota)}</title></rect>`;
   if(tH>0) svg += `<text x="${x1+bw/2}" y="${y0-hD-hG-hN-5}" font-size="11" font-weight="700" text-anchor="middle" fill="#1D6FA5">${jt(tH)}</text>`;
   if(tT>0) svg += `<rect x="${x2}" y="${y0-hT}" width="${bw}" height="${hT}" fill="#C0392B" style="cursor:pointer;" onclick="bukaHutangTagihan_('tagihan','')"><title>Piutang: ${cfRp_(tT)}</title></rect><text x="${x2+bw/2}" y="${y0-hT-5}" font-size="11" font-weight="700" text-anchor="middle" fill="#C0392B">${jt(tT)}</text>`;
+  if(tLaba>0) svg += `<rect x="${x3}" y="${y0-hL}" width="${bw}" height="${hL}" fill="#2E7D32" style="cursor:pointer;" onclick="bukaLabaPerkiraan_()"><title>Perkiraan laba kotor: ${cfRp_(tLaba)}</title></rect><text x="${x3+bw/2}" y="${y0-hL-5}" font-size="11" font-weight="700" text-anchor="middle" fill="#2E7D32">${jt(tLaba)}</text>`;
+  svg += `<text x="${x3+bw/2}" y="${y0+16}" font-size="11" text-anchor="middle" fill="#3A2A1C">Perkiraan laba kotor</text>`;
   svg += `<text x="${x1+bw/2}" y="${y0+16}" font-size="11" text-anchor="middle" fill="#3A2A1C">Hutang</text><text x="${x2+bw/2}" y="${y0+16}" font-size="11" text-anchor="middle" fill="#3A2A1C">Piutang</text>`;
-  el.innerHTML = ringkas + `<div style="font-size:11px;margin-bottom:4px;"><span style="color:#1D6FA5;">■</span> DP &nbsp;<span style="color:#7FB5DB;">■</span> gaji terutang &nbsp;<span style="color:#E08A00;">■</span> supplier (bahan baku, gas, kotak, dll) &nbsp;<span style="color:#C0392B;">■</span> piutang</div>
+  el.innerHTML = ringkas + `<div style="font-size:11px;margin-bottom:4px;"><span style="color:#1D6FA5;">■</span> DP &nbsp;<span style="color:#7FB5DB;">■</span> gaji terutang &nbsp;<span style="color:#E08A00;">■</span> supplier (bahan baku, gas, kotak, dll) &nbsp;<span style="color:#C0392B;">■</span> piutang &nbsp;<span style="color:#2E7D32;">■</span> perkiraan laba kotor</div>
     <div style="overflow-x:auto;text-align:center;"><svg width="${W}" height="${y0+26}" viewBox="0 0 ${W} ${y0+26}">${svg}</svg></div>
-    <div style="font-size:10px;color:var(--inks);margin-top:4px;">Hutang = DP / bayar di muka untuk acara yang belum dieksekusi + nota supplier berstatus Hutang (sheet NotaFoto) + gaji karyawan terutang bulan berjalan (20% omset berjalan dikurangi gaji yang sudah dicatat dibayar${beliAda?'':'; data pengeluaran belum termuat, jadi belum dikurangi'}). Piutang = sisa bayar acara yang sudah selesai tapi belum diterima.</div>`;
+    <div style="font-size:10px;color:var(--inks);margin-top:4px;">Hutang = DP / bayar di muka untuk acara yang belum dieksekusi + nota supplier berstatus Hutang (sheet NotaFoto) + gaji karyawan terutang bulan berjalan (20% omset berjalan dikurangi gaji yang sudah dicatat dibayar${beliAda?'':'; data pengeluaran belum termuat, jadi belum dikurangi'}). Piutang = sisa bayar acara yang sudah selesai tapi belum diterima. Perkiraan laba kotor = ${Math.round(LABA_KOTOR_PCT_*100)}% × total order bulan berjalan yang belum dieksekusi (${cfRp_(tBelum)}).</div>`;
 }
 // Hutang supplier: klik batang → diagram lingkaran per supplier → klik irisan/baris → daftar nota supplier itu
 let CF_NOTA_SUP_ = [];
@@ -4503,6 +4510,12 @@ function bukaNotaSupplier_(i){
   document.getElementById('cf-modal-body').innerHTML = `<div style="margin-bottom:6px;"><a href="#" onclick="bukaNotaHutang_();return false;" style="font-size:12px;color:var(--blu);">← Kembali ke diagram</a></div><div style="overflow-x:auto;"><table style="width:100%;font-size:11px;border-collapse:collapse;"><tr style="color:var(--inks);"><th style="text-align:left;">Tanggal</th><th style="text-align:left;">No Nota</th><th style="text-align:right;">Total</th></tr>
     ${n.map(x=>`<tr><td ${td}>${fd(x.tgl)}</td><td ${td}>${x.no}</td><td ${tdr}>${r(x.total)}</td></tr>`).join('')}
     <tr style="font-weight:700;"><td ${td} colspan="2">Total (Rp)</td><td ${tdr}>${r(n.reduce((t,x)=>t+x.total,0))}</td></tr></table></div>`;
+}
+function bukaLabaPerkiraan_(){
+  const rows = (CF_HT_.belumEks||[]).slice().sort((a,b)=>a.tgl<b.tgl?-1:1);
+  const tot = rows.reduce((t,o)=>t+o.total,0);
+  CF_REOPEN_ = () => bukaLabaPerkiraan_();
+  tampilCfModal_('📈 Order belum dieksekusi bulan ini — perkiraan laba kotor ' + cfRp_(tot*LABA_KOTOR_PCT_) + ' (' + Math.round(LABA_KOTOR_PCT_*100) + '% × ' + cfRp_(tot) + ')', rows);
 }
 function bukaGajiTerutang_(){
   const g = CF_HT_.gaji; if(!g) return;
