@@ -4584,8 +4584,10 @@ async function loadGrafikPengeluaran(){
   const updEl = document.getElementById('gf-peng-updated');
   const tampil = (j, lama) => {
     if(j.lastUpdated) updEl.textContent = 'Sumber: sheet PermintaanBahan (tanpa status Batal) · ' + new Date(j.lastUpdated).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'}) + (lama ? ' · memperbarui…' : '');
-    renderGrafikChart(j, 'gf-peng-chart', 'Belum ada pengeluaran tercatat sejak Juli 2026.');
-    renderGrafikHarianChart({hariList:j.hariList, kategoriList:j.kategoriHarianList, data:j.dataHarian, rencana:j.rencanaHarian, omset:j.omsetBelanja, hariIni:j.hariIniStr, tanpaHarga:j.rencanaTanpaHarga}, 'gf-peng-harian-chart');
+    // Batang bulanan = hanya BPP: baris Sudah Dicetak/Baca Nota (dataBpp) dan bukan kategori non-BPP
+    const dB = {}; Object.keys(j.dataBpp||{}).forEach(b => { dB[b] = {}; Object.keys(j.dataBpp[b]).forEach(k => { if(!NON_BPP_.includes(k)) dB[b][k] = j.dataBpp[b][k]; }); });
+    renderGrafikChart({bulanList:(j.bulanList||[]).filter(b=>Object.keys(dB[b]||{}).length), kategoriList:(j.kategoriList||[]).filter(k=>!NON_BPP_.includes(k)), data:dB}, 'gf-peng-chart', 'Belum ada pengeluaran BPP tercatat sejak Juli 2026.');
+    renderGrafikHarianChart({hariList:j.hariList, kategoriList:(j.kategoriHarianList||[]).filter(k=>!NON_BPP_.includes(k)), data:j.dataHarian, rencana:j.rencanaHarian, omset:j.omsetBelanja, hariIni:j.hariIniStr, tanpaHarga:j.rencanaTanpaHarga}, 'gf-peng-harian-chart');
     GF_BELI_ = j; renderGrafikBppSemua_(); if(typeof CF_DATA_ !== 'undefined' && CF_DATA_ && CF_DATA_.orders) renderHutangTagihan_();
   };
   const lama = gfCacheGet_('beli');
