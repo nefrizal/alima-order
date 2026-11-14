@@ -4743,14 +4743,14 @@ function renderBahanHari_(){
       <td style="${td}text-align:right;white-space:nowrap;">${fq(it.qty)} ${it.satuan||''}</td>
       <td style="${td}text-align:right;white-space:nowrap;" title="${h.st ? 'Stok opname ' + h.st.tgl : ''}">${stokTxt}</td>
       <td style="${td}text-align:right;white-space:nowrap;font-weight:700;"><span id="bh-bel-${i}">${bhBelanjaTxt_(h, it)}</span></td>
-      <td style="${td}"><input type="number" step="any" inputmode="decimal" min="0" value="${Math.round(h.total*100)/100}" style="width:70px;padding:4px;font-size:12px;text-align:right;${h.manual ? 'border-color:var(--or);' : ''}" onchange="bhKoreksi_(${i}, this.value)"></td>
-      <td style="${td}text-align:center;"><input type="checkbox" data-bh="${i}" ${h.printed ? 'checked disabled title="Sudah pernah di-print"' : (dicentang.has(i) ? 'checked' : '')} style="width:18px;height:18px;min-width:18px;padding:0;margin:0;accent-color:${h.printed ? '#9CA3AF' : '#C2410C'};${h.printed ? 'opacity:.55;' : 'cursor:pointer;'}"></td>
+      <td style="${td}"><input type="number" step="any" inputmode="decimal" min="0" value="${Math.round(h.total*100)/100}" style="width:62px;padding:4px;font-size:12px;text-align:right;${h.manual ? 'border-color:var(--or);' : ''}" data-kr="${i}" onchange="bhKoreksi_(${i}, this.value)"></td>
+      <td style="${td}text-align:center;position:sticky;right:0;background:var(--card,#fff);box-shadow:-3px 0 4px -3px rgba(0,0,0,.2);"><input type="checkbox" data-bh="${i}" ${h.printed ? 'checked disabled title="Sudah pernah di-print"' : (dicentang.has(i) ? 'checked' : '')} style="width:18px;height:18px;min-width:18px;padding:0;margin:0;accent-color:${h.printed ? '#9CA3AF' : '#C2410C'};${h.printed ? 'opacity:.55;' : 'cursor:pointer;'}"></td>
     </tr>`;
   });
   const adaPrinted = BH_.items.some(it => bhHitung_(it).printed);
-  w.innerHTML = `<table style="width:100%;border-collapse:collapse;min-width:520px;"><thead><tr>
+  w.innerHTML = `<table style="width:100%;border-collapse:collapse;min-width:430px;"><thead><tr>
       <th style="${th}text-align:left;">Bahan</th><th style="${th}text-align:right;">Kebutuhan</th><th style="${th}text-align:right;">Stok</th><th style="${th}text-align:right;">Belanja</th><th style="${th}text-align:right;">Belanja koreksi</th>
-      <th style="${th}text-align:center;"><button class="bico" style="padding:4px 8px;font-size:11px;" onclick="cetakBahanHari_(this)">🖨 Print</button></th></tr></thead><tbody>${rows}</tbody></table>
+      <th style="${th}text-align:center;position:sticky;right:0;background:var(--card,#fff);box-shadow:-3px 0 4px -3px rgba(0,0,0,.2);"><button class="bico" style="padding:4px 8px;font-size:11px;" onclick="cetakBahanHari_(this)">🖨 Print</button></th></tr></thead><tbody>${rows}</tbody></table>
     <div style="font-size:10px;color:var(--inks);margin-top:6px;">Belanja = kebutuhan − stok opname terakhir (min. 0). Belanja koreksi otomatis = belanja, boleh diubah (kosongkan = kembali otomatis); yang di-print = belanja koreksi. Centang abu-abu = sudah pernah di-print.${BH_.exOk ? '' : ' <span style="color:#C0392B;">(stok/koreksi gagal dimuat)</span>'}<div style="margin-top:6px;"><a href="#" onclick="cetakBahanBrowser_();return false;" style="color:var(--or);">🖨 Print via browser (58mm)</a>${adaPrinted ? ' · <a href="#" onclick="bhResetPrint_();return false;" style="color:var(--or);">↺ Reset tanda print</a>' : ''}</div></div>`;
 }
 function bhBelanjaTxt_(h, it){
@@ -4768,7 +4768,9 @@ async function bhKoreksi_(i, v){
   const it = BH_.items[i], k = bhNorm_(it.nama_bahan);
   const kosong = String(v).trim() === '', n = kosong ? null : Math.max(0, Number(String(v).replace(',','.')) || 0);
   BH_.baris[k] = Object.assign({koreksi:null, printed:false}, BH_.baris[k], {koreksi:n});
-  renderBahanHari_(); // kosong = kembali ke nilai otomatis
+  // JANGAN render ulang tabel di sini: di HP, ketuk checkbox memicu blur→change input ini; kalau DOM diganti, ketukan checkbox hilang
+  const h = bhHitung_(it), inp = document.querySelector(`#bh-wrap input[type=number][data-kr="${i}"]`);
+  if(inp){ inp.style.borderColor = h.manual ? 'var(--or)' : ''; if(kosong) inp.value = Math.round(h.total*100)/100; }
   await bhSimpan_([{bahan: it.nama_bahan, koreksi: n}]);
 }
 async function bhResetPrint_(){
