@@ -160,6 +160,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   <button class="tbtn on" id="tab-form" onclick="goTab('form',this)">📝 Order</button>
   <button class="tbtn" id="tab-jadwal" onclick="goTab('jadwal',this)">📅 Jadwal</button>
   <button class="tbtn" id="tab-masak" onclick="goTab('masak',this)">🍳 Masak</button>
+  <button class="tbtn hide" id="tab-stok" onclick="goTab('stok',this)">📦 Stok Opname</button>
   <button class="tbtn" id="tab-grafik" onclick="goTab('grafik',this)">📊 Grafik</button>
   <button class="tbtn" id="tab-absensi" onclick="goTab('absensi',this)">🕐 Absensi</button>
   <button class="tbtn" id="tab-laporan" onclick="goTab('laporan',this)">📋 Laporan Keluhan</button>
@@ -613,6 +614,11 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 </div>
 
 <!-- ═══ BACA NOTA (finance & admin) ═══ -->
+<div class="panel" id="panel-stok">
+  <div class="stitle" style="font-size:13px;">📦 Stok Opname Mingguan <span style="font-weight:400;font-size:10px;color:var(--inks);">· cek stok bahan baku sekali seminggu, diisi PIC tiap kategori</span></div>
+  <div id="stok-body"><div class="empty"><div class="eico">📦</div><p>Memuat…</p></div></div>
+</div>
+
 <div class="panel" id="panel-nota">
     <!-- Baca Nota — foto nota → Gemini → PermintaanBahan. Hanya finance & admin. -->
     <div id="kbo-baca-nota-view">
@@ -758,6 +764,15 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   </div>
 </div>
 
+<div class="modal-bg hide" id="stok-pic-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>👤 PIC Stok Opname per Kategori</h2>
+      <button class="modal-close" onclick="document.getElementById('stok-pic-modal').classList.add('hide')">×</button>
+    </div>
+    <div id="stok-pic-body"></div>
+  </div>
+</div>
 <div class="modal-bg hide" id="gf-pie-modal">
   <div class="modal">
     <div class="modal-head">
@@ -1860,7 +1875,7 @@ async function handleGoogleCredential(resp){
 // "masuk langsung pakai sesi tersimpan" (masukLangsungDenganSesiTersimpan_), tanpa duplikasi.
 // Matriks akses tab dari sheet "AksesTab" (dikirim backend lewat checkAuth → CURRENT_USER.aksesTab).
 // Dijalankan SETELAH logika role lama, lalu menimpa: tab yg tidak dicentang disembunyikan, yg dicentang tampil.
-const TAB_KUNCI_URUT_ = ['form','jadwal','masak','grafik','absensi','laporan','keuangan','belanja','nota'];
+const TAB_KUNCI_URUT_ = ['form','jadwal','masak','stok','grafik','absensi','laporan','keuangan','belanja','nota'];
 let MATRIKS_INIT_FORM_ = false;
 // Urutan tab: khusus admin, Grafik paling kiri (lalu Order, Jadwal, dst). Role lain tetap urutan standar.
 function urutkanTabRole_(){
@@ -5751,6 +5766,113 @@ function showOvl(m){document.getElementById('ovl-msg').textContent=m;document.ge
 function updOvl(m){document.getElementById('ovl-msg').textContent=m;}
 function hideOvl(){document.getElementById('ovl').classList.add('hide');}
 function toast(msg,type=''){const el=document.getElementById('toast');el.textContent=msg;el.className='toast'+(type?' '+type:'');el.classList.add('show');clearTimeout(el._t);const durasi=(type==='err' && msg.length>60)?7000:3200;el._t=setTimeout(()=>el.classList.remove('show'),durasi);}
+
+// ══ STOK OPNAME MINGGUAN ══
+let STOK_ = null, STOK_BUKA_ = {}, STOK_DRAFT_ = {}; // draft = isian yang belum disimpan (tidak hilang saat buka/tutup kategori)
+function stokTglLabel_(senin){
+  const a = new Date(senin + 'T12:00:00+07:00'), b = new Date(a.getTime() + 6*86400000);
+  const f = (d, th) => d.toLocaleDateString('id-ID', th ? {day:'numeric', month:'short', year:'numeric'} : {day:'numeric', month:'short'});
+  return f(a,false) + ' – ' + f(b,true);
+}
+function stokEsc_(t){ return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+async function loadStok_(minggu){
+  const el = document.getElementById('stok-body'); if(!el) return;
+  if(!STOK_) el.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat…</div>';
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=getStokOpname' + (minggu ? '&minggu=' + minggu : '') + '&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+    STOK_ = j; renderStok_();
+  }catch(e){ el.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>${stokEsc_(e.message)}</p></div>`; }
+}
+function stokGeserMinggu_(arah){
+  if(!STOK_) return;
+  STOK_DRAFT_ = {};
+  const i = STOK_.mingguList.indexOf(STOK_.minggu), t = STOK_.mingguList[i + arah];
+  const target = t || (arah > 0 ? null : null);
+  if(target) loadStok_(target);
+}
+function renderStok_(){
+  const j = STOK_, el = document.getElementById('stok-body'); if(!j || !el) return;
+  const i = j.mingguList.indexOf(j.minggu);
+  const nav = `<div style="display:flex;align-items:center;gap:8px;margin:8px 0;flex-wrap:wrap;">
+    <button class="bico" onclick="stokGeserMinggu_(1)" ${i >= j.mingguList.length-1 ? 'disabled' : ''}>‹</button>
+    <b style="font-size:13px;">Minggu ${stokTglLabel_(j.minggu)}</b>${j.minggu===j.sekarang ? '<span style="font-size:10px;color:#2E7D32;">(minggu ini)</span>' : ''}
+    <button class="bico" onclick="stokGeserMinggu_(-1)" ${i <= 0 ? 'disabled' : ''}>›</button>
+    <button class="bico" onclick="loadStok_(STOK_.minggu)">↻</button>
+    ${j.admin ? '<button class="bico" style="margin-left:auto;" onclick="bukaStokPic_()">👤 Atur PIC</button>' : ''}</div>`;
+  if(j.bukanPic){
+    el.innerHTML = nav + '<div class="empty"><div class="eico">🔒</div><p>Anda belum ditunjuk sebagai PIC kategori bahan baku mana pun. Hubungi admin.</p></div>'; return;
+  }
+  const kartu = j.kategoriList.map(k => {
+    const buka = !!STOK_BUKA_[k.kategori], lengkap = k.total > 0 && k.terisi >= k.total;
+    const warna = lengkap ? '#2E7D32' : (k.terisi > 0 ? '#E08A00' : '#C0392B');
+    const picTxt = k.pic.length ? k.pic.map(p => stokEsc_(p.nama)).join(', ') : '<i style="color:#C0392B;">belum ada PIC</i>';
+    let isi = '';
+    if(buka){
+      const baris = k.items.map((it, ix) => `<tr>
+        <td style="padding:4px 2px;border-bottom:1px solid var(--bdr);font-size:12px;">${stokEsc_(it.nama)}<div style="font-size:10px;color:var(--inks);">${it.lalu!=null ? 'minggu lalu: ' + it.lalu + ' ' + stokEsc_(it.satuan) : ''}</div></td>
+        <td style="padding:4px 2px;border-bottom:1px solid var(--bdr);white-space:nowrap;text-align:right;">
+          <input type="number" inputmode="decimal" min="0" step="any" data-kat="${stokEsc_(k.kategori)}" data-ix="${ix}" oninput="STOK_DRAFT_[this.dataset.kat+'|'+this.dataset.ix]=this.value" value="${STOK_DRAFT_[k.kategori+'|'+ix]!==undefined ? STOK_DRAFT_[k.kategori+'|'+ix] : (it.stok!=null ? it.stok : '')}" ${k.bisaIsi ? '' : 'disabled'} style="width:80px;padding:5px 6px;font-size:13px;text-align:right;">
+          <span style="font-size:11px;color:var(--inks);display:inline-block;min-width:34px;text-align:left;">${stokEsc_(it.satuan)}</span></td></tr>`).join('');
+      isi = `<div style="padding:4px 10px 10px;">${k.items.length ? `<table style="width:100%;border-collapse:collapse;">${baris}</table>` : '<div style="font-size:12px;color:var(--inks);padding:8px 0;">Belum ada bahan di master Bahan Baku untuk kategori ini.</div>'}
+        ${k.bisaIsi && k.items.length ? `<button class="bico" style="margin-top:8px;width:100%;" onclick="simpanStok_('${stokEsc_(k.kategori).replace(/'/g,"\\'")}',this)">💾 Simpan ${stokEsc_(k.kategori)}</button>` : (k.bisaIsi ? '' : '<div style="font-size:11px;color:var(--inks);margin-top:6px;">Minggu ini sudah lewat — hanya bisa dilihat.</div>')}
+        ${k.waktu ? `<div style="font-size:10px;color:var(--inks);margin-top:6px;">Terakhir diisi ${stokEsc_(k.oleh)} · ${new Date(k.waktu).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'})}</div>` : ''}</div>`;
+    }
+    return `<div style="border:1px solid var(--bdr);border-radius:12px;background:var(--card);margin-bottom:8px;overflow:hidden;">
+      <div onclick="stokToggle_('${stokEsc_(k.kategori).replace(/'/g,"\\'")}')" style="cursor:pointer;padding:10px;display:flex;align-items:center;gap:8px;">
+        <div style="flex:1;"><b style="font-size:13px;">${stokEsc_(k.kategori)}</b><div style="font-size:10px;color:var(--inks);">PIC: ${picTxt}</div></div>
+        <span style="font-size:11px;font-weight:700;color:${warna};">${lengkap ? '✔ ' : ''}${k.terisi}/${k.total}</span>
+        <span style="font-size:12px;color:var(--inks);">${buka ? '▲' : '▼'}</span></div>${isi}</div>`;
+  }).join('');
+  el.innerHTML = nav + (kartu || '<div class="empty"><div class="eico">📦</div><p>Belum ada kategori.</p></div>');
+}
+function stokToggle_(kat){ STOK_BUKA_[kat] = !STOK_BUKA_[kat]; renderStok_(); }
+async function simpanStok_(kat, btn){
+  const j = STOK_, k = j && j.kategoriList.find(x => x.kategori === kat); if(!k) return;
+  const items = [];
+  document.querySelectorAll('#stok-body input[data-kat]').forEach(inp => {
+    if(inp.dataset.kat !== kat || inp.value === '') return;
+    const it = k.items[Number(inp.dataset.ix)]; if(it) items.push({nama: it.nama, satuan: it.satuan, stok: inp.value});
+  });
+  if(!items.length){ toast('Isi minimal satu stok dulu.', 'err'); return; }
+  if(btn) btn.disabled = true; showOvl('Menyimpan stok…');
+  try{
+    const qs = new URLSearchParams({action:'simpanStokOpname', minggu:j.minggu, kategori:kat, items:JSON.stringify(items)}).toString();
+    const r = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!r.success) throw new Error(r.message);
+    Object.keys(STOK_DRAFT_).forEach(d => { if(d.indexOf(kat + '|') === 0) delete STOK_DRAFT_[d]; });
+    toast(`Stok ${kat} tersimpan ✓ (${r.tersimpan} bahan)`, 'ok');
+    await loadStok_(j.minggu);
+  }catch(e){ toast(e.message, 'err'); }
+  finally{ hideOvl(); if(btn) btn.disabled = false; }
+}
+function bukaStokPic_(){
+  const j = STOK_; if(!j || !j.admin) return;
+  const kat = j.kategoriSemua || [], pic = j.picSemua || {};
+  const body = kat.map((k, ki) => {
+    const dipilih = new Set((pic[k] || []).map(p => p.email));
+    const cek = j.karyawan.map(u => `<label style="display:flex;align-items:center;gap:6px;font-size:12px;padding:2px 0;"><input type="checkbox" data-pk="${ki}" value="${stokEsc_(u.email)}" data-nama="${stokEsc_(u.nama)}" ${dipilih.has(u.email) ? 'checked' : ''}> ${stokEsc_(u.nama)} <span style="color:var(--inks);font-size:10px;">${stokEsc_(u.role)}</span></label>`).join('');
+    return `<div style="margin-bottom:10px;"><b style="font-size:13px;">${stokEsc_(k)}</b><div style="max-height:110px;overflow-y:auto;border:1px solid var(--bdr);border-radius:8px;padding:4px 8px;margin-top:4px;">${cek || '<i style="font-size:12px;">Belum ada karyawan.</i>'}</div></div>`;
+  }).join('');
+  document.getElementById('stok-pic-body').innerHTML = `<div style="font-size:11px;color:var(--inks);margin-bottom:8px;">Centang karyawan yang bertanggung jawab mengisi stok opname tiap kategori (boleh lebih dari satu orang). Admin selalu bisa mengisi semua kategori.</div>${body}<button class="bico" style="width:100%;" onclick="simpanStokPic_(this)">💾 Simpan PIC</button>`;
+  document.getElementById('stok-pic-modal').classList.remove('hide');
+}
+async function simpanStokPic_(btn){
+  const j = STOK_, kat = j.kategoriSemua || [], data = {};
+  kat.forEach(k => data[k] = []);
+  document.querySelectorAll('#stok-pic-body input[data-pk]:checked').forEach(c => data[kat[Number(c.dataset.pk)]].push({email:c.value, nama:c.dataset.nama}));
+  if(btn) btn.disabled = true; showOvl('Menyimpan PIC…');
+  try{
+    const qs = new URLSearchParams({action:'setStokPIC', data:JSON.stringify(data)}).toString();
+    const r = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!r.success) throw new Error(r.message);
+    document.getElementById('stok-pic-modal').classList.add('hide');
+    toast('PIC tersimpan ✓', 'ok');
+    await loadStok_(j.minggu);
+  }catch(e){ toast(e.message, 'err'); }
+  finally{ hideOvl(); if(btn) btn.disabled = false; }
+}
+
 function goTab(id,btn){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('on'));
@@ -5762,6 +5884,7 @@ function goTab(id,btn){
   if(id==='absensi'){ initAbsensiTab(); if(CURRENT_USER && isFullAccessRole(CURRENT_USER.role)) loadStatusTim(); }
   if(id==='laporan'){ document.querySelectorAll('#panel-laporan .lap-kelola-only').forEach(e => e.style.display = bisaKelolaLaporan_() ? '' : 'none'); loadLaporanList(); }
   if(id==='nota'){ loadDaftarNota(); }
+  if(id==='stok'){ loadStok_(); }
   if(id==='keuangan'){
     const level = CURRENT_USER ? CURRENT_USER.aksesKeuanganLevel : '';
     if((level === 'Lihat' || level === 'Semua') && !(Array.isArray(CURRENT_USER.aksesTab) && !CURRENT_USER.aksesTab.includes('keuangan'))){
