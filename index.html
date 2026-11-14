@@ -121,6 +121,10 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 .bb-cat-summary:hover{background:var(--orl);}
 .bb-cat-arrow{display:inline-block;transition:transform .2s;color:var(--inks);font-size:10px;}
 @media(max-width:480px){.g2,.g3,.mgrid{grid-template-columns:1fr;}header{height:50px;}.tabs{top:50px;}}
+.gf-rf{border:1px solid var(--bdr);background:var(--card);color:var(--inkm);border-radius:8px;font-size:13px;line-height:1;padding:3px 8px;margin-left:6px;cursor:pointer;vertical-align:middle;}
+.gf-rf:disabled{opacity:.5;}
+.gf-rf.spin{animation:gfspin .8s linear infinite;}
+@keyframes gfspin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
@@ -394,41 +398,42 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   </div>
 
   <div class="gf-sec" data-gf="gf_harian">
-  <div class="stitle">📅 Sales Harian (15 Hari ke Depan) <span style="font-weight:400;font-size:10px;color:var(--inks);">· klik tanggal = detail order</span></div>
+  <div class="stitle">📅 Sales Harian (15 Hari ke Depan)  <button class="gf-rf" title="Refresh grafik ini" onclick="refreshGf_(['harian'],this)">↻</button> <span style="font-weight:400;font-size:10px;color:var(--inks);">· klik tanggal = detail order</span></div>
   <div id="gf-harian-updated" style="font-size:11px;color:var(--inks);text-align:center;margin-bottom:10px;"></div>
   <div id="gf-harian-chart"><div class="empty"><div class="eico">📅</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
   </div>
 
   <div class="gf-sec" data-gf="gf_bulanan">
-  <div class="stitle" style="margin-top:20px;">📊 Sales Bulanan</div>
+  <div class="stitle" style="margin-top:20px;">📊 Sales Bulanan <button class="gf-rf" title="Refresh grafik ini" onclick="refreshGf_(['jual'],this)">↻</button></div>
   <div id="gf-updated" style="font-size:11px;color:var(--inks);text-align:center;margin-bottom:10px;"></div>
   <div id="gf-chart"><div class="empty"><div class="eico">📊</div><p>Klik Refresh untuk memuat grafik.</p></div></div>
   </div>
 
   <div class="gf-sec" data-gf="gf_nonbpp">
-  <div class="stitle" style="margin-top:20px;">📊 Rasio Biaya Non-BPP (÷ Penjualan, per Bulan)</div>
+  <div class="stitle" style="margin-top:20px;">📊 Rasio Biaya Non-BPP (÷ Penjualan, per Bulan) <button class="gf-rf" title="Refresh grafik ini" onclick="refreshGf_(['jual','beli'],this)">↻</button></div>
   <div style="font-size:11px;color:var(--inks);text-align:center;margin-bottom:10px;">Bahan Bakar · Gaji · Sales Cost · Expenses · Pajak · Peralatan (sumber sama: PermintaanBahan Sudah Dicetak = Ya)</div>
   <div id="gf-nonbpp-chart"><div class="empty"><div class="eico">📊</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
   </div>
 
   <div class="gf-sec" data-gf="gf_sisa">
-  <div class="stitle" style="margin-top:20px;">💹 Sisa: Penjualan − BPP − Non-BPP (per Bulan)</div>
+  <div class="stitle" style="margin-top:20px;">💹 Sisa: Penjualan − BPP − Non-BPP (per Bulan) <button class="gf-rf" title="Refresh grafik ini" onclick="refreshGf_(['jual','beli'],this)">↻</button></div>
   <div id="gf-sisa-chart"><div class="empty"><div class="eico">💹</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
   </div>
 
   <div class="gf-sec" data-gf="gf_peng">
-  <div class="stitle" style="margin-top:20px;">💸 Pengeluaran Bahan Baku (per Bulan)</div>
+  <div class="stitle" style="margin-top:20px;">💸 Pengeluaran Bahan Baku (per Bulan) <button class="gf-rf" title="Refresh grafik ini" onclick="refreshGf_(['jual','beli'],this)">↻</button></div>
   <div id="gf-peng-updated" style="font-size:11px;color:var(--inks);text-align:center;margin-bottom:10px;"></div>
   <div id="gf-peng-chart"><div class="empty"><div class="eico">💸</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
   </div>
 
   <div class="gf-sec" data-gf="gf_peng_harian">
-  <div class="stitle" style="margin-top:20px;">💸 Pengeluaran Bahan Baku (Harian, Bulan Berjalan)</div>
+  <div class="stitle" style="margin-top:20px;">💸 Pengeluaran Bahan Baku (Harian, Bulan Berjalan) <button class="gf-rf" title="Refresh grafik ini" onclick="refreshGf_(['beli'],this)">↻</button></div>
+  <div id="gf-harian-snap-note" style="font-size:10px;color:var(--inks);text-align:center;margin-bottom:6px;"></div>
   <div id="gf-peng-harian-chart"><div class="empty"><div class="eico">💸</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
   </div>
 
   <div class="gf-sec" data-gf="gf_lauk">
-  <div class="stitle" style="margin-top:20px;">🍗 Lauk Utama: Teori (Order) vs Dibeli <span style="font-weight:400;font-size:10px;color:var(--inks);">· klik baris = rincian</span></div>
+  <div class="stitle" style="margin-top:20px;">🍗 Lauk Utama: Teori (Order) vs Dibeli <button class="gf-rf" title="Refresh grafik ini" onclick="refreshGf_(['lauk'],this)">↻</button> <span style="font-weight:400;font-size:10px;color:var(--inks);">· klik baris = rincian</span></div>
   <div style="display:flex;align-items:center;gap:8px;margin:4px 0 8px;flex-wrap:wrap;">
     <select id="gf-lauk-bulan" style="display:none;"></select><b id="gf-lauk-bln-label" style="font-size:12px;"></b>
     <span id="gf-lauk-updated" style="font-size:10px;color:var(--inks);"></span>
@@ -438,17 +443,17 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 
   <div id="cf-section">
     <div class="gf-sec" data-gf="gf_posisi">
-  <div class="stitle" style="margin-top:20px;">💰 Posisi Pembayaran per Bulan Kirim <span style="font-weight:400;font-size:10px;color:var(--inks);">· klik warna = daftar order</span></div>
+  <div class="stitle" style="margin-top:20px;">💰 Posisi Pembayaran per Bulan Kirim <button class="gf-rf" title="Refresh grafik ini" onclick="refreshGf_(['cash'],this)">↻</button> <span style="font-weight:400;font-size:10px;color:var(--inks);">· klik warna = daftar order</span></div>
     <div id="cf-chart"><div class="empty"><div class="eico">💰</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
   </div>
 
   <div class="gf-sec" data-gf="gf_piutang">
-    <div class="stitle" style="margin-top:20px;">🧾 Piutang: Umur &amp; Pelanggan</div>
+    <div class="stitle" style="margin-top:20px;">🧾 Piutang: Umur &amp; Pelanggan <button class="gf-rf" title="Refresh grafik ini" onclick="refreshGf_(['cash'],this)">↻</button></div>
     <div id="cf-piutang"></div>
     </div>
 
   <div class="gf-sec" data-gf="gf_piutang">
-    <div class="stitle" style="margin-top:20px;">📊 Hutang, Piutang &amp; Perkiraan Laba Kotor <span style="font-weight:400;font-size:10px;color:var(--inks);">· klik batang = daftar order</span></div>
+    <div class="stitle" style="margin-top:20px;">📊 Hutang, Piutang &amp; Perkiraan Laba Kotor <button class="gf-rf" title="Refresh grafik ini" onclick="refreshGf_(['cash','beli'],this)">↻</button> <span style="font-weight:400;font-size:10px;color:var(--inks);">· klik batang = daftar order</span></div>
     <div id="cf-hutang"></div>
   </div>
   </div>
@@ -3837,13 +3842,21 @@ function loadGrafikSemua_(){
   secs.forEach(el => GF_OBS_.observe(el));
 }
 
-async function loadGrafik(){
+// Tombol ↻ per grafik: hitung ulang data grafik itu saja (tanpa menunggu jam 13:00). Sumber data yang dipakai bersama ikut diperbarui.
+const GF_LOADER_ = { jual: p => loadGrafik(p), beli: p => loadGrafikPengeluaran(p), cash: p => loadCashflow_(p), lauk: p => loadGrafikLauk(p), harian: () => loadGrafikHarian(true) };
+async function refreshGf_(sumber, btn){
+  if(btn){ if(btn.disabled) return; btn.disabled = true; btn.classList.add('spin'); }
+  try{ for(const k of sumber){ await GF_LOADER_[k](true); } }
+  catch(e){ console.warn(e); }
+  finally{ if(btn){ btn.disabled = false; btn.classList.remove('spin'); } }
+}
+async function loadGrafik(paksa){
   const chartEl = document.getElementById('gf-chart');
   const updEl = document.getElementById('gf-updated');
   const tampil = (j, lama) => {
     if(j.lastUpdated){
       const d = new Date(j.lastUpdated);
-      updEl.textContent = 'Data per: ' + d.toLocaleString('id-ID', {dateStyle:'medium', timeStyle:'short'}) + (lama ? ' · memperbarui…' : ' · update otomatis tiap jam');
+      updEl.textContent = 'Data per: ' + d.toLocaleString('id-ID', {dateStyle:'medium', timeStyle:'short'}) + (lama ? ' · memperbarui…' : ' · otomatis tiap hari jam 13:00, atau klik ↻');
     }
     renderGrafikChart(j);
     GF_JUAL_ = j; renderGrafikBppSemua_();
@@ -3851,7 +3864,7 @@ async function loadGrafik(){
   const lama = gfCacheGet_('jual');
   if(lama) tampil(lama, true); else chartEl.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat grafik…</div>';
   try{
-    const j = await gasFetch(APP.GAS_URL + '?action=getGrafikData&t=' + Date.now());
+    const j = await gasFetch(APP.GAS_URL + '?action=getGrafikData' + (paksa ? '&paksa=1' : '') + '&t=' + Date.now());
     if(!j.success){ if(!lama) chartEl.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>${j.message}</p></div>`; return; }
     gfCachePut_('jual', j); tampil(j, false);
   }catch(e){
@@ -4388,13 +4401,13 @@ const CF_KELAS_ = [
   {k:'piutang',  label:'Piutang (acara lewat, belum lunas)', warna:'#C0392B'},
   {k:'ke_depan', label:'Sisa tagihan (acara hari ini/ke depan)',   warna:'#B0A89E'}
 ];
-async function loadCashflow_(){
+async function loadCashflow_(paksa){
   const ch = document.getElementById('cf-chart'), pi = document.getElementById('cf-piutang');
   const lama = gfCacheGet_('cash');
   if(lama){ CF_DATA_ = lama; renderCashflowChart_(); renderPiutang_(); renderHutangTagihan_(); }
   else { ch.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat…</div>'; pi.innerHTML = ''; }
   try{
-    const j = await gasFetch(APP.GAS_URL + '?action=getCashflow&t=' + Date.now());
+    const j = await gasFetch(APP.GAS_URL + '?action=getCashflow' + (paksa ? '&paksa=1' : '') + '&t=' + Date.now());
     if(!j.success) throw new Error(j.message);
     CF_DATA_ = j; gfCachePut_('cash', j);
     renderCashflowChart_(); renderPiutang_(); renderHutangTagihan_();
@@ -4625,19 +4638,20 @@ async function cfSimpanBayar_(no){
 function bukaCfAging_(i){ const g = CF_GRUP_[i]; CF_REOPEN_ = () => bukaCfAging_(i); tampilCfModal_('🧾 Piutang ' + g.label, CF_PT_.filter(g.f).sort((a,b)=>a.tgl<b.tgl?-1:1)); }
 function bukaCfPelanggan_(nama){ CF_REOPEN_ = () => bukaCfPelanggan_(nama); tampilCfModal_('🧾 Piutang — ' + nama, CF_PT_.filter(o=>(o.cust||'—')===nama).sort((a,b)=>a.tgl<b.tgl?-1:1)); }
 
-async function loadGrafikPengeluaran(){
+async function loadGrafikPengeluaran(paksa){
   const chartEl = document.getElementById('gf-peng-chart');
   const updEl = document.getElementById('gf-peng-updated');
   const tampil = (j, lama) => {
     if(j.lastUpdated) updEl.textContent = 'Sumber: sheet PermintaanBahan (tanpa status Batal) · ' + new Date(j.lastUpdated).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'}) + (lama ? ' · memperbarui…' : '');
     GF_BELI_ = j; renderPengBulanan_();
-    renderGrafikHarianChart({hariList:j.hariList, kategoriList:(j.kategoriHarianList||[]).filter(k=>!NON_BPP_.includes(k)), data:j.dataHarian, rencana:j.rencanaHarian, omset:j.omsetBelanja, hariIni:j.hariIniStr, tanpaHarga:j.rencanaTanpaHarga}, 'gf-peng-harian-chart');
+    renderGrafikHarianChart({hariList:j.hariList, kategoriList:(j.kategoriHarianList||[]).filter(k=>!NON_BPP_.includes(k)), data:j.dataHarian, rencana:j.rencanaHarian, omset:j.omsetBelanja, hariIni:(j.harianSnapshot&&j.harianSnapshot.hariIni)||j.hariIniStr, tanpaHarga:j.rencanaTanpaHarga}, 'gf-peng-harian-chart');
+    const sn = document.getElementById('gf-harian-snap-note'); if(sn && j.harianSnapshot) sn.textContent = 'Diperbarui sekali sehari jam 13:00 · data per ' + new Date(j.harianSnapshot.waktu).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'});
     renderGrafikBppSemua_(); if(typeof CF_DATA_ !== 'undefined' && CF_DATA_ && CF_DATA_.orders) renderHutangTagihan_();
   };
   const lama = gfCacheGet_('beli');
   if(lama) tampil(lama, true); else chartEl.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat pengeluaran…</div>';
   try{
-    const j = await gasFetch(APP.GAS_URL + '?action=getGrafikPengeluaran&t=' + Date.now());
+    const j = await gasFetch(APP.GAS_URL + '?action=getGrafikPengeluaran' + (paksa ? '&paksa=1' : '') + '&t=' + Date.now());
     if(!j.success){ if(!lama) chartEl.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>${j.message}</p></div>`; return; }
     gfCachePut_('beli', j); tampil(j, false);
   }catch(e){
@@ -4708,13 +4722,13 @@ async function bukaDetailHariGrafik_(tgl){
 // ══ GRAFIK HARIAN (jumlah total per produk per hari, 15 hari ke depan, dari cache) ═══
 // ── Grafik Lauk Utama: teori (order × gramasi) vs dibeli (PermintaanBahan) per bulan ──
 let GF_LAUK_ = null;
-async function loadGrafikLauk(){
+async function loadGrafikLauk(paksa){
   const el = document.getElementById('gf-lauk-chart');
   const lama = gfCacheGet_('lauk');
   if(lama){ GF_LAUK_ = lama; renderGrafikLauk_(); }
   else el.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat…</div>';
   try{
-    const j = await gasFetch(APP.GAS_URL + '?action=getGrafikLauk&t=' + Date.now());
+    const j = await gasFetch(APP.GAS_URL + '?action=getGrafikLauk' + (paksa ? '&paksa=1' : '') + '&t=' + Date.now());
     if(!j.success){ if(!lama) el.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>${j.message}</p></div>`; return; }
     gfCachePut_('lauk', j); GF_LAUK_ = j; renderGrafikLauk_();
   }catch(e){ if(!lama) el.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>Gagal memuat: ${e.message}</p></div>`; }
@@ -4731,7 +4745,7 @@ function renderGrafikLauk_(){
   const pilih = j.bulanBerjalan || bl[0]; // hanya bulan berjalan
   const lb = document.getElementById('gf-lauk-bln-label'); if(lb) lb.textContent = formatBulanLabel_(pilih) + ' (s.d. kemarin/hari ini)';
   sel.innerHTML = bl.map(b => `<option value="${b}"${b===pilih?' selected':''}>${formatBulanLabel_(b)}${b===j.bulanBerjalan?' (s.d. kemarin/hari ini)':''}</option>`).join('');
-  document.getElementById('gf-lauk-updated').textContent = j.lastUpdated ? 'diperbarui ' + new Date(j.lastUpdated).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}) : '';
+  document.getElementById('gf-lauk-updated').textContent = (j.snapshotWaktu||j.lastUpdated) ? 'diperbarui sekali sehari jam 13:00 · data per ' + new Date(j.snapshotWaktu||j.lastUpdated).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'}) : '';
   const d = (j.data||{})[pilih] || {};
   let rows = '';
   (j.bahan||[]).forEach(b => {
