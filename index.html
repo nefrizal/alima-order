@@ -400,7 +400,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   </div>
 
   <div class="gf-sec" data-gf="gf_harian">
-  <div class="stitle">📅 Sales Harian (15 Hari ke Depan)  <button class="gf-rf" title="Refresh grafik ini" onclick="refreshGf_(['harian'],this)">↻</button> <span style="font-weight:400;font-size:10px;color:var(--inks);">· klik tanggal = detail order</span></div>
+  <div class="stitle">📅 Sales Harian (15 Hari ke Depan)  <button class="gf-rf" title="Refresh grafik ini" onclick="refreshGf_(['harian'],this)">↻</button> <span style="font-weight:400;font-size:10px;color:var(--inks);">· klik tanggal = daftar order · tombol 🧺 Bahan = kebutuhan bahan</span></div>
   <div id="gf-harian-updated" style="font-size:11px;color:var(--inks);text-align:center;margin-bottom:10px;"></div>
   <div id="gf-harian-chart"><div class="empty"><div class="eico">📅</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
   </div>
@@ -833,6 +833,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   <div class="modal">
     <div class="modal-head">
       <h2 id="gf-day-title">📅 Order</h2>
+      <button id="gf-day-bahan" class="bico hide" style="margin-left:auto;margin-right:8px;" onclick="bukaBahanDariOrder_()">🧺 Bahan</button>
       <button class="modal-close" onclick="document.getElementById('gf-day-modal').classList.add('hide')">×</button>
     </div>
     <div id="gf-day-body"></div>
@@ -4683,16 +4684,18 @@ async function loadGrafikPengeluaran(paksa){
 
 // Klik batang grafik harian → popup daftar order hari itu (format sama dgn tab Jadwal; klik paket = detail order)
 // Klik bar tanggal di grafik Sales Harian: pembelian & admin → daftar bahan yang dibutuhkan; role lain → daftar order
-function klikHariGrafik_(tgl){
-  if(CURRENT_USER && ['pembelian','admin'].includes(CURRENT_USER.role)) bukaBahanHariGrafik_(tgl);
-  else bukaDetailHariGrafik_(tgl);
+let GF_HARI_TGL_ = '';
+function klikHariGrafik_(tgl){ bukaDetailHariGrafik_(tgl); }
+function bukaBahanDariOrder_(){
+  document.getElementById('gf-day-modal').classList.add('hide');
+  bukaBahanHariGrafik_(GF_HARI_TGL_);
 }
 async function bukaBahanHariGrafik_(tgl){
   const modal = document.getElementById('gf-bahan-modal'), body = document.getElementById('gf-bahan-body');
   document.getElementById('gf-bahan-title').textContent = '🧺 Bahan dibutuhkan — ' + fd(tgl);
   body.innerHTML = '<div class="swrap"><div class="sp"></div>Menghitung kebutuhan bahan…</div>';
   modal.classList.remove('hide');
-  const tombolOrder = `<button type="button" style="margin:0 0 8px;background:var(--or);color:#fff;border:none;border-radius:6px;padding:6px 10px;font-size:11px;cursor:pointer;" onclick="document.getElementById('gf-bahan-modal').classList.add('hide');bukaDetailHariGrafik_('${tgl}')">📋 Lihat daftar order</button>`;
+  const tombolOrder = `<button type="button" style="margin:0 0 8px;background:var(--or);color:#fff;border:none;border-radius:6px;padding:6px 10px;font-size:11px;cursor:pointer;" onclick="document.getElementById('gf-bahan-modal').classList.add('hide');bukaDetailHariGrafik_('${tgl}')">📋 Kembali ke daftar order</button>`;
   try{
     const j = await gasFetch(APP.GAS_URL + '?action=hitungKebutuhanBahanDariTanggal&tanggal=' + encodeURIComponent(tgl) + '&t=' + Date.now());
     if(!j || !j.success){ body.innerHTML = tombolOrder + `<div class="empty"><div class="eico">📭</div><p>${j && j.message || 'Gagal menghitung.'}</p></div>`; return; }
@@ -4718,6 +4721,8 @@ async function bukaBahanHariGrafik_(tgl){
 }
 async function bukaDetailHariGrafik_(tgl){
   const modal = document.getElementById('gf-day-modal'), body = document.getElementById('gf-day-body');
+  GF_HARI_TGL_ = tgl;
+  document.getElementById('gf-day-bahan').classList.toggle('hide', !(CURRENT_USER && ['pembelian','admin'].includes(CURRENT_USER.role)));
   document.getElementById('gf-day-title').textContent = '📅 Order ' + fd(tgl);
   body.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat order…</div>';
   modal.classList.remove('hide');
