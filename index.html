@@ -621,7 +621,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 </div>
 
 <div class="panel" id="panel-stok">
-  <div class="stitle" style="font-size:13px;">📦 Stok Opname Mingguan <span style="font-weight:400;font-size:10px;color:var(--inks);">· cek stok bahan baku sekali seminggu, diisi PIC tiap kategori</span></div>
+  <div class="stitle" style="font-size:13px;" id="stok-judul">📦 Stok Opname</div>
   <div id="stok-body"><div class="empty"><div class="eico">📦</div><p>Memuat…</p></div></div>
 </div>
 
@@ -5775,37 +5775,30 @@ function toast(msg,type=''){const el=document.getElementById('toast');el.textCon
 
 // ══ STOK OPNAME MINGGUAN ══
 let STOK_ = null, STOK_BUKA_ = {}, STOK_DRAFT_ = {}; // draft = isian yang belum disimpan (tidak hilang saat buka/tutup kategori)
-function stokTglLabel_(senin){
-  const a = new Date(senin + 'T12:00:00+07:00'), b = new Date(a.getTime() + 6*86400000);
-  const f = (d, th) => d.toLocaleDateString('id-ID', th ? {day:'numeric', month:'short', year:'numeric'} : {day:'numeric', month:'short'});
-  return f(a,false) + ' – ' + f(b,true);
-}
+function stokTglPanjang_(t){ return new Date(t + 'T12:00:00+07:00').toLocaleDateString('id-ID', {day:'numeric', month:'long', year:'numeric'}); }
+function stokTglPendek_(t){ return new Date(t + 'T12:00:00+07:00').toLocaleDateString('id-ID', {day:'numeric', month:'short'}); }
 function stokEsc_(t){ return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
-async function loadStok_(minggu){
+async function loadStok_(tanggal){
   const el = document.getElementById('stok-body'); if(!el) return;
   if(!STOK_) el.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat…</div>';
   try{
-    const j = await gasFetch(APP.GAS_URL + '?action=getStokOpname' + (minggu ? '&minggu=' + minggu : '') + '&t=' + Date.now());
+    const j = await gasFetch(APP.GAS_URL + '?action=getStokOpname' + (tanggal ? '&tanggal=' + tanggal : '') + '&t=' + Date.now());
     if(!j.success) throw new Error(j.message);
     STOK_ = j; renderStok_();
   }catch(e){ el.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>${stokEsc_(e.message)}</p></div>`; }
 }
-function stokGeserMinggu_(arah){
-  if(!STOK_) return;
-  STOK_DRAFT_ = {};
-  const i = STOK_.mingguList.indexOf(STOK_.minggu), t = STOK_.mingguList[i + arah];
-  const target = t || (arah > 0 ? null : null);
-  if(target) loadStok_(target);
-}
+function stokPilihTanggal_(t){ if(!t) return; STOK_DRAFT_ = {}; loadStok_(t); }
 function renderStok_(){
   const j = STOK_, el = document.getElementById('stok-body'); if(!j || !el) return;
-  const i = j.mingguList.indexOf(j.minggu);
+  const jd = document.getElementById('stok-judul'); if(jd) jd.textContent = '📦 Stok Opname Tanggal ' + stokTglPanjang_(j.tanggal);
+  const chip = (t, label) => `<button class="bico" onclick="stokPilihTanggal_('${t}')" style="${t === j.tanggal ? 'background:#C2410C;color:#fff;' : ''}">${label}</button>`;
+  const lainnya = (j.tanggalList || []).filter(t => t !== j.hariIni).slice(0, 6);
   const nav = `<div style="display:flex;align-items:center;gap:8px;margin:8px 0;flex-wrap:wrap;">
-    <button class="bico" onclick="stokGeserMinggu_(1)" ${i >= j.mingguList.length-1 ? 'disabled' : ''}>‹</button>
-    <b style="font-size:13px;">Minggu ${stokTglLabel_(j.minggu)}</b>${j.minggu===j.sekarang ? '<span style="font-size:10px;color:#2E7D32;">(minggu ini)</span>' : ''}
-    <button class="bico" onclick="stokGeserMinggu_(-1)" ${i <= 0 ? 'disabled' : ''}>›</button>
-    <button class="bico" onclick="loadStok_(STOK_.minggu)">↻</button>
-    ${j.admin ? '<button class="bico" style="margin-left:auto;" onclick="bukaStokPic_()">👤 Atur PIC</button>' : ''}</div>`;
+    <input type="date" value="${j.tanggal}" max="${j.hariIni}" onchange="stokPilihTanggal_(this.value)" style="width:auto;padding:6px 8px;font-size:13px;">
+    ${chip(j.hariIni, 'Hari ini')}
+    <button class="bico" onclick="loadStok_(STOK_.tanggal)">↻</button>
+    ${j.admin ? '<button class="bico" style="margin-left:auto;" onclick="bukaStokPic_()">👤 Atur PIC</button>' : ''}</div>
+    ${lainnya.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;font-size:11px;align-items:center;"><span style="color:var(--inks);">Opname sebelumnya:</span>${lainnya.map(t => chip(t, stokTglPendek_(t))).join('')}</div>` : ''}`;
   if(j.bukanPic){
     el.innerHTML = nav + '<div class="empty"><div class="eico">🔒</div><p>Anda belum ditunjuk sebagai PIC kategori bahan baku mana pun. Hubungi admin.</p></div>'; return;
   }
@@ -5816,12 +5809,12 @@ function renderStok_(){
     let isi = '';
     if(buka){
       const baris = k.items.map((it, ix) => `<tr>
-        <td style="padding:4px 2px;border-bottom:1px solid var(--bdr);font-size:12px;">${stokEsc_(it.nama)}<div style="font-size:10px;color:var(--inks);">${it.lalu!=null ? 'minggu lalu: ' + it.lalu + ' ' + stokEsc_(it.satuan) : ''}</div></td>
+        <td style="padding:4px 2px;border-bottom:1px solid var(--bdr);font-size:12px;">${stokEsc_(it.nama)}<div style="font-size:10px;color:var(--inks);">${it.lalu!=null ? 'terakhir (' + stokTglPendek_(it.laluTgl) + '): ' + it.lalu + ' ' + stokEsc_(it.satuan) : ''}</div></td>
         <td style="padding:4px 2px;border-bottom:1px solid var(--bdr);white-space:nowrap;text-align:right;">
           <input type="number" inputmode="decimal" min="0" step="any" data-kat="${stokEsc_(k.kategori)}" data-ix="${ix}" oninput="STOK_DRAFT_[this.dataset.kat+'|'+this.dataset.ix]=this.value" value="${STOK_DRAFT_[k.kategori+'|'+ix]!==undefined ? STOK_DRAFT_[k.kategori+'|'+ix] : (it.stok!=null ? it.stok : '')}" ${k.bisaIsi ? '' : 'disabled'} style="width:80px;padding:5px 6px;font-size:13px;text-align:right;">
           <span style="font-size:11px;color:var(--inks);display:inline-block;min-width:34px;text-align:left;">${stokEsc_(it.satuan)}</span></td></tr>`).join('');
       isi = `<div style="padding:4px 10px 10px;">${k.items.length ? `<table style="width:100%;border-collapse:collapse;">${baris}</table>` : '<div style="font-size:12px;color:var(--inks);padding:8px 0;">Belum ada bahan di master Bahan Baku untuk kategori ini.</div>'}
-        ${k.bisaIsi && k.items.length ? `<button class="bico" style="margin-top:8px;width:100%;" onclick="simpanStok_('${stokEsc_(k.kategori).replace(/'/g,"\\'")}',this)">💾 Simpan ${stokEsc_(k.kategori)}</button>` : (k.bisaIsi ? '' : '<div style="font-size:11px;color:var(--inks);margin-top:6px;">Minggu ini sudah lewat — hanya bisa dilihat.</div>')}
+        ${k.bisaIsi && k.items.length ? `<button class="bico" style="margin-top:8px;width:100%;" onclick="simpanStok_('${stokEsc_(k.kategori).replace(/'/g,"\\'")}',this)">💾 Simpan ${stokEsc_(k.kategori)}</button>` : (k.bisaIsi ? '' : '<div style="font-size:11px;color:var(--inks);margin-top:6px;">Tanggal ini sudah lewat — hanya bisa dilihat (PIC hanya bisa mengisi hari ini atau kemarin).</div>')}
         ${k.waktu ? `<div style="font-size:10px;color:var(--inks);margin-top:6px;">Terakhir diisi ${stokEsc_(k.oleh)} · ${new Date(k.waktu).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'})}</div>` : ''}</div>`;
     }
     return `<div style="border:1px solid var(--bdr);border-radius:12px;background:var(--card);margin-bottom:8px;overflow:hidden;">
@@ -5843,12 +5836,12 @@ async function simpanStok_(kat, btn){
   if(!items.length){ toast('Isi minimal satu stok dulu.', 'err'); return; }
   if(btn) btn.disabled = true; showOvl('Menyimpan stok…');
   try{
-    const qs = new URLSearchParams({action:'simpanStokOpname', minggu:j.minggu, kategori:kat, items:JSON.stringify(items)}).toString();
+    const qs = new URLSearchParams({action:'simpanStokOpname', tanggal:j.tanggal, kategori:kat, items:JSON.stringify(items)}).toString();
     const r = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
     if(!r.success) throw new Error(r.message);
     Object.keys(STOK_DRAFT_).forEach(d => { if(d.indexOf(kat + '|') === 0) delete STOK_DRAFT_[d]; });
     toast(`Stok ${kat} tersimpan ✓ (${r.tersimpan} bahan)`, 'ok');
-    await loadStok_(j.minggu);
+    await loadStok_(j.tanggal);
   }catch(e){ toast(e.message, 'err'); }
   finally{ hideOvl(); if(btn) btn.disabled = false; }
 }
@@ -5874,7 +5867,7 @@ async function simpanStokPic_(btn){
     if(!r.success) throw new Error(r.message);
     document.getElementById('stok-pic-modal').classList.add('hide');
     toast('PIC tersimpan ✓', 'ok');
-    await loadStok_(j.minggu);
+    await loadStok_(j.tanggal);
   }catch(e){ toast(e.message, 'err'); }
   finally{ hideOvl(); if(btn) btn.disabled = false; }
 }
