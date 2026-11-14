@@ -405,12 +405,6 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   <div id="gf-chart"><div class="empty"><div class="eico">📊</div><p>Klik Refresh untuk memuat grafik.</p></div></div>
   </div>
 
-  <div class="gf-sec" data-gf="gf_bpp">
-  <div class="stitle" style="margin-top:20px;">📉 Rasio BPP / COGS (Bahan Baku ÷ Penjualan, per Bulan)</div>
-  <div id="gf-bpp-note" style="font-size:11px;color:var(--inks);text-align:center;margin-bottom:10px;">Penjualan = total order (tanpa Batal) · Pembelian = PermintaanBahan berstatus Sudah Dicetak = Ya (tanpa Batal) · warna = kategori, angka di atas = total BPP</div>
-  <div id="gf-bpp-chart"><div class="empty"><div class="eico">📉</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
-  </div>
-
   <div class="gf-sec" data-gf="gf_nonbpp">
   <div class="stitle" style="margin-top:20px;">📊 Rasio Biaya Non-BPP (÷ Penjualan, per Bulan)</div>
   <div style="font-size:11px;color:var(--inks);text-align:center;margin-bottom:10px;">Bahan Bakar · Gaji · Sales Cost · Expenses · Pajak · Peralatan (sumber sama: PermintaanBahan Sudah Dicetak = Ya)</div>
@@ -3811,10 +3805,10 @@ let GF_OBS_ = null;
 function gfMuatGrup_(grup){
   if(GF_SUDAH_[grup]) return; GF_SUDAH_[grup] = true;
   const g = gfBoleh_;
-  if(grup === 'jual'){ if(g('gf_bulanan') || g('gf_bpp') || g('gf_nonbpp') || g('gf_sisa')) loadGrafik(); }
+  if(grup === 'jual'){ if(g('gf_bulanan') || g('gf_bpp') || g('gf_nonbpp') || g('gf_sisa') || g('gf_peng')) loadGrafik(); }
   else if(grup === 'beli'){
     // rasio BPP/non-BPP/sisa butuh data penjualan & pembelian sekaligus
-    if(g('gf_bpp') || g('gf_nonbpp') || g('gf_sisa')) gfMuatGrup_('jual');
+    if(g('gf_bpp') || g('gf_nonbpp') || g('gf_sisa') || g('gf_peng')) gfMuatGrup_('jual');
     if(g('gf_peng') || g('gf_peng_harian') || g('gf_bpp') || g('gf_nonbpp') || g('gf_sisa')) loadGrafikPengeluaran();
   }
   else if(grup === 'cash'){ if(g('gf_posisi') || g('gf_piutang')) loadCashflow_(); }
@@ -3863,7 +3857,8 @@ function formatRupiahSingkat_(v){
   return String(v);
 }
 
-function renderGrafikChart(j, elId, emptyMsg){
+function renderGrafikChart(j, elId, emptyMsg, opts){
+  opts = opts || {}; const pct = opts.pct || null; // pct: {bulan: persen} → garis di sumbu kanan
   const chartEl = document.getElementById(elId || 'gf-chart');
   const bulanList = j.bulanList||[], kategoriList = j.kategoriList||[], data = j.data||{};
   if(!bulanList.length){
@@ -3890,7 +3885,9 @@ function renderGrafikChart(j, elId, emptyMsg){
   const leftM   = 54; // ruang label sumbu Y
   const barW    = 46;
   const groupW  = 66;
-  const totalW  = groupW * bulanList.length + leftM + 20;
+  const adaPct = !!pct && bulanList.some(b => pct[b] > 0);
+  const rightM = adaPct ? 44 : 0;
+  const totalW  = groupW * bulanList.length + leftM + 20 + rightM;
   const chartH  = barMaxH + 50;
 
   let gridLines = '';
@@ -3913,7 +3910,9 @@ function renderGrafikChart(j, elId, emptyMsg){
       const h = (val/topVal)*barMaxH;
       const y = barMaxH - stackedH - h + 20;
       const color = GRAFIK_COLORS[ki % GRAFIK_COLORS.length];
-      bars += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" fill="${color}" rx="1"></rect>`;
+      bars += opts.klik
+        ? `<rect x="${x}" y="${y}" width="${barW}" height="${h}" fill="${color}" rx="1" style="cursor:pointer;" onclick="bukaPieBahan_('${b}','${k.replace(/'/g,"\\'")}',${ki})"><title>${k} ${formatBulanLabel_(b)}: ${formatRupiahSingkat_(val)}${pct && pct[b] > 0 ? '' : ''}</title></rect>`
+        : `<rect x="${x}" y="${y}" width="${barW}" height="${h}" fill="${color}" rx="1"></rect>`;
       stackedH += h;
     });
     const totB = kategoriList.reduce((t,k)=> t + ((data[b]&&data[b][k])||0), 0);
@@ -3921,7 +3920,22 @@ function renderGrafikChart(j, elId, emptyMsg){
     bars += `<text x="${x + barW/2}" y="${barMaxH+38}" font-size="10" fill="#5C4A35" text-anchor="middle">${formatBulanLabel_(b)}</text>`;
   });
 
-  const legend = kategoriList.map((k,ki) => `
+  // Garis RASIO (% dari penjualan), sumbu Y kanan
+  let garisPct = '', legPct = '';
+  if(adaPct){
+    const maxP = Math.max(5, ...bulanList.map(b => pct[b]||0));
+    const stepP = maxP/5 <= 2 ? 2 : maxP/5 <= 5 ? 5 : maxP/5 <= 10 ? 10 : 20;
+    const topP = Math.ceil(maxP/stepP)*stepP;
+    const xR = leftM + 10 + (bulanList.length-1)*groupW + barW + 14;
+    for(let g=0; g<=topP/stepP; g++){ const v = g*stepP, y = barMaxH - (v/topP)*barMaxH + 20; garisPct += `<text x="${xR+4}" y="${y+3}" font-size="9" fill="#C8521A" text-anchor="start">${v}%</text>`; }
+    garisPct += `<line x1="${xR}" y1="20" x2="${xR}" y2="${barMaxH+20}" stroke="#F0C9B0" stroke-width="1"/>`;
+    const pts = bulanList.map((b,bi) => (pct[b] > 0 ? [leftM + 10 + bi*groupW + barW/2, barMaxH - (pct[b]/topP)*barMaxH + 20, pct[b], b] : null)).filter(Boolean);
+    garisPct += `<polyline points="${pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ')}" fill="none" stroke="#C8521A" stroke-width="2.4" style="pointer-events:none;"/>`;
+    pts.forEach(p => { garisPct += `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.2" fill="#fff" stroke="#C8521A" stroke-width="2"><title>Rasio BPP ${formatBulanLabel_(p[3])}: ${p[2].toFixed(1)}%</title></circle><text x="${p[0].toFixed(1)}" y="${(p[1]-7).toFixed(1)}" font-size="9" font-weight="700" fill="#C8521A" text-anchor="middle" stroke="#fff" stroke-width="2.5" paint-order="stroke" style="pointer-events:none;">${p[2].toFixed(1)}%</text>`; });
+    legPct = `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--inkm);margin:3px 10px 3px 0;"><svg width="22" height="8"><line x1="0" y1="4" x2="22" y2="4" stroke="#C8521A" stroke-width="2.4"/></svg>Rasio BPP / COGS (bahan baku ÷ penjualan, %, sumbu kanan)</div>`;
+  }
+
+  const legend = legPct + kategoriList.map((k,ki) => `
     <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--inkm);margin:3px 10px 3px 0;">
       <span style="width:10px;height:10px;border-radius:2px;background:${GRAFIK_COLORS[ki%GRAFIK_COLORS.length]};display:inline-block;flex-shrink:0;"></span>${k}
     </div>`).join('');
@@ -3931,8 +3945,10 @@ function renderGrafikChart(j, elId, emptyMsg){
       <svg width="${totalW}" height="${chartH}" viewBox="0 0 ${totalW} ${chartH}">
         ${gridLines}
         ${bars}
+        ${garisPct}
       </svg>
     </div>
+    ${opts.catatan ? `<div style="font-size:10px;color:var(--inks);margin-top:6px;">${opts.catatan}</div>` : ''}
     <div style="display:flex;flex-wrap:wrap;margin-top:10px;padding:0 4px;">${legend}</div>
   `;
 }
@@ -4218,7 +4234,28 @@ async function bukaRincianBahan_(i, bln){
 // Kategori NON-BPP (di luar COGS bahan baku). Sisanya = BPP/COGS.
 const NON_BPP_ = ['Bahan Bakar','Gaji','Sales Cost','Expenses','Pajak','Peralatan'];
 let GF_BPP_MODE_ = 'bpp';
-function renderGrafikBppSemua_(){ renderGrafikBpp_(false,'bpp'); renderGrafikBpp_(false,'non'); renderGrafikSisa_(); }
+function renderGrafikBppSemua_(){ renderGrafikBpp_(false,'non'); renderGrafikSisa_(); renderPengBulanan_(); }
+// Batang bulanan = hanya BPP (Sudah Dicetak/Baca Nota, bukan kategori non-BPP) + garis rasio BPP ÷ penjualan (sumbu kanan).
+// Rasio bulan berjalan = bahan baku yg sudah dieksekusi ÷ penjualan yg sudah dieksekusi (bulan lalu: penuh). Klik segmen = batang perbandingan 3 bulan per bahan.
+function renderPengBulanan_(){
+  const j = GF_BELI_; if(!j || !document.getElementById('gf-peng-chart')) return;
+  const dB = {}; Object.keys(j.dataBpp||{}).forEach(b => { dB[b] = {}; Object.keys(j.dataBpp[b]).forEach(k => { if(!NON_BPP_.includes(k)) dB[b][k] = j.dataBpp[b][k]; }); });
+  const bulanList = (j.bulanList||[]).filter(b=>Object.keys(dB[b]||{}).length);
+  const kategoriList = (j.kategoriList||[]).filter(k=>!NON_BPP_.includes(k));
+  let pct = null;
+  if(GF_JUAL_ && gfBoleh_('gf_bpp')){
+    const tot = (jj,b)=> Object.values((jj.data||{})[b]||{}).reduce((s,v)=>s+(Number(v)||0),0);
+    pct = {};
+    bulanList.forEach(b => {
+      const berjalan = b === (j.hariIniStr||'').slice(0,7) && GF_JUAL_.salesEks && GF_JUAL_.salesEks[b] != null && j.dataBppEks;
+      const jual = berjalan ? (Number(GF_JUAL_.salesEks[b])||0) : tot(GF_JUAL_,b);
+      const src = berjalan ? (j.dataBppEks[b]||{}) : dB[b];
+      const isi = kategoriList.reduce((t,k)=> t + (berjalan ? ((j.dataBppEks[b]||{})[k]||0) : (src[k]||0)), 0);
+      if(jual > 0) pct[b] = isi / jual * 100;
+    });
+  }
+  renderGrafikChart({bulanList, kategoriList, data:dB}, 'gf-peng-chart', 'Belum ada pengeluaran BPP tercatat sejak Juli 2026.', {pct, klik:true, catatan:'👆 Klik salah satu warna = batang perbandingan bahan bulan itu vs 2 bulan sebelumnya (lacak abnormalitas pemakaian). Garis rasio: bulan berjalan = sudah dieksekusi ÷ penjualan yang sudah dieksekusi.'});
+}
 function renderGrafikBpp_(besar, modus){
   modus = modus || 'bpp'; const isNon = modus === 'non';
   if(!GF_JUAL_ || !GF_BELI_) return;
@@ -4584,11 +4621,9 @@ async function loadGrafikPengeluaran(){
   const updEl = document.getElementById('gf-peng-updated');
   const tampil = (j, lama) => {
     if(j.lastUpdated) updEl.textContent = 'Sumber: sheet PermintaanBahan (tanpa status Batal) · ' + new Date(j.lastUpdated).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'}) + (lama ? ' · memperbarui…' : '');
-    // Batang bulanan = hanya BPP: baris Sudah Dicetak/Baca Nota (dataBpp) dan bukan kategori non-BPP
-    const dB = {}; Object.keys(j.dataBpp||{}).forEach(b => { dB[b] = {}; Object.keys(j.dataBpp[b]).forEach(k => { if(!NON_BPP_.includes(k)) dB[b][k] = j.dataBpp[b][k]; }); });
-    renderGrafikChart({bulanList:(j.bulanList||[]).filter(b=>Object.keys(dB[b]||{}).length), kategoriList:(j.kategoriList||[]).filter(k=>!NON_BPP_.includes(k)), data:dB}, 'gf-peng-chart', 'Belum ada pengeluaran BPP tercatat sejak Juli 2026.');
+    GF_BELI_ = j; renderPengBulanan_();
     renderGrafikHarianChart({hariList:j.hariList, kategoriList:(j.kategoriHarianList||[]).filter(k=>!NON_BPP_.includes(k)), data:j.dataHarian, rencana:j.rencanaHarian, omset:j.omsetBelanja, hariIni:j.hariIniStr, tanpaHarga:j.rencanaTanpaHarga}, 'gf-peng-harian-chart');
-    GF_BELI_ = j; renderGrafikBppSemua_(); if(typeof CF_DATA_ !== 'undefined' && CF_DATA_ && CF_DATA_.orders) renderHutangTagihan_();
+    renderGrafikBppSemua_(); if(typeof CF_DATA_ !== 'undefined' && CF_DATA_ && CF_DATA_.orders) renderHutangTagihan_();
   };
   const lama = gfCacheGet_('beli');
   if(lama) tampil(lama, true); else chartEl.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat pengeluaran…</div>';
