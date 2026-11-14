@@ -4719,15 +4719,17 @@ async function bukaBahanHariGrafik_(tgl){
 let BH_ = null;
 function bhNorm_(x){ return String(x||'').trim().toLowerCase(); }
 function bhHitung_(it){
-  const k = bhNorm_(it.nama_bahan), st = BH_.stok[k], br = BH_.baris[k] || {koreksi:0, printed:false};
+  const k = bhNorm_(it.nama_bahan), st = BH_.stok[k], br = BH_.baris[k] || {koreksi:null, printed:false};
   const qty = Number(it.qty)||0;
   const samaSat = st && bhNorm_(st.satuan) === bhNorm_(it.satuan);
   const belanja = samaSat ? Math.max(0, qty - st.stok) : qty;
-  const koreksi = Number(br.koreksi)||0;
-  return { qty, st, samaSat, belanja, koreksi, total: Math.max(0, belanja + koreksi), printed: !!br.printed };
+  const manual = br.koreksi !== null && br.koreksi !== undefined && br.koreksi !== '';
+  const total = manual ? Math.max(0, Number(br.koreksi)||0) : belanja;
+  return { qty, st, samaSat, belanja, manual, total, printed: !!br.printed };
 }
 function renderBahanHari_(){
   const w = document.getElementById('bh-wrap'); if(!w || !BH_) return;
+  const dicentang = new Set(Array.from(w.querySelectorAll('input[data-bh]:checked:not(:disabled)')).map(c => Number(c.dataset.bh)));
   const th = 'padding:5px 6px;border-bottom:1px solid var(--bdr);font-size:11px;white-space:nowrap;';
   const td = 'padding:5px 6px;border-bottom:1px solid var(--bdr);font-size:12px;';
   const fq = v => Number(v).toLocaleString('id-ID',{maximumFractionDigits:2});
@@ -4741,19 +4743,18 @@ function renderBahanHari_(){
       <td style="${td}text-align:right;white-space:nowrap;">${fq(it.qty)} ${it.satuan||''}</td>
       <td style="${td}text-align:right;white-space:nowrap;" title="${h.st ? 'Stok opname ' + h.st.tgl : ''}">${stokTxt}</td>
       <td style="${td}text-align:right;white-space:nowrap;font-weight:700;"><span id="bh-bel-${i}">${bhBelanjaTxt_(h, it)}</span></td>
-      <td style="${td}"><input type="number" step="any" inputmode="decimal" value="${h.koreksi||''}" placeholder="±" style="width:64px;padding:4px;font-size:12px;text-align:right;" onchange="bhKoreksi_(${i}, this.value)"></td>
-      <td style="${td}text-align:center;"><input type="checkbox" data-bh="${i}" ${h.printed ? 'checked disabled title="Sudah pernah di-print"' : ''} style="width:18px;height:18px;min-width:18px;padding:0;margin:0;accent-color:${h.printed ? '#9CA3AF' : '#C2410C'};${h.printed ? 'opacity:.55;' : 'cursor:pointer;'}"></td>
+      <td style="${td}"><input type="number" step="any" inputmode="decimal" min="0" value="${Math.round(h.total*100)/100}" style="width:70px;padding:4px;font-size:12px;text-align:right;${h.manual ? 'border-color:var(--or);' : ''}" onchange="bhKoreksi_(${i}, this.value)"></td>
+      <td style="${td}text-align:center;"><input type="checkbox" data-bh="${i}" ${h.printed ? 'checked disabled title="Sudah pernah di-print"' : (dicentang.has(i) ? 'checked' : '')} style="width:18px;height:18px;min-width:18px;padding:0;margin:0;accent-color:${h.printed ? '#9CA3AF' : '#C2410C'};${h.printed ? 'opacity:.55;' : 'cursor:pointer;'}"></td>
     </tr>`;
   });
   const adaPrinted = BH_.items.some(it => bhHitung_(it).printed);
   w.innerHTML = `<table style="width:100%;border-collapse:collapse;min-width:520px;"><thead><tr>
       <th style="${th}text-align:left;">Bahan</th><th style="${th}text-align:right;">Kebutuhan</th><th style="${th}text-align:right;">Stok</th><th style="${th}text-align:right;">Belanja</th><th style="${th}text-align:right;">Belanja koreksi</th>
       <th style="${th}text-align:center;"><button class="bico" style="padding:4px 8px;font-size:11px;" onclick="cetakBahanHari_(this)">🖨 Print</button></th></tr></thead><tbody>${rows}</tbody></table>
-    <div style="font-size:10px;color:var(--inks);margin-top:6px;">Belanja = kebutuhan − stok opname terakhir (min. 0). Koreksi (+/−) menambah/mengurangi jumlah belanja; yang di-print = belanja + koreksi. Centang abu-abu = sudah pernah di-print.${BH_.exOk ? '' : ' <span style="color:#C0392B;">(stok/koreksi gagal dimuat)</span>'}${adaPrinted ? ' <a href="#" onclick="bhResetPrint_();return false;" style="color:var(--or);">↺ Reset tanda print</a>' : ''}</div>`;
+    <div style="font-size:10px;color:var(--inks);margin-top:6px;">Belanja = kebutuhan − stok opname terakhir (min. 0). Belanja koreksi otomatis = belanja, boleh diubah (kosongkan = kembali otomatis); yang di-print = belanja koreksi. Centang abu-abu = sudah pernah di-print.${BH_.exOk ? '' : ' <span style="color:#C0392B;">(stok/koreksi gagal dimuat)</span>'}<div style="margin-top:6px;"><a href="#" onclick="cetakBahanBrowser_();return false;" style="color:var(--or);">🖨 Print via browser (58mm)</a>${adaPrinted ? ' · <a href="#" onclick="bhResetPrint_();return false;" style="color:var(--or);">↺ Reset tanda print</a>' : ''}</div></div>`;
 }
 function bhBelanjaTxt_(h, it){
-  const fq = v => Number(v).toLocaleString('id-ID',{maximumFractionDigits:2});
-  return fq(h.belanja) + ' ' + (it.satuan||'') + (h.koreksi ? `<div style="font-size:10px;font-weight:400;color:${h.koreksi>0?'#2E7D32':'#C0392B'};">${h.koreksi>0?'+':''}${fq(h.koreksi)} = ${fq(h.total)}</div>` : '');
+  return Number(h.belanja).toLocaleString('id-ID',{maximumFractionDigits:2}) + ' ' + (it.satuan||'');
 }
 async function bhSimpan_(data){
   try{
@@ -4764,9 +4765,10 @@ async function bhSimpan_(data){
   }catch(e){ toast('Gagal menyimpan: ' + e.message, 'err'); return false; }
 }
 async function bhKoreksi_(i, v){
-  const it = BH_.items[i], k = bhNorm_(it.nama_bahan), n = Number(String(v).replace(',','.')) || 0;
-  BH_.baris[k] = Object.assign({koreksi:0, printed:false}, BH_.baris[k], {koreksi:n});
-  document.getElementById('bh-bel-' + i).innerHTML = bhBelanjaTxt_(bhHitung_(it), it);
+  const it = BH_.items[i], k = bhNorm_(it.nama_bahan);
+  const kosong = String(v).trim() === '', n = kosong ? null : Math.max(0, Number(String(v).replace(',','.')) || 0);
+  BH_.baris[k] = Object.assign({koreksi:null, printed:false}, BH_.baris[k], {koreksi:n});
+  renderBahanHari_(); // kosong = kembali ke nilai otomatis
   await bhSimpan_([{bahan: it.nama_bahan, koreksi: n}]);
 }
 async function bhResetPrint_(){
@@ -4775,30 +4777,85 @@ async function bhResetPrint_(){
   renderBahanHari_();
   if(data.length) await bhSimpan_(data);
 }
-async function cetakBahanHari_(btn){
-  const pilih = Array.from(document.querySelectorAll('#bh-wrap input[data-bh]:checked:not(:disabled)')).map(c => Number(c.dataset.bh));
-  if(!pilih.length){ toast('Centang dulu bahan yang mau di-print (yang abu-abu sudah pernah di-print).', 'err'); return; }
-  const fq = v => Number(v).toLocaleString('id-ID',{maximumFractionDigits:2});
-  const esc = x => String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;');
-  const trs = pilih.map(i => { const it = BH_.items[i], h = bhHitung_(it);
-    return `<tr><td>${esc(it.nama_bahan)}</td><td class="r">${fq(h.qty)} ${esc(it.satuan||'')}</td><td class="r">${h.st && h.samaSat ? fq(h.st.stok) + ' ' + esc(h.st.satuan||'') : '—'}</td><td class="r"><b>${fq(h.total)} ${esc(it.satuan||'')}</b></td><td class="b"></td></tr>`; }).join('');
-  const html = `<html><head><meta charset="utf-8"><title>Belanja ${esc(fd(BH_.tgl))}</title><style>
-    body{font-family:Arial,sans-serif;font-size:13px;margin:16px;} h2{margin:0 0 4px;font-size:16px;} .s{color:#666;font-size:11px;margin-bottom:10px;}
-    table{width:100%;border-collapse:collapse;} th,td{border:1px solid #999;padding:5px 7px;} th{background:#eee;text-align:left;} .r{text-align:right;white-space:nowrap;} .b{width:60px;}</style></head>
-    <body><h2>Daftar Belanja — pemakaian ${esc(fd(BH_.tgl))}</h2><div class="s">Dicetak ${new Date().toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'})}</div>
-    <table><thead><tr><th>Bahan</th><th>Kebutuhan</th><th>Stok</th><th>Belanja</th><th>✓</th></tr></thead><tbody>${trs}</tbody></table></body></html>`;
-  let fr = document.getElementById('bh-print-frame');
-  if(fr) fr.remove();
-  fr = document.createElement('iframe'); fr.id = 'bh-print-frame';
-  fr.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
-  document.body.appendChild(fr);
-  fr.contentDocument.open(); fr.contentDocument.write(html); fr.contentDocument.close();
-  setTimeout(() => { try{ fr.contentWindow.focus(); fr.contentWindow.print(); }catch(e){ toast('Gagal membuka dialog print: ' + e.message, 'err'); return; } }, 250);
+// ── Print struk 58mm: Bluetooth (Web Bluetooth + ESC/POS) — fallback print browser/RawBT ──
+let BT_PRN_ = null; // {device, char}
+const BT_SERVICES_ = ['000018f0-0000-1000-8000-00805f9b34fb','0000ff00-0000-1000-8000-00805f9b34fb','0000ffe0-0000-1000-8000-00805f9b34fb','0000fff0-0000-1000-8000-00805f9b34fb','e7810a71-73ae-499d-8c15-faa9aef0c3f2','49535343-fe7d-4ae5-8fa9-9fafd205e455','00001101-0000-1000-8000-00805f9b34fb'];
+async function btSambung_(){
+  if(!navigator.bluetooth) throw new Error('Browser ini tidak mendukung Bluetooth (pakai Chrome Android/Windows).');
+  if(BT_PRN_ && BT_PRN_.device.gatt.connected) return BT_PRN_;
+  let dev = BT_PRN_ && BT_PRN_.device;
+  if(!dev) dev = await navigator.bluetooth.requestDevice({acceptAllDevices:true, optionalServices:BT_SERVICES_});
+  const srv = await dev.gatt.connect();
+  let ch = null;
+  for(const u of await srv.getPrimaryServices()){
+    for(const c of await u.getCharacteristics()){ if(c.properties.write || c.properties.writeWithoutResponse){ ch = c; break; } }
+    if(ch) break;
+  }
+  if(!ch) throw new Error('Printer terhubung, tapi tidak ditemukan jalur tulis. Coba print via browser.');
+  BT_PRN_ = {device:dev, char:ch}; return BT_PRN_;
+}
+function strukAscii_(x){ return String(x==null?'':x).normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\x20-\x7E]/g,'?'); }
+function strukWrap_(t, w){ const o = []; t = strukAscii_(t); while(t.length > w){ let p = t.lastIndexOf(' ', w); if(p < 8) p = w; o.push(t.slice(0,p).trim()); t = t.slice(p).trim(); } o.push(t); return o; }
+function strukBelanja_(pilih){
+  const W = 32, fq = v => Number(v).toLocaleString('id-ID',{maximumFractionDigits:2});
+  const L = []; const garis = '-'.repeat(W);
+  const tengah = t => { t = strukAscii_(t); return ' '.repeat(Math.max(0, Math.floor((W - t.length)/2))) + t; };
+  L.push(tengah('DAFTAR BELANJA')); L.push(tengah('Pemakaian ' + fd(BH_.tgl)));
+  L.push(tengah(new Date().toLocaleString('id-ID',{dateStyle:'short',timeStyle:'short'}))); L.push(garis);
+  pilih.forEach(i => { const it = BH_.items[i], h = bhHitung_(it);
+    strukWrap_(it.nama_bahan, W).forEach(x => L.push(x));
+    L.push('  Keb ' + fq(h.qty) + ' ' + strukAscii_(it.satuan||'') + (h.st && h.samaSat ? ' | Stok ' + fq(h.st.stok) : ''));
+    L.push('  BELI: ' + fq(h.total) + ' ' + strukAscii_(it.satuan||'')); L.push('  [ ]'); L.push(garis); });
+  L.push(tengah(pilih.length + ' item')); return L;
+}
+function strukBytes_(lines){
+  const enc = new TextEncoder(), out = [0x1B,0x40]; // init
+  lines.forEach(l => { enc.encode(l).forEach(b => out.push(b)); out.push(0x0A); });
+  out.push(0x0A,0x0A,0x0A); return new Uint8Array(out);
+}
+async function btTulis_(bytes){
+  const ch = BT_PRN_.char, n = 100;
+  for(let i = 0; i < bytes.length; i += n){
+    const part = bytes.slice(i, i + n);
+    if(ch.properties.writeWithoutResponse) await ch.writeValueWithoutResponse(part); else await ch.writeValue(part);
+    await new Promise(r => setTimeout(r, 30));
+  }
+}
+function bhPilih_(){ return Array.from(document.querySelectorAll('#bh-wrap input[data-bh]:checked:not(:disabled)')).map(c => Number(c.dataset.bh)); }
+async function bhTandaiPrint_(pilih){
   const data = pilih.map(i => { const it = BH_.items[i], k = bhNorm_(it.nama_bahan);
-    BH_.baris[k] = Object.assign({koreksi:0, printed:false}, BH_.baris[k], {printed:true});
-    return {bahan: it.nama_bahan, printed:true, koreksi: BH_.baris[k].koreksi}; });
+    BH_.baris[k] = Object.assign({koreksi:null, printed:false}, BH_.baris[k], {printed:true});
+    return {bahan: it.nama_bahan, printed:true}; });
   renderBahanHari_();
   await bhSimpan_(data);
+}
+async function cetakBahanHari_(btn){
+  const pilih = bhPilih_();
+  if(!pilih.length){ toast('Centang dulu bahan yang mau di-print (yang abu-abu sudah pernah di-print).', 'err'); return; }
+  if(btn) btn.disabled = true;
+  try{
+    await btSambung_();
+    await btTulis_(strukBytes_(strukBelanja_(pilih)));
+    toast('Terkirim ke printer ✓', 'ok');
+    await bhTandaiPrint_(pilih);
+  }catch(e){
+    if(e && e.name === 'NotFoundError') toast('Pemilihan printer dibatalkan.', 'err');
+    else toast('Bluetooth gagal: ' + (e.message||e) + ' — coba "Print via browser".', 'err');
+    BT_PRN_ = null;
+  }finally{ if(btn) btn.disabled = false; }
+}
+// Cadangan: dialog print browser, layout 58mm (bisa dipakai dgn RawBT / print service printer thermal)
+async function cetakBahanBrowser_(){
+  const pilih = bhPilih_();
+  if(!pilih.length){ toast('Centang dulu bahan yang mau di-print.', 'err'); return; }
+  const esc = x => String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  const html = `<html><head><meta charset="utf-8"><title>Belanja</title><style>@page{size:58mm auto;margin:0}body{width:54mm;margin:2mm;font-family:monospace;font-size:11px;white-space:pre-wrap;}</style></head><body>${esc(strukBelanja_(pilih).join('\n'))}</body></html>`;
+  let fr = document.getElementById('bh-print-frame'); if(fr) fr.remove();
+  fr = document.createElement('iframe'); fr.id = 'bh-print-frame'; fr.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+  document.body.appendChild(fr);
+  fr.contentDocument.open(); fr.contentDocument.write(html); fr.contentDocument.close();
+  setTimeout(() => { try{ fr.contentWindow.focus(); fr.contentWindow.print(); }catch(e){ toast('Gagal print: ' + e.message, 'err'); } }, 250);
+  await bhTandaiPrint_(pilih);
 }
 async function bukaDetailHariGrafik_(tgl){
   const modal = document.getElementById('gf-day-modal'), body = document.getElementById('gf-day-body');
