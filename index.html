@@ -1864,6 +1864,7 @@ function urutkanTabRole_(){
   if(admin){ if(box.firstElementChild !== g) box.insertBefore(g, box.firstElementChild); }
   else { const ab = document.getElementById('tab-absensi'); if(ab && g.nextElementSibling !== ab) box.insertBefore(g, ab); }
 }
+let TAB_DEFAULT_DIBUKA_ = ''; // email user yang tab defaultnya sudah dibuka
 function terapkanMatriksTab_(){
   urutkanTabRole_();
   const boleh = CURRENT_USER && Array.isArray(CURRENT_USER.aksesTab) ? CURRENT_USER.aksesTab : null;
@@ -1886,6 +1887,14 @@ function terapkanMatriksTab_(){
   if(bi) bi.classList.toggle('hide', !boleh.includes('invoice'));
   // Tab Order butuh data form (customer, menu, dst). Role non-admin/sales yg diberi akses Order belum pernah menjalankannya.
   if(boleh.includes('form') && !isFullAccessRole(CURRENT_USER.role) && !MATRIKS_INIT_FORM_){ MATRIKS_INIT_FORM_ = true; try{ initAppContent(); }catch(e){ console.warn(e); } }
+  // Tab default per role (baris 'tab default' di AksesTab): dibuka SEKALI per login.
+  const dflt = (boleh.find(x => String(x).indexOf('default:') === 0) || '').slice(8);
+  const kunciUser = CURRENT_USER.email || CURRENT_USER.nama || '';
+  if(dflt && TAB_DEFAULT_DIBUKA_ !== kunciUser){
+    TAB_DEFAULT_DIBUKA_ = kunciUser;
+    const bd = document.getElementById('tab-' + dflt);
+    if(bd && !bd.classList.contains('hide') && boleh.includes(dflt)) goTab(dflt, bd);
+  }
   // Kalau tab yg sedang aktif tidak diizinkan, pindah ke tab pertama yg diizinkan.
   const aktif = document.querySelector('.tbtn.on');
   if(!aktif || aktif.classList.contains('hide')){
