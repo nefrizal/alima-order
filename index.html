@@ -160,6 +160,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   <button class="tbtn on" id="tab-form" onclick="goTab('form',this)">📝 Order</button>
   <button class="tbtn" id="tab-jadwal" onclick="goTab('jadwal',this)">📅 Jadwal</button>
   <button class="tbtn" id="tab-masak" onclick="goTab('masak',this)">🍳 Masak</button>
+  <button class="tbtn hide" id="tab-akses" onclick="goTab('akses',this)">🔐 Akses Tab</button>
   <button class="tbtn hide" id="tab-stok" onclick="goTab('stok',this)">📦 Stok Opname</button>
   <button class="tbtn" id="tab-grafik" onclick="goTab('grafik',this)">📊 Grafik</button>
   <button class="tbtn" id="tab-absensi" onclick="goTab('absensi',this)">🕐 Absensi</button>
@@ -614,6 +615,11 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 </div>
 
 <!-- ═══ BACA NOTA (finance & admin) ═══ -->
+<div class="panel" id="panel-akses">
+  <div class="stitle" style="font-size:13px;">🔐 Akses Tab <span style="font-weight:400;font-size:10px;color:var(--inks);">· khusus admin · centang = role boleh membuka tab/fitur itu</span></div>
+  <div id="akses-body"><div class="empty"><div class="eico">🔐</div><p>Memuat…</p></div></div>
+</div>
+
 <div class="panel" id="panel-stok">
   <div class="stitle" style="font-size:13px;">📦 Stok Opname Mingguan <span style="font-weight:400;font-size:10px;color:var(--inks);">· cek stok bahan baku sekali seminggu, diisi PIC tiap kategori</span></div>
   <div id="stok-body"><div class="empty"><div class="eico">📦</div><p>Memuat…</p></div></div>
@@ -1875,7 +1881,7 @@ async function handleGoogleCredential(resp){
 // "masuk langsung pakai sesi tersimpan" (masukLangsungDenganSesiTersimpan_), tanpa duplikasi.
 // Matriks akses tab dari sheet "AksesTab" (dikirim backend lewat checkAuth → CURRENT_USER.aksesTab).
 // Dijalankan SETELAH logika role lama, lalu menimpa: tab yg tidak dicentang disembunyikan, yg dicentang tampil.
-const TAB_KUNCI_URUT_ = ['form','jadwal','masak','stok','grafik','absensi','laporan','keuangan','belanja','nota'];
+const TAB_KUNCI_URUT_ = ['form','jadwal','masak','stok','grafik','absensi','laporan','keuangan','belanja','nota','akses'];
 let MATRIKS_INIT_FORM_ = false;
 // Urutan tab: khusus admin, Grafik paling kiri (lalu Order, Jadwal, dst). Role lain tetap urutan standar.
 function urutkanTabRole_(){
@@ -5873,6 +5879,48 @@ async function simpanStokPic_(btn){
   finally{ hideOvl(); if(btn) btn.disabled = false; }
 }
 
+
+// ══ EDITOR AKSES TAB (khusus admin) ══
+let AKSES_ = null;
+async function loadAksesTab_(){
+  const el = document.getElementById('akses-body'); if(!el) return;
+  el.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat…</div>';
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=getAksesTab&t=' + Date.now());
+    if(!j.success) throw new Error(j.message);
+    AKSES_ = j; renderAksesTab_();
+  }catch(e){ el.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>${stokEsc_(e.message)}</p></div>`; }
+}
+function renderAksesTab_(){
+  const j = AKSES_, el = document.getElementById('akses-body'); if(!j || !el) return;
+  const th = 'style="padding:6px 4px;font-size:10px;text-transform:uppercase;color:var(--inks);position:sticky;top:0;background:var(--card);white-space:nowrap;"';
+  const head = `<tr><th ${th} style="text-align:left;position:sticky;left:0;top:0;background:var(--card);z-index:2;padding:6px 4px;font-size:10px;">Tab / Fitur</th>${j.roles.map(r => `<th ${th}>${stokEsc_(r)}</th>`).join('')}</tr>`;
+  const body = j.rows.map((r, ri) => {
+    const sel = c => `<select data-ar="${ri}" data-ac="${c}" style="font-size:11px;padding:3px;max-width:96px;">${['', ...j.pilihanDefault].map(o => `<option value="${stokEsc_(o)}" ${o === r.nilai[c] ? 'selected' : ''}>${o || '—'}</option>`).join('')}</select>`;
+    const cb = c => `<input type="checkbox" data-ar="${ri}" data-ac="${c}" ${r.nilai[c] ? 'checked' : ''} style="width:18px;height:18px;min-width:18px;padding:0;margin:0;accent-color:#C2410C;cursor:pointer;">`;
+    return `<tr style="${r.default ? 'background:rgba(194,65,12,.07);' : ''}"><td style="position:sticky;left:0;background:${r.default ? '#FBEEE5' : 'var(--card)'};padding:6px 4px;font-size:12px;border-bottom:1px solid var(--bdr);white-space:nowrap;z-index:1;">${r.default ? '🏠 ' : ''}${stokEsc_(r.nama)}</td>${r.nilai.map((_, c) => `<td style="text-align:center;padding:4px;border-bottom:1px solid var(--bdr);">${r.default ? sel(c) : cb(c)}</td>`).join('')}</tr>`;
+  }).join('');
+  el.innerHTML = `<div style="font-size:11px;color:var(--inks);margin:6px 0 8px;">Baris <b>🏠 tab default</b> = tab yang terbuka pertama kali setelah login. Perubahan berlaku saat karyawan login/muat ulang (maks. 5 menit). Akun admin selalu bisa membuka semua tab, dan tab ini hanya bisa dibuka admin.</div>
+    <div style="overflow:auto;max-height:68vh;border:1px solid var(--bdr);border-radius:12px;background:var(--card);"><table style="border-collapse:separate;border-spacing:0;min-width:100%;">${head}${body}</table></div>
+    <button class="bico" style="margin-top:10px;width:100%;" onclick="simpanAksesTab_(this)">💾 Simpan Akses Tab</button>`;
+}
+async function simpanAksesTab_(btn){
+  const j = AKSES_; if(!j) return;
+  const rows = j.rows.map((r, ri) => ({ nama: r.nama, nilai: r.nilai.map((_, c) => {
+    const el = document.querySelector(`#akses-body [data-ar="${ri}"][data-ac="${c}"]`);
+    return r.default ? (el ? el.value : '') : !!(el && el.checked);
+  }) }));
+  if(btn) btn.disabled = true; showOvl('Menyimpan akses…');
+  try{
+    const qs = new URLSearchParams({action:'setAksesTab', data:JSON.stringify({rows})}).toString();
+    const r = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!r.success) throw new Error(r.message);
+    toast(`Akses Tab tersimpan ✓ (${r.diubah} baris)`, 'ok');
+    await loadAksesTab_();
+  }catch(e){ toast(e.message, 'err'); }
+  finally{ hideOvl(); if(btn) btn.disabled = false; }
+}
+
 function goTab(id,btn){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('on'));
@@ -5885,6 +5933,7 @@ function goTab(id,btn){
   if(id==='laporan'){ document.querySelectorAll('#panel-laporan .lap-kelola-only').forEach(e => e.style.display = bisaKelolaLaporan_() ? '' : 'none'); loadLaporanList(); }
   if(id==='nota'){ loadDaftarNota(); }
   if(id==='stok'){ loadStok_(); }
+  if(id==='akses'){ loadAksesTab_(); }
   if(id==='keuangan'){
     const level = CURRENT_USER ? CURRENT_USER.aksesKeuanganLevel : '';
     if((level === 'Lihat' || level === 'Semua') && !(Array.isArray(CURRENT_USER.aksesTab) && !CURRENT_USER.aksesTab.includes('keuangan'))){
