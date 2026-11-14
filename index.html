@@ -5850,31 +5850,11 @@ function bukaStokPic_(){
   const kat = j.kategoriSemua || [], pic = j.picSemua || {};
   const body = kat.map((k, ki) => {
     const dipilih = new Set((pic[k] || []).map(p => p.email));
-    const cek = j.karyawan.map(u => `<label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:5px 0;cursor:pointer;"><input type="checkbox" style="width:18px;height:18px;min-width:18px;padding:0;margin:0;flex:none;accent-color:#C2410C;cursor:pointer;" data-pk="${ki}" onchange="stokRefreshPic_()" value="${stokEsc_(u.email)}" data-nama="${stokEsc_(u.nama)}" ${dipilih.has(u.email) ? 'checked' : ''}> ${stokEsc_(u.nama)} <span style="color:var(--inks);font-size:10px;">${stokEsc_(u.role)}</span><span class="pic-ket" style="color:var(--inks);font-size:10px;"></span></label>`).join('');
+    const cek = j.karyawan.map(u => `<label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:5px 0;cursor:pointer;"><input type="checkbox" style="width:18px;height:18px;min-width:18px;padding:0;margin:0;flex:none;accent-color:#C2410C;cursor:pointer;" data-pk="${ki}" value="${stokEsc_(u.email)}" data-nama="${stokEsc_(u.nama)}" ${dipilih.has(u.email) ? 'checked' : ''}> ${stokEsc_(u.nama)} <span style="color:var(--inks);font-size:10px;">${stokEsc_(u.role)}</span><span class="pic-ket" style="color:var(--inks);font-size:10px;"></span></label>`).join('');
     return `<div style="margin-bottom:10px;"><b style="font-size:13px;">${stokEsc_(k)}</b><div style="max-height:110px;overflow-y:auto;border:1px solid var(--bdr);border-radius:8px;padding:4px 8px;margin-top:4px;">${cek || '<i style="font-size:12px;">Belum ada karyawan.</i>'}</div></div>`;
   }).join('');
   document.getElementById('stok-pic-body').innerHTML = `<div style="font-size:11px;color:var(--inks);margin-bottom:8px;">Centang karyawan yang bertanggung jawab mengisi stok opname tiap kategori (boleh lebih dari satu orang). Admin selalu bisa mengisi semua kategori.</div>${body}<button class="bico" style="width:100%;" onclick="simpanStokPic_(this)">💾 Simpan PIC</button>`;
-  // satu orang hanya satu kategori: kategori pertama yang menang
-  const sudah = new Set();
-  document.querySelectorAll('#stok-pic-body input[data-pk]').forEach(c => {
-    if(!c.checked) return;
-    if(sudah.has(c.value)) c.checked = false; else sudah.add(c.value);
-  });
-  stokRefreshPic_();
   document.getElementById('stok-pic-modal').classList.remove('hide');
-}
-function stokRefreshPic_(){
-  const kat = (STOK_ && STOK_.kategoriSemua) || [], dipakai = {};
-  const semua = Array.from(document.querySelectorAll('#stok-pic-body input[data-pk]'));
-  semua.forEach(c => { if(c.checked) dipakai[c.value] = Number(c.dataset.pk); });
-  semua.forEach(c => {
-    const lain = dipakai[c.value] !== undefined && dipakai[c.value] !== Number(c.dataset.pk);
-    c.disabled = lain;
-    const lb = c.closest('label'), ket = lb.querySelector('.pic-ket');
-    lb.style.opacity = lain ? '.45' : '1';
-    lb.style.cursor = lain ? 'not-allowed' : 'pointer';
-    ket.textContent = lain ? ' · sudah di ' + kat[dipakai[c.value]] : '';
-  });
 }
 async function simpanStokPic_(btn){
   const j = STOK_, kat = j.kategoriSemua || [], data = {};
