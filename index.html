@@ -4697,27 +4697,108 @@ async function bukaBahanHariGrafik_(tgl){
   modal.classList.remove('hide');
   const tombolOrder = `<button type="button" style="margin:0 0 8px;background:var(--or);color:#fff;border:none;border-radius:6px;padding:6px 10px;font-size:11px;cursor:pointer;" onclick="document.getElementById('gf-bahan-modal').classList.add('hide');bukaDetailHariGrafik_('${tgl}')">📋 Kembali ke daftar order</button>`;
   try{
-    const j = await gasFetch(APP.GAS_URL + '?action=hitungKebutuhanBahanDariTanggal&tanggal=' + encodeURIComponent(tgl) + '&t=' + Date.now());
+    const [j, ex] = await Promise.all([
+      gasFetch(APP.GAS_URL + '?action=hitungKebutuhanBahanDariTanggal&tanggal=' + encodeURIComponent(tgl) + '&t=' + Date.now()),
+      gasFetch(APP.GAS_URL + '?action=getBahanHariExtra&tanggal=' + encodeURIComponent(tgl) + '&t=' + Date.now()).catch(()=>null)
+    ]);
     if(!j || !j.success){ body.innerHTML = tombolOrder + `<div class="empty"><div class="eico">📭</div><p>${j && j.message || 'Gagal menghitung.'}</p></div>`; return; }
     const items = (j.items||[]).slice().sort((a,b)=> (a.kategori||'~').localeCompare(b.kategori||'~') || a.nama_bahan.localeCompare(b.nama_bahan));
-    const td = 'padding:5px 6px;border-bottom:1px solid var(--bdr);font-size:12px;';
-    const fq = v => Number(v).toLocaleString('id-ID',{maximumFractionDigits:2});
-    let kat = null, rows = '';
-    items.forEach(it => {
-      const k = it.kategori || 'Belum terdaftar di master';
-      if(k !== kat){ kat = k; rows += `<tr><td colspan="2" style="padding:6px;background:#FFF6EC;font-size:11px;font-weight:700;color:#C8521A;">${k}</td></tr>`; }
-      rows += `<tr><td style="${td}">${it.nama_bahan}</td><td style="${td}text-align:right;white-space:nowrap;">${fq(it.qty)} ${it.satuan||''}</td></tr>`;
-    });
+    BH_ = { tgl, items, stok:(ex && ex.success && ex.stok) || {}, baris:(ex && ex.success && ex.baris) || {}, exOk: !!(ex && ex.success) };
     const menu = (j.menu_terpakai||[]).slice().sort((a,b)=> b.porsi - a.porsi);
     const totPorsi = menu.reduce((s,m)=> s + (Number(m.porsi)||0), 0);
     body.innerHTML = tombolOrder +
       `<div style="font-size:11px;color:var(--inks);margin-bottom:6px;">${items.length} bahan · dihitung dari ${menu.length} menu (gramasi × porsi order tanggal ini)</div>
-       <table style="width:100%;border-collapse:collapse;"><thead><tr><th style="${td}text-align:left;">Bahan</th><th style="${td}text-align:right;">Kebutuhan</th></tr></thead><tbody>${rows}</tbody></table>
+       <div id="bh-wrap" style="overflow-x:auto;"></div>
        ${(j.menu_tidak_ditemukan||[]).length ? `<div style="font-size:11px;color:#C0392B;margin-top:8px;">⚠ ${j.menu_tidak_ditemukan.length} menu belum punya gramasi (tidak ikut dihitung): ${j.menu_tidak_ditemukan.map(n=>`<span data-n="${encodeURIComponent(n)}" onclick="bukaGramasiDariMasak(decodeURIComponent(this.dataset.n))" style="text-decoration:underline;cursor:pointer;">${n}</span>`).join(', ')}</div>` : ''}
        ${(j.bahan_belum_terdaftar||[]).length ? `<div style="font-size:11px;color:#C0392B;margin-top:6px;">⚠ Bahan belum ada di master: ${j.bahan_belum_terdaftar.join(', ')}</div>` : ''}
        <details style="margin-top:8px;"><summary style="font-size:11px;cursor:pointer;color:var(--inks);">Menu yang dihitung (${totPorsi.toLocaleString('id-ID')} porsi)</summary>
          <div style="font-size:11px;margin-top:4px;">${menu.map(m=>`<div style="display:flex;justify-content:space-between;padding:2px 0;"><span>${m.nama_menu}</span><span>${Number(m.porsi).toLocaleString('id-ID')}</span></div>`).join('')}</div></details>`;
+    renderBahanHari_();
   }catch(e){ body.innerHTML = tombolOrder + `<div class="empty"><div class="eico">⚠️</div><p>Gagal memuat: ${e.message}</p></div>`; }
+}
+let BH_ = null;
+function bhNorm_(x){ return String(x||'').trim().toLowerCase(); }
+function bhHitung_(it){
+  const k = bhNorm_(it.nama_bahan), st = BH_.stok[k], br = BH_.baris[k] || {koreksi:0, printed:false};
+  const qty = Number(it.qty)||0;
+  const samaSat = st && bhNorm_(st.satuan) === bhNorm_(it.satuan);
+  const belanja = samaSat ? Math.max(0, qty - st.stok) : qty;
+  const koreksi = Number(br.koreksi)||0;
+  return { qty, st, samaSat, belanja, koreksi, total: Math.max(0, belanja + koreksi), printed: !!br.printed };
+}
+function renderBahanHari_(){
+  const w = document.getElementById('bh-wrap'); if(!w || !BH_) return;
+  const th = 'padding:5px 6px;border-bottom:1px solid var(--bdr);font-size:11px;white-space:nowrap;';
+  const td = 'padding:5px 6px;border-bottom:1px solid var(--bdr);font-size:12px;';
+  const fq = v => Number(v).toLocaleString('id-ID',{maximumFractionDigits:2});
+  let kat = null, rows = '';
+  BH_.items.forEach((it, i) => {
+    const k = it.kategori || 'Belum terdaftar di master', h = bhHitung_(it);
+    if(k !== kat){ kat = k; rows += `<tr><td colspan="6" style="padding:6px;background:#FFF6EC;font-size:11px;font-weight:700;color:#C8521A;">${k}</td></tr>`; }
+    const stokTxt = h.st ? `${fq(h.st.stok)} ${h.st.satuan||''}${h.samaSat ? '' : ' <span title="Satuan stok beda dgn kebutuhan, stok tidak dikurangkan" style="color:#C0392B;">⚠</span>'}` : '<span style="color:var(--inks);">—</span>';
+    rows += `<tr>
+      <td style="${td}">${it.nama_bahan}</td>
+      <td style="${td}text-align:right;white-space:nowrap;">${fq(it.qty)} ${it.satuan||''}</td>
+      <td style="${td}text-align:right;white-space:nowrap;" title="${h.st ? 'Stok opname ' + h.st.tgl : ''}">${stokTxt}</td>
+      <td style="${td}text-align:right;white-space:nowrap;font-weight:700;"><span id="bh-bel-${i}">${bhBelanjaTxt_(h, it)}</span></td>
+      <td style="${td}"><input type="number" step="any" inputmode="decimal" value="${h.koreksi||''}" placeholder="±" style="width:64px;padding:4px;font-size:12px;text-align:right;" onchange="bhKoreksi_(${i}, this.value)"></td>
+      <td style="${td}text-align:center;"><input type="checkbox" data-bh="${i}" ${h.printed ? 'checked disabled title="Sudah pernah di-print"' : ''} style="width:18px;height:18px;min-width:18px;padding:0;margin:0;accent-color:${h.printed ? '#9CA3AF' : '#C2410C'};${h.printed ? 'opacity:.55;' : 'cursor:pointer;'}"></td>
+    </tr>`;
+  });
+  const adaPrinted = BH_.items.some(it => bhHitung_(it).printed);
+  w.innerHTML = `<table style="width:100%;border-collapse:collapse;min-width:520px;"><thead><tr>
+      <th style="${th}text-align:left;">Bahan</th><th style="${th}text-align:right;">Kebutuhan</th><th style="${th}text-align:right;">Stok</th><th style="${th}text-align:right;">Belanja</th><th style="${th}text-align:right;">Belanja koreksi</th>
+      <th style="${th}text-align:center;"><button class="bico" style="padding:4px 8px;font-size:11px;" onclick="cetakBahanHari_(this)">🖨 Print</button></th></tr></thead><tbody>${rows}</tbody></table>
+    <div style="font-size:10px;color:var(--inks);margin-top:6px;">Belanja = kebutuhan − stok opname terakhir (min. 0). Koreksi (+/−) menambah/mengurangi jumlah belanja; yang di-print = belanja + koreksi. Centang abu-abu = sudah pernah di-print.${BH_.exOk ? '' : ' <span style="color:#C0392B;">(stok/koreksi gagal dimuat)</span>'}${adaPrinted ? ' <a href="#" onclick="bhResetPrint_();return false;" style="color:var(--or);">↺ Reset tanda print</a>' : ''}</div>`;
+}
+function bhBelanjaTxt_(h, it){
+  const fq = v => Number(v).toLocaleString('id-ID',{maximumFractionDigits:2});
+  return fq(h.belanja) + ' ' + (it.satuan||'') + (h.koreksi ? `<div style="font-size:10px;font-weight:400;color:${h.koreksi>0?'#2E7D32':'#C0392B'};">${h.koreksi>0?'+':''}${fq(h.koreksi)} = ${fq(h.total)}</div>` : '');
+}
+async function bhSimpan_(data){
+  try{
+    const qs = new URLSearchParams({action:'simpanBahanHariExtra', tanggal:BH_.tgl, data:JSON.stringify(data)}).toString();
+    const r = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!r.success) throw new Error(r.message);
+    return true;
+  }catch(e){ toast('Gagal menyimpan: ' + e.message, 'err'); return false; }
+}
+async function bhKoreksi_(i, v){
+  const it = BH_.items[i], k = bhNorm_(it.nama_bahan), n = Number(String(v).replace(',','.')) || 0;
+  BH_.baris[k] = Object.assign({koreksi:0, printed:false}, BH_.baris[k], {koreksi:n});
+  document.getElementById('bh-bel-' + i).innerHTML = bhBelanjaTxt_(bhHitung_(it), it);
+  await bhSimpan_([{bahan: it.nama_bahan, koreksi: n}]);
+}
+async function bhResetPrint_(){
+  const data = [];
+  BH_.items.forEach(it => { const k = bhNorm_(it.nama_bahan); if(BH_.baris[k] && BH_.baris[k].printed){ BH_.baris[k].printed = false; data.push({bahan: it.nama_bahan, printed:false}); } });
+  renderBahanHari_();
+  if(data.length) await bhSimpan_(data);
+}
+async function cetakBahanHari_(btn){
+  const pilih = Array.from(document.querySelectorAll('#bh-wrap input[data-bh]:checked:not(:disabled)')).map(c => Number(c.dataset.bh));
+  if(!pilih.length){ toast('Centang dulu bahan yang mau di-print (yang abu-abu sudah pernah di-print).', 'err'); return; }
+  const fq = v => Number(v).toLocaleString('id-ID',{maximumFractionDigits:2});
+  const esc = x => String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  const trs = pilih.map(i => { const it = BH_.items[i], h = bhHitung_(it);
+    return `<tr><td>${esc(it.nama_bahan)}</td><td class="r">${fq(h.qty)} ${esc(it.satuan||'')}</td><td class="r">${h.st && h.samaSat ? fq(h.st.stok) + ' ' + esc(h.st.satuan||'') : '—'}</td><td class="r"><b>${fq(h.total)} ${esc(it.satuan||'')}</b></td><td class="b"></td></tr>`; }).join('');
+  const html = `<html><head><meta charset="utf-8"><title>Belanja ${esc(fd(BH_.tgl))}</title><style>
+    body{font-family:Arial,sans-serif;font-size:13px;margin:16px;} h2{margin:0 0 4px;font-size:16px;} .s{color:#666;font-size:11px;margin-bottom:10px;}
+    table{width:100%;border-collapse:collapse;} th,td{border:1px solid #999;padding:5px 7px;} th{background:#eee;text-align:left;} .r{text-align:right;white-space:nowrap;} .b{width:60px;}</style></head>
+    <body><h2>Daftar Belanja — pemakaian ${esc(fd(BH_.tgl))}</h2><div class="s">Dicetak ${new Date().toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'})}</div>
+    <table><thead><tr><th>Bahan</th><th>Kebutuhan</th><th>Stok</th><th>Belanja</th><th>✓</th></tr></thead><tbody>${trs}</tbody></table></body></html>`;
+  let fr = document.getElementById('bh-print-frame');
+  if(fr) fr.remove();
+  fr = document.createElement('iframe'); fr.id = 'bh-print-frame';
+  fr.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+  document.body.appendChild(fr);
+  fr.contentDocument.open(); fr.contentDocument.write(html); fr.contentDocument.close();
+  setTimeout(() => { try{ fr.contentWindow.focus(); fr.contentWindow.print(); }catch(e){ toast('Gagal membuka dialog print: ' + e.message, 'err'); return; } }, 250);
+  const data = pilih.map(i => { const it = BH_.items[i], k = bhNorm_(it.nama_bahan);
+    BH_.baris[k] = Object.assign({koreksi:0, printed:false}, BH_.baris[k], {printed:true});
+    return {bahan: it.nama_bahan, printed:true, koreksi: BH_.baris[k].koreksi}; });
+  renderBahanHari_();
+  await bhSimpan_(data);
 }
 async function bukaDetailHariGrafik_(tgl){
   const modal = document.getElementById('gf-day-modal'), body = document.getElementById('gf-day-body');
