@@ -4718,14 +4718,24 @@ async function bukaBahanHariGrafik_(tgl){
 }
 let BH_ = null;
 function bhNorm_(x){ return String(x||'').trim().toLowerCase(); }
+function bhFaktor_(sat){
+  const s = bhNorm_(sat);
+  if(s === 'kg') return {d:'g', k:1000};
+  if(s === 'g' || s === 'gram') return {d:'g', k:1};
+  if(s === 'l' || s === 'liter') return {d:'ml', k:1000};
+  if(s === 'ml') return {d:'ml', k:1};
+  return {d:s, k:1};
+}
 function bhHitung_(it){
   const k = bhNorm_(it.nama_bahan), st = BH_.stok[k], br = BH_.baris[k] || {koreksi:null, printed:false};
   const qty = Number(it.qty)||0;
-  const samaSat = st && bhNorm_(st.satuan) === bhNorm_(it.satuan);
-  const belanja = samaSat ? Math.max(0, qty - st.stok) : qty;
+  const f = bhFaktor_(it.satuan);
+  const samaSat = !!(st && st.dasar === f.d);
+  const stokV = samaSat ? st.nilai / f.k : 0; // stok berjalan dlm satuan item
+  const belanja = samaSat ? Math.max(0, qty - stokV) : qty;
   const manual = br.koreksi !== null && br.koreksi !== undefined && br.koreksi !== '';
   const total = manual ? Math.max(0, Number(br.koreksi)||0) : belanja;
-  return { qty, st, samaSat, belanja, manual, total, printed: !!br.printed };
+  return { qty, st, samaSat, stokV, f, belanja, manual, total, printed: !!br.printed };
 }
 function renderBahanHari_(){
   const w = document.getElementById('bh-wrap'); if(!w || !BH_) return;
@@ -4737,11 +4747,11 @@ function renderBahanHari_(){
   BH_.items.forEach((it, i) => {
     const k = it.kategori || 'Belum terdaftar di master', h = bhHitung_(it);
     if(k !== kat){ kat = k; rows += `<tr><td colspan="6" style="padding:6px;background:#FFF6EC;font-size:11px;font-weight:700;color:#C8521A;">${k}</td></tr>`; }
-    const stokTxt = h.st ? `${fq(h.st.stok)} ${h.st.satuan||''}${h.samaSat ? '' : ' <span title="Satuan stok beda dgn kebutuhan, stok tidak dikurangkan" style="color:#C0392B;">⚠</span>'}` : '<span style="color:var(--inks);">—</span>';
+    const stokTxt = h.st ? (h.samaSat ? `${fq(h.stokV)} ${it.satuan||''}` : '<span title="Satuan stok beda dgn kebutuhan, stok tidak dipakai" style="color:#C0392B;">⚠</span>') : '<span style="color:var(--inks);">—</span>';
     rows += `<tr>
       <td style="${td}">${it.nama_bahan}</td>
       <td style="${td}text-align:right;white-space:nowrap;">${fq(it.qty)} ${it.satuan||''}</td>
-      <td style="${td}text-align:right;white-space:nowrap;" title="${h.st ? 'Stok opname ' + h.st.tgl : ''}">${stokTxt}</td>
+      <td style="${td}text-align:right;white-space:nowrap;" title="${h.st ? 'Opname ' + h.st.tgl + ': ' + fq(h.st.opname) + ' ' + (h.st.satuan||'') + ' + belanja ' + fq(h.st.belanja/h.f.k) + ' − masak ' + fq(h.st.pakai/h.f.k) + ' ' + (it.satuan||'') : ''}">${stokTxt}</td>
       <td style="${td}text-align:right;white-space:nowrap;font-weight:700;"><span id="bh-bel-${i}">${bhBelanjaTxt_(h, it)}</span></td>
       <td style="${td}"><input type="number" step="any" inputmode="decimal" min="0" value="${Math.round(h.total*100)/100}" style="width:58px!important;padding:5px 4px!important;font-size:12px;text-align:right;${h.manual ? 'border-color:var(--or);' : ''}" data-kr="${i}" onchange="bhKoreksi_(${i}, this.value)"></td>
       <td style="${td}text-align:center;position:sticky;right:0;background:var(--card,#fff);box-shadow:-3px 0 4px -3px rgba(0,0,0,.2);"><input type="checkbox" data-bh="${i}" ${h.printed ? 'checked disabled title="Sudah pernah di-print"' : (dicentang.has(i) ? 'checked' : '')} style="-webkit-appearance:checkbox!important;appearance:checkbox!important;width:20px!important;height:20px!important;min-width:20px!important;padding:0!important;margin:0!important;accent-color:${h.printed ? '#9CA3AF' : '#C2410C'};${h.printed ? 'opacity:.55;' : 'cursor:pointer;'}"></td>
@@ -4751,7 +4761,7 @@ function renderBahanHari_(){
   w.innerHTML = `<table style="width:100%;border-collapse:collapse;min-width:0;"><thead><tr>
       <th style="${th}text-align:left;">Bahan</th><th style="${th}text-align:right;">Kebutuhan</th><th style="${th}text-align:right;">Stok</th><th style="${th}text-align:right;">Belanja</th><th style="${th}text-align:right;">Koreksi</th>
       <th style="${th}text-align:center;position:sticky;right:0;background:var(--card,#fff);box-shadow:-3px 0 4px -3px rgba(0,0,0,.2);"><button class="bico" style="padding:4px 8px;font-size:11px;" onclick="cetakBahanHari_(this)">🖨 Print</button></th></tr></thead><tbody>${rows}</tbody></table>
-    <div style="font-size:10px;color:var(--inks);margin-top:6px;">Belanja = kebutuhan − stok opname terakhir (min. 0). Belanja koreksi otomatis = belanja, boleh diubah (kosongkan = kembali otomatis); yang di-print = belanja koreksi. Centang abu-abu = sudah pernah di-print.${BH_.exOk ? '' : ' <span style="color:#C0392B;">(stok/koreksi gagal dimuat)</span>'}<div style="margin-top:6px;"><a href="#" onclick="cetakBahanBrowser_();return false;" style="color:var(--or);">🖨 Print via browser (58mm)</a>${adaPrinted ? ' · <a href="#" onclick="bhResetPrint_();return false;" style="color:var(--or);">↺ Reset tanda print</a>' : ''}</div></div>`;
+    <div style="font-size:10px;color:var(--inks);margin-top:6px;">Stok = stok opname terakhir + belanja − pemakaian masak sejak opname (min. 0); belanja baru langsung menaikkan stok. Belanja = kebutuhan − stok (min. 0). Bahan tanpa opname: stok —. Belanja koreksi otomatis = belanja, boleh diubah (kosongkan = kembali otomatis); yang di-print = belanja koreksi. Centang abu-abu = sudah pernah di-print.${BH_.exOk ? '' : ' <span style="color:#C0392B;">(stok/koreksi gagal dimuat)</span>'}<div style="margin-top:6px;"><a href="#" onclick="cetakBahanBrowser_();return false;" style="color:var(--or);">🖨 Print via browser (58mm)</a>${adaPrinted ? ' · <a href="#" onclick="bhResetPrint_();return false;" style="color:var(--or);">↺ Reset tanda print</a>' : ''}</div></div>`;
 }
 function bhBelanjaTxt_(h, it){
   return Number(h.belanja).toLocaleString('id-ID',{maximumFractionDigits:2}) + ' ' + (it.satuan||'');
@@ -4806,7 +4816,7 @@ function strukBelanja_(pilih){
   L.push(tengah(new Date().toLocaleString('id-ID',{dateStyle:'short',timeStyle:'short'}))); L.push(garis);
   pilih.forEach(i => { const it = BH_.items[i], h = bhHitung_(it);
     strukWrap_(it.nama_bahan, W).forEach(x => L.push(x));
-    L.push('  Keb ' + fq(h.qty) + ' ' + strukAscii_(it.satuan||'') + (h.st && h.samaSat ? ' | Stok ' + fq(h.st.stok) : ''));
+    L.push('  Keb ' + fq(h.qty) + ' ' + strukAscii_(it.satuan||'') + (h.st && h.samaSat ? ' | Stok ' + fq(h.stokV) : ''));
     L.push('  BELI: ' + fq(h.total) + ' ' + strukAscii_(it.satuan||'')); L.push('  [ ]'); L.push(garis); });
   L.push(tengah(pilih.length + ' item')); return L;
 }
