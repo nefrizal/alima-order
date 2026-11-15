@@ -2202,7 +2202,8 @@ async function gasFetch(url){
   const res=await fetch(url,{method:'GET',redirect:'follow'});
   const text=await res.text();
   if(text.trim().startsWith('<')) throw new Error('GAS return HTML');
-  const hasil = JSON.parse(text);
+  let hasil;
+  try{ hasil = JSON.parse(text); }catch(_){ throw new Error('Server tidak merespons dengan benar (offline / timeout): ' + text.trim().slice(0,60)); }
   if(hasil && hasil.success===false && adalahErrorToken_(hasil.message) && /Gagal verifikasi token|invalid_token|kedaluwarsa|Token login/i.test(hasil.message)) loginUlangPaksa_();
   return hasil;
 }
@@ -4697,13 +4698,11 @@ async function bukaBahanHariGrafik_(tgl){
   modal.classList.remove('hide');
   const tombolOrder = `<button type="button" style="margin:0 0 8px;background:var(--or);color:#fff;border:none;border-radius:6px;padding:6px 10px;font-size:11px;cursor:pointer;" onclick="document.getElementById('gf-bahan-modal').classList.add('hide');bukaDetailHariGrafik_('${tgl}')">📋 Kembali ke daftar order</button>`;
   try{
-    const [j, ex] = await Promise.all([
-      gasFetch(APP.GAS_URL + '?action=hitungKebutuhanBahanDariTanggal&tanggal=' + encodeURIComponent(tgl) + '&t=' + Date.now()),
-      gasFetch(APP.GAS_URL + '?action=getBahanHariExtra&tanggal=' + encodeURIComponent(tgl) + '&t=' + Date.now()).catch(()=>null)
-    ]);
+    const j = await gasFetch(APP.GAS_URL + '?action=hitungKebutuhanBahanDariTanggal&tanggal=' + encodeURIComponent(tgl) + '&t=' + Date.now());
+    const ex = null; // stok/koreksi dimuat menyusul (hitungannya lebih berat) supaya daftar bahan tampil cepat
     if(!j || !j.success){ body.innerHTML = tombolOrder + `<div class="empty"><div class="eico">📭</div><p>${j && j.message || 'Gagal menghitung.'}</p></div>`; return; }
     const items = (j.items||[]).slice().sort((a,b)=> (a.kategori||'~').localeCompare(b.kategori||'~') || a.nama_bahan.localeCompare(b.nama_bahan));
-    BH_ = { tgl, items, stok:(ex && ex.success && ex.stok) || {}, baris:(ex && ex.success && ex.baris) || {}, exOk: !!(ex && ex.success) };
+    BH_ = { tgl, items, stok:(ex && ex.success && ex.stok) || {}, baris:(ex && ex.success && ex.baris) || {}, exOk: true, memuatStok: true };
     const menu = (j.menu_terpakai||[]).slice().sort((a,b)=> b.porsi - a.porsi);
     const totPorsi = menu.reduce((s,m)=> s + (Number(m.porsi)||0), 0);
     body.innerHTML = tombolOrder +
@@ -4714,6 +4713,14 @@ async function bukaBahanHariGrafik_(tgl){
        <details style="margin-top:8px;"><summary style="font-size:11px;cursor:pointer;color:var(--inks);">Menu yang dihitung (${totPorsi.toLocaleString('id-ID')} porsi)</summary>
          <div style="font-size:11px;margin-top:4px;">${menu.map(m=>`<div style="display:flex;justify-content:space-between;padding:2px 0;"><span>${m.nama_menu}</span><span>${Number(m.porsi).toLocaleString('id-ID')}</span></div>`).join('')}</div></details>`;
     renderBahanHari_();
+    const tglIni = tgl;
+    gasFetch(APP.GAS_URL + '?action=getBahanHariExtra&tanggal=' + encodeURIComponent(tgl) + '&t=' + Date.now()).then(ex => {
+      if(!BH_ || BH_.tgl !== tglIni) return;
+      BH_.memuatStok = false;
+      if(ex && ex.success){ BH_.stok = ex.stok || {}; BH_.baris = Object.assign({}, ex.baris || {}, BH_.baris); BH_.terpotong = !!ex.terpotong; }
+      else { BH_.exOk = false; BH_.pesan = (ex && ex.message) || ''; }
+      renderBahanHari_();
+    }).catch(e => { if(!BH_ || BH_.tgl !== tglIni) return; BH_.memuatStok = false; BH_.exOk = false; BH_.pesan = e.message; renderBahanHari_(); });
   }catch(e){ body.innerHTML = tombolOrder + `<div class="empty"><div class="eico">⚠️</div><p>Gagal memuat: ${e.message}</p></div>`; }
 }
 let BH_ = null;
@@ -4761,16 +4768,18 @@ function renderBahanHari_(){
   w.innerHTML = `<table style="width:100%;border-collapse:collapse;min-width:0;"><thead><tr>
       <th style="${th}text-align:left;">Bahan</th><th style="${th}text-align:right;">Kebutuhan</th><th style="${th}text-align:right;">Stok</th><th style="${th}text-align:right;">Belanja</th><th style="${th}text-align:right;">Koreksi</th>
       <th style="${th}text-align:center;position:sticky;right:0;background:var(--card,#fff);box-shadow:-3px 0 4px -3px rgba(0,0,0,.2);"><button class="bico" style="padding:4px 8px;font-size:11px;" onclick="cetakBahanHari_(this)">🖨 Print</button></th></tr></thead><tbody>${rows}</tbody></table>
-    <div style="font-size:10px;color:var(--inks);margin-top:6px;">Stok = stok opname terakhir + belanja − pemakaian masak sejak opname (min. 0); belanja baru langsung menaikkan stok. Belanja = kebutuhan − stok (min. 0). Bahan tanpa opname: stok —. Belanja koreksi otomatis = belanja, boleh diubah (kosongkan = kembali otomatis); yang di-print = belanja koreksi. Centang abu-abu = sudah pernah di-print.${BH_.exOk ? '' : ' <span style="color:#C0392B;">(stok/koreksi gagal dimuat)</span>'}<div style="margin-top:6px;"><a href="#" onclick="cetakBahanBrowser_();return false;" style="color:var(--or);">🖨 Print via browser (58mm)</a>${adaPrinted ? ' · <a href="#" onclick="bhResetPrint_();return false;" style="color:var(--or);">↺ Reset tanda print</a>' : ''}</div></div>`;
+    <div style="font-size:10px;color:var(--inks);margin-top:6px;">Stok = stok opname terakhir + belanja − pemakaian masak sejak opname (min. 0); belanja baru langsung menaikkan stok. Belanja = kebutuhan − stok (min. 0). Bahan tanpa opname: stok —. Belanja koreksi otomatis = belanja, boleh diubah (kosongkan = kembali otomatis); yang di-print = belanja koreksi. Centang abu-abu = sudah pernah di-print.${BH_.memuatStok ? ' <span style="color:var(--or);">⏳ memuat stok…</span>' : ''}${BH_.exOk ? '' : ' <span style="color:#C0392B;">(stok/koreksi gagal dimuat: ' + (BH_.pesan||'') + ')</span>'}${BH_.terpotong ? ' <span style="color:#C0392B;">(opname terakhir terlalu lama — stok tidak dihitung, lakukan stok opname baru)</span>' : ''}<div style="margin-top:6px;"><a href="#" onclick="cetakBahanBrowser_();return false;" style="color:var(--or);">🖨 Print via browser (58mm)</a>${adaPrinted ? ' · <a href="#" onclick="bhResetPrint_();return false;" style="color:var(--or);">↺ Reset tanda print</a>' : ''}</div></div>`;
 }
 function bhBelanjaTxt_(h, it){
   return Number(h.belanja).toLocaleString('id-ID',{maximumFractionDigits:2}) + ' ' + (it.satuan||'');
 }
 async function bhSimpan_(data){
   try{
-    const qs = new URLSearchParams({action:'simpanBahanHariExtra', tanggal:BH_.tgl, data:JSON.stringify(data)}).toString();
-    const r = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
-    if(!r.success) throw new Error(r.message);
+    for(const bagian of bagiItemUrl_(data, 1400)){
+      const qs = new URLSearchParams({action:'simpanBahanHariExtra', tanggal:BH_.tgl, data:JSON.stringify(bagian)}).toString();
+      const r = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+      if(!r.success) throw new Error(r.message);
+    }
     return true;
   }catch(e){ toast('Gagal menyimpan: ' + e.message, 'err'); return false; }
 }
@@ -5981,6 +5990,11 @@ function renderStok_(){
   el.innerHTML = nav + (kartu || '<div class="empty"><div class="eico">📦</div><p>Belum ada kategori.</p></div>');
 }
 function stokToggle_(kat){ STOK_BUKA_[kat] = !STOK_BUKA_[kat]; renderStok_(); }
+function bagiItemUrl_(items, batas){
+  const out = []; let cur = [], len = 0;
+  items.forEach(it => { const l = encodeURIComponent(JSON.stringify(it)).length + 3; if(cur.length && len + l > batas){ out.push(cur); cur = []; len = 0; } cur.push(it); len += l; });
+  if(cur.length) out.push(cur); return out;
+}
 async function simpanStok_(kat, btn){
   const j = STOK_, k = j && j.kategoriList.find(x => x.kategori === kat); if(!k) return;
   const items = [];
@@ -5991,9 +6005,15 @@ async function simpanStok_(kat, btn){
   if(!items.length){ toast('Isi minimal satu stok dulu.', 'err'); return; }
   if(btn) btn.disabled = true; showOvl('Menyimpan stok…');
   try{
-    const qs = new URLSearchParams({action:'simpanStokOpname', tanggal:j.tanggal, kategori:kat, items:JSON.stringify(items)}).toString();
-    const r = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
-    if(!r.success) throw new Error(r.message);
+    // GET punya batas panjang URL → kirim bertahap (potongan kecil) supaya kategori dgn banyak bahan tidak gagal
+    let tersimpan = 0;
+    for(const bagian of bagiItemUrl_(items, 1400)){
+      const qs = new URLSearchParams({action:'simpanStokOpname', tanggal:j.tanggal, kategori:kat, items:JSON.stringify(bagian)}).toString();
+      const r = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+      if(!r.success) throw new Error(r.message);
+      tersimpan += Number(r.tersimpan) || 0;
+    }
+    const r = {tersimpan};
     Object.keys(STOK_DRAFT_).forEach(d => { if(d.indexOf(kat + '|') === 0) delete STOK_DRAFT_[d]; });
     toast(`Stok ${kat} tersimpan ✓ (${r.tersimpan} bahan)`, 'ok');
     await loadStok_(j.tanggal);
