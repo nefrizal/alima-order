@@ -5229,7 +5229,9 @@ function openOrderDetail(no, infoSaja, oPre){
 
   document.getElementById('od-body').innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-      <div class="ono" style="font-size:17px;">${o.no_order}</div>
+      ${(!infoSaja && o.status !== 'Batal' && document.getElementById('tab-form') && !document.getElementById('tab-form').classList.contains('hide'))
+        ? `<div class="ono" style="font-size:17px;cursor:pointer;text-decoration:underline dotted;" title="Ketuk untuk revisi item order" onclick="revisiDariDetail_('${o.no_order}')">${o.no_order} <span style="font-size:12px;">✏️ revisi</span></div>`
+        : `<div class="ono" style="font-size:17px;">${o.no_order}</div>`}
       <span class="badge ${bc[o.status]||'bb'}">${o.status||'Baru'}</span>
     </div>
     <div class="pstrip" style="margin-top:0;">
@@ -5296,6 +5298,16 @@ async function bukaDetailInfo_(no){
     }catch(e){ try{hideOvl();}catch(_){} toast('Gagal memuat order: ' + e.message,'err'); return; }
   }
   openOrderDetail(no, true, o);
+}
+// Ketuk nomor order di Detail Order → buka tab Order dalam mode revisi (semua item/menu/qty/harga bisa diedit)
+function revisiDariDetail_(no){
+  closeOrderDetail();
+  const tb = document.getElementById('tab-form');
+  if(!tb || tb.classList.contains('hide')){ toast('Anda tidak punya akses tab Order.','err'); return; }
+  goTab('form', tb);
+  document.getElementById('edit-search-no').value = no;
+  cariOrderUntukEdit();
+  try{ window.scrollTo({top:0, behavior:'smooth'}); }catch(_){}
 }
 function closeOrderDetail(){
   document.getElementById('order-detail-modal').classList.add('hide');
