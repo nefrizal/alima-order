@@ -4423,10 +4423,11 @@ function renderGrafikLaba_(){
   const bulanList = (GF_JUAL_.bulanList||[]).filter(b=> tot(GF_JUAL_,b) > 0);
   if(!bulanList.length){ el.innerHTML = '<div class="empty"><div class="eico">💰</div><p>Belum ada data penjualan.</p></div>'; return; }
   const rows = bulanList.map(b=>{
-    const berjalan = b === bulanIni && GF_JUAL_.salesEks && GF_JUAL_.salesEks[b] != null && GF_BELI_.dataBppEks;
+    const berjalan = b === bulanIni && GF_JUAL_.salesEks && GF_JUAL_.salesEks[b] != null;
     const omset = berjalan ? Number(GF_JUAL_.salesEks[b])||0 : tot(GF_JUAL_,b);
-    const per = (GF_BELI_.dataBpp||{})[b]||{};
-    const srcB = berjalan ? (GF_BELI_.dataBppEks[b]||{}) : per;
+    // bulan berjalan: SEMUA pengeluaran tercatat (tunai maupun hutang) s.d. hari ini; bulan lalu: seluruh bulan
+    const per = berjalan && GF_BELI_.dataBppSd ? ((GF_BELI_.dataBppSd[b])||{}) : ((GF_BELI_.dataBpp||{})[b]||{});
+    const srcB = per;
     const bpp = Object.keys(srcB).filter(k=>!NON_BPP_.includes(k)).reduce((t,k)=>t+(Number(srcB[k])||0),0);
     const lain = ['Sales Cost','Expenses','Pajak','Peralatan'].map(k=>({k, v:Number(per[k])||0}));
     const gaji = omset * GAJI_PCT_;
@@ -4454,7 +4455,7 @@ function renderGrafikLaba_(){
     bars += `<text x="${x+barW/2}" y="${barMaxH+38}" font-size="10" fill="#5C4A35" text-anchor="middle">${formatBulanLabel_(r.b)}</text>`;
   });
   el.innerHTML = `<div style="overflow-x:auto;background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:12px;box-shadow:var(--sh);"><svg width="${totalW}" height="${chartH}" viewBox="0 0 ${totalW} ${chartH}">${grid}${bars}</svg></div>
-    <div style="font-size:10px;color:var(--inks);margin-top:4px;">Laba kotor = Omset − Fixcost (tab fixcost: ${cfRp_(fix.total)}/bulan, termasuk BBM) − Variable cost (bahan baku, gaji ${Math.round(GAJI_PCT_*100)}% omset, Sales Cost, Expenses, Pajak, Peralatan). Bulan berjalan = omset s.d. hari ini &amp; bahan baku yang sudah dieksekusi. Klik batang utk rincian.</div>`;
+    <div style="font-size:10px;color:var(--inks);margin-top:4px;">Laba kotor = Omset − Fixcost (tab fixcost: ${cfRp_(fix.total)}/bulan, termasuk BBM) − Variable cost (bahan baku, gaji ${Math.round(GAJI_PCT_*100)}% omset, Sales Cost, Expenses, Pajak, Peralatan). Bulan berjalan = omset s.d. hari ini − semua pengeluaran tercatat s.d. hari ini (tunai maupun hutang) − gaji 20% × omset s.d. hari ini. Klik batang utk rincian.</div>`;
 }
 function bukaLabaBulan_(i){
   const P = GF_LABA_ROWS_[i]; if(!P) return;
@@ -4465,7 +4466,7 @@ function bukaLabaBulan_(i){
   document.getElementById('cf-modal-body').innerHTML = `<table style="width:100%;font-size:12px;border-collapse:collapse;">
     ${bar('Omset' + (P.berjalan ? ' terlaksana s.d. hari ini' : ''), cfRp_(P.omset))}
     <tr><td colspan="2" style="padding:6px 2px 2px;font-size:11px;font-weight:700;color:var(--inks);">Variable cost</td></tr>
-    ${bar('&nbsp;&nbsp;Bahan baku (BPP)' + (P.berjalan ? ' terlaksana' : ''), '− ' + cfRp_(P.bpp))}
+    ${bar('&nbsp;&nbsp;Bahan baku (BPP)' + (P.berjalan ? ' — semua pengeluaran tunai &amp; hutang s.d. hari ini' : ''), '− ' + cfRp_(P.bpp))}
     ${bar('&nbsp;&nbsp;Gaji ' + Math.round(GAJI_PCT_*100) + '% omset', '− ' + cfRp_(P.gaji))}
     ${P.lain.filter(x=>x.v>0).map(x=>bar('&nbsp;&nbsp;'+x.k, '− ' + cfRp_(x.v))).join('')}
     ${bar('Total variable cost', '− ' + cfRp_(P.variable), true)}
