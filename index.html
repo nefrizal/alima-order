@@ -39,6 +39,9 @@ header{background:var(--or);color:#fff;padding:0 16px;display:flex;align-items:c
 .tbtn.on{color:var(--or);border-bottom-color:var(--or);}
 main{max-width:760px;margin:0 auto;padding:16px 14px 80px;}
 .panel{display:none;}.panel.on{display:block;}
+#panel-form.rev-pop{position:fixed;inset:0;z-index:250;background:#FFFBF7;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 14px 60px;}
+#rev-pop-bar{display:none;position:sticky;top:0;z-index:5;background:#FFFBF7;padding:12px 0 10px;margin-bottom:6px;border-bottom:1px solid var(--bdr);align-items:center;justify-content:space-between;}
+#panel-form.rev-pop #rev-pop-bar{display:flex;}
 .sec{background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:16px;margin-bottom:14px;box-shadow:var(--sh);}
 .stitle{font-family:'Playfair Display',serif;font-size:14px;font-weight:700;color:var(--ord);margin-bottom:13px;padding-bottom:9px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:7px;}
 .fld{margin-bottom:11px;}.fld:last-child{margin-bottom:0;}
@@ -175,6 +178,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 
 <!-- ═══ FORM ═══ -->
 <div class="panel on" id="panel-form">
+  <div id="rev-pop-bar"><h2 style="margin:0;font-size:17px;color:var(--ord);">✏️ Revisi Order <span id="rev-pop-no"></span></h2><button class="modal-close" onclick="tutupRevPop_(true)">×</button></div>
 
   <!-- Cari & Edit Order -->
   <div class="sec">
@@ -3318,6 +3322,7 @@ async function cariOrderUntukEdit(){
 }
 
 function batalEditOrder(){
+  if(REV_POP_) tutupRevPop_(false); // dipanggil juga setelah revisi tersimpan → pop up ikut tertutup
   EDIT_MODE_NO_ORDER = null;
   EDIT_MODE_ORIGINAL_DATA = null;
   document.getElementById('edit-mode-badge').style.display = 'none';
@@ -5299,15 +5304,28 @@ async function bukaDetailInfo_(no){
   }
   openOrderDetail(no, true, o);
 }
-// Ketuk nomor order di Detail Order → buka tab Order dalam mode revisi (semua item/menu/qty/harga bisa diedit)
+// Ketuk nomor order di Detail Order → form Order dalam mode revisi tampil sebagai POP UP layar penuh (semua item bisa diedit)
+let REV_POP_ = false, REV_POP_AWAL_ON_ = false;
 function revisiDariDetail_(no){
   closeOrderDetail();
   const tb = document.getElementById('tab-form');
   if(!tb || tb.classList.contains('hide')){ toast('Anda tidak punya akses tab Order.','err'); return; }
-  goTab('form', tb);
+  const p = document.getElementById('panel-form');
+  REV_POP_AWAL_ON_ = p.classList.contains('on');
+  p.classList.add('on','rev-pop'); REV_POP_ = true;
+  document.getElementById('rev-pop-no').textContent = no;
+  p.scrollTop = 0;
   document.getElementById('edit-search-no').value = no;
   cariOrderUntukEdit();
-  try{ window.scrollTo({top:0, behavior:'smooth'}); }catch(_){}
+}
+// tutup pop up revisi; batal=true → keluar dari mode edit & kosongkan form
+function tutupRevPop_(batal){
+  if(!REV_POP_) return;
+  REV_POP_ = false;
+  const p = document.getElementById('panel-form');
+  p.classList.remove('rev-pop'); p.scrollTop = 0;
+  if(!REV_POP_AWAL_ON_) p.classList.remove('on');
+  if(batal && EDIT_MODE_NO_ORDER) batalEditOrder();
 }
 function closeOrderDetail(){
   document.getElementById('order-detail-modal').classList.add('hide');
@@ -6102,6 +6120,7 @@ async function simpanAksesTab_(btn){
 }
 
 function goTab(id,btn){
+  if(REV_POP_) tutupRevPop_(true);
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('on'));
   document.getElementById('panel-'+id).classList.add('on');
