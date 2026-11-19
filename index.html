@@ -4414,6 +4414,7 @@ function renderGrafikSisa_(){
 // Variable = bahan baku (BPP) + gaji 20% omset + Sales Cost/Expenses/Pajak/Peralatan. BBM masuk fixcost (tidak dihitung lagi sbg variable).
 // Bulan berjalan: omset s.d. hari ini & bahan baku yang sudah dieksekusi.
 let GF_LABA_ROWS_ = [];
+const BPP_ASUMSI_ = 0.70; // asumsi BPP (bahan baku) = 70% × omset utk bulan yang akan datang
 function renderGrafikLaba_(){
   const el = document.getElementById('gf-laba-chart'); if(!el || !GF_JUAL_ || !GF_BELI_) return;
   const fix = GF_BELI_.fixcost || {ada:false, items:[], total:0};
@@ -4428,11 +4429,12 @@ function renderGrafikLaba_(){
     // bulan berjalan: SEMUA pengeluaran tercatat (tunai maupun hutang) s.d. hari ini; bulan lalu: seluruh bulan
     const per = berjalan && GF_BELI_.dataBppSd ? ((GF_BELI_.dataBppSd[b])||{}) : ((GF_BELI_.dataBpp||{})[b]||{});
     const srcB = per;
-    const bpp = Object.keys(srcB).filter(k=>!NON_BPP_.includes(k)).reduce((t,k)=>t+(Number(srcB[k])||0),0);
+    const masaDepan = b > bulanIni; // bulan yg akan datang: belum ada belanja → BPP diasumsikan 70% × omset
+    const bpp = masaDepan ? omset * BPP_ASUMSI_ : Object.keys(srcB).filter(k=>!NON_BPP_.includes(k)).reduce((t,k)=>t+(Number(srcB[k])||0),0);
     const lain = ['Sales Cost','Expenses','Pajak','Peralatan'].map(k=>({k, v:Number(per[k])||0}));
     const gaji = omset * GAJI_PCT_;
     const variable = bpp + gaji + lain.reduce((t,x)=>t+x.v,0);
-    return {b, berjalan:!!berjalan, omset, bpp, gaji, lain, variable, fix: fix.total, laba: omset - variable - fix.total};
+    return {b, berjalan:!!berjalan, masaDepan, omset, bpp, gaji, lain, variable, fix: fix.total, laba: omset - variable - fix.total};
   });
   GF_LABA_ROWS_ = rows;
   const maxPos = Math.max(0, ...rows.map(r=>r.laba)), maxNeg = Math.max(0, ...rows.map(r=>-r.laba));
@@ -4449,24 +4451,24 @@ function renderGrafikLaba_(){
   let bars = '';
   rows.forEach((r,i)=>{
     const x = leftM + 10 + i*groupW, y0 = yOf(0), y1 = yOf(r.laba), warna = r.laba >= 0 ? '#1B7A4A' : '#C0392B';
-    bars += `<rect x="${x}" y="${Math.min(y0,y1)}" width="${barW}" height="${Math.max(1,Math.abs(y1-y0))}" fill="${warna}" rx="1" style="cursor:pointer;" onclick="bukaLabaBulan_(${i})"><title>${formatBulanLabel_(r.b)}${r.berjalan?' (s.d. hari ini)':''}\nOmset: ${cfRp_(r.omset)}\nVariable: ${cfRp_(r.variable)}\nFixcost: ${cfRp_(r.fix)}\nLaba kotor: ${cfRp_(r.laba)}</title></rect>`;
+    bars += `<rect x="${x}" y="${Math.min(y0,y1)}" width="${barW}" height="${Math.max(1,Math.abs(y1-y0))}" fill="${warna}" rx="1" style="cursor:pointer;" onclick="bukaLabaBulan_(${i})"><title>${formatBulanLabel_(r.b)}${r.berjalan?' (s.d. hari ini)':''}${r.masaDepan?' (perkiraan: BPP asumsi 70%)':''}\nOmset: ${cfRp_(r.omset)}\nVariable: ${cfRp_(r.variable)}\nFixcost: ${cfRp_(r.fix)}\nLaba kotor: ${cfRp_(r.laba)}</title></rect>`;
     const ty = r.laba >= 0 ? y1 - 4 : y1 + 11;
     bars += `<text x="${x+barW/2}" y="${ty}" font-size="10" font-weight="700" fill="#5C4A35" text-anchor="middle">${r.laba<0?'-':''}${formatRupiahSingkat_(Math.abs(r.laba))}</text>`;
     bars += `<text x="${x+barW/2}" y="${barMaxH+38}" font-size="10" fill="#5C4A35" text-anchor="middle">${formatBulanLabel_(r.b)}</text>`;
   });
   el.innerHTML = `<div style="overflow-x:auto;background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:12px;box-shadow:var(--sh);"><svg width="${totalW}" height="${chartH}" viewBox="0 0 ${totalW} ${chartH}">${grid}${bars}</svg></div>
-    <div style="font-size:10px;color:var(--inks);margin-top:4px;">Laba kotor = Omset − Fixcost (tab fixcost: ${cfRp_(fix.total)}/bulan, termasuk BBM) − Variable cost (bahan baku, gaji ${Math.round(GAJI_PCT_*100)}% omset, Sales Cost, Expenses, Pajak, Peralatan). Bulan berjalan = omset s.d. hari ini − semua pengeluaran tercatat s.d. hari ini (tunai maupun hutang) − gaji 20% × omset s.d. hari ini. Klik batang utk rincian.</div>`;
+    <div style="font-size:10px;color:var(--inks);margin-top:4px;">Laba kotor = Omset − Fixcost (tab fixcost: ${cfRp_(fix.total)}/bulan, termasuk BBM) − Variable cost (bahan baku, gaji ${Math.round(GAJI_PCT_*100)}% omset, Sales Cost, Expenses, Pajak, Peralatan). Bulan berjalan = omset s.d. hari ini − semua pengeluaran tercatat s.d. hari ini (tunai maupun hutang) − gaji 20% × omset s.d. hari ini. Bulan yang akan datang: bahan baku diasumsikan ${Math.round(BPP_ASUMSI_*100)}% × omset (belum ada belanja). Klik batang utk rincian.</div>`;
 }
 function bukaLabaBulan_(i){
   const P = GF_LABA_ROWS_[i]; if(!P) return;
   const fix = (GF_BELI_||{}).fixcost || {items:[]};
   const r = v => (v<0?'− ':'') + cfRp_(Math.abs(v)), td = 'style="padding:4px 2px;"', tr = 'style="text-align:right;white-space:nowrap;"';
   const bar = (t,v,b) => `<tr${b?' style="font-weight:700;border-top:1px solid var(--bdr);"':''}><td ${td}>${t}</td><td ${tr}>${v}</td></tr>`;
-  tampilCfModal_('💰 Laba kotor — ' + formatBulanLabel_(P.b) + (P.berjalan ? ' (s.d. hari ini)' : ''), []);
+  tampilCfModal_('💰 Laba kotor — ' + formatBulanLabel_(P.b) + (P.berjalan ? ' (s.d. hari ini)' : '') + (P.masaDepan ? ' (perkiraan)' : ''), []);
   document.getElementById('cf-modal-body').innerHTML = `<table style="width:100%;font-size:12px;border-collapse:collapse;">
     ${bar('Omset' + (P.berjalan ? ' terlaksana s.d. hari ini' : ''), cfRp_(P.omset))}
     <tr><td colspan="2" style="padding:6px 2px 2px;font-size:11px;font-weight:700;color:var(--inks);">Variable cost</td></tr>
-    ${bar('&nbsp;&nbsp;Bahan baku (BPP)' + (P.berjalan ? ' — semua pengeluaran tunai &amp; hutang s.d. hari ini' : ''), '− ' + cfRp_(P.bpp))}
+    ${bar('&nbsp;&nbsp;Bahan baku (BPP)' + (P.berjalan ? ' — semua pengeluaran tunai &amp; hutang s.d. hari ini' : '') + (P.masaDepan ? ' — asumsi ' + Math.round(BPP_ASUMSI_*100) + '% × omset' : ''), '− ' + cfRp_(P.bpp))}
     ${bar('&nbsp;&nbsp;Gaji ' + Math.round(GAJI_PCT_*100) + '% omset', '− ' + cfRp_(P.gaji))}
     ${P.lain.filter(x=>x.v>0).map(x=>bar('&nbsp;&nbsp;'+x.k, '− ' + cfRp_(x.v))).join('')}
     ${bar('Total variable cost', '− ' + cfRp_(P.variable), true)}
