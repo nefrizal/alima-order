@@ -4306,14 +4306,15 @@ function renderPengBulanan_(){
     const tot = (jj,b)=> Object.values((jj.data||{})[b]||{}).reduce((s,v)=>s+(Number(v)||0),0);
     pct = {};
     bulanList.forEach(b => {
-      const berjalan = b === (j.hariIniStr||'').slice(0,7) && GF_JUAL_.salesEks && GF_JUAL_.salesEks[b] != null && j.dataBppEks;
+      // bulan berjalan: metode SAMA dgn grafik Laba Kotor = semua belanja BPP tercatat (tunai+hutang) s.d. hari ini ÷ omset terlaksana s.d. hari ini
+      const berjalan = b === (j.hariIniStr||'').slice(0,7) && GF_JUAL_.salesEks && GF_JUAL_.salesEks[b] != null && j.dataBppSd;
       const jual = berjalan ? (Number(GF_JUAL_.salesEks[b])||0) : tot(GF_JUAL_,b);
-      const src = berjalan ? (j.dataBppEks[b]||{}) : dB[b];
-      const isi = kategoriList.reduce((t,k)=> t + (berjalan ? ((j.dataBppEks[b]||{})[k]||0) : (src[k]||0)), 0);
+      const src = berjalan ? (j.dataBppSd[b]||{}) : dB[b];
+      const isi = kategoriList.reduce((t,k)=> t + (src[k]||0), 0);
       if(jual > 0) pct[b] = isi / jual * 100;
     });
   }
-  renderGrafikChart({bulanList, kategoriList, data:dB}, 'gf-peng-chart', 'Belum ada pengeluaran BPP tercatat sejak Juli 2026.', {pct, klik:true, catatan:'👆 Klik salah satu warna = batang perbandingan bahan bulan itu vs 2 bulan sebelumnya (lacak abnormalitas pemakaian). Garis rasio: bulan berjalan = sudah dieksekusi ÷ penjualan yang sudah dieksekusi.'});
+  renderGrafikChart({bulanList, kategoriList, data:dB}, 'gf-peng-chart', 'Belum ada pengeluaran BPP tercatat sejak Juli 2026.', {pct, klik:true, catatan:'👆 Klik salah satu warna = batang perbandingan bahan bulan itu vs 2 bulan sebelumnya (lacak abnormalitas pemakaian). Garis rasio: bulan berjalan = semua belanja BPP tercatat s.d. hari ini (tunai &amp; hutang) ÷ omset terlaksana s.d. hari ini (metode sama dengan grafik Laba Kotor).'});
 }
 function renderGrafikBpp_(besar, modus){
   modus = modus || 'bpp'; const isNon = modus === 'non';
