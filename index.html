@@ -426,7 +426,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   <div id="gf-sisa-chart"><div class="empty"><div class="eico">💹</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
   </div>
 
-  <div class="gf-sec" data-gf="gf_sisa">
+  <div class="gf-sec" data-gf="gf_laba">
   <div class="stitle" style="margin-top:20px;">💰 Laba Kotor: Omset − Fixcost − Variable Cost (per Bulan) <button class="gf-rf" title="Refresh grafik ini" onclick="refreshGf_(['jual','beli'],this)">↻</button></div>
   <div id="gf-laba-chart"><div class="empty"><div class="eico">💰</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
   </div>
@@ -3852,13 +3852,14 @@ let GF_OBS_ = null;
 function gfMuatGrup_(grup){
   if(GF_SUDAH_[grup]) return; GF_SUDAH_[grup] = true;
   const g = gfBoleh_;
-  if(grup === 'jual'){ if(g('gf_bulanan') || g('gf_bpp') || g('gf_nonbpp') || g('gf_sisa') || g('gf_peng')) loadGrafik(); }
+  if(grup === 'jual'){ if(g('gf_bulanan') || g('gf_bpp') || g('gf_nonbpp') || g('gf_sisa') || g('gf_laba') || g('gf_peng')) loadGrafik(); }
   else if(grup === 'beli'){
     // rasio BPP/non-BPP/sisa butuh data penjualan & pembelian sekaligus
-    if(g('gf_bpp') || g('gf_nonbpp') || g('gf_sisa') || g('gf_peng')) gfMuatGrup_('jual');
-    if(g('gf_peng') || g('gf_peng_harian') || g('gf_bpp') || g('gf_nonbpp') || g('gf_sisa')) loadGrafikPengeluaran();
+    if(g('gf_bpp') || g('gf_nonbpp') || g('gf_sisa') || g('gf_laba') || g('gf_peng')) gfMuatGrup_('jual');
+    if(g('gf_peng') || g('gf_peng_harian') || g('gf_bpp') || g('gf_nonbpp') || g('gf_sisa') || g('gf_laba')) loadGrafikPengeluaran();
+    if(g('gf_laba')) gfMuatGrup_('cash'); // popup hutang vs laba butuh data hutang supplier (cashflow)
   }
-  else if(grup === 'cash'){ if(g('gf_posisi') || g('gf_piutang')) loadCashflow_(); }
+  else if(grup === 'cash'){ if(g('gf_posisi') || g('gf_piutang') || g('gf_laba')) loadCashflow_(); }
   else if(grup === 'lauk'){ if(g('gf_lauk')) loadGrafikLauk(); }
 }
 function loadGrafikSemua_(){
@@ -3868,7 +3869,7 @@ function loadGrafikSemua_(){
   if(gfBoleh_('gf_harian')) loadGrafikHarian();
   // dua grafik teratas langsung; sisanya menunggu mendekati layar (rootMargin 400px)
   gfMuatGrup_('jual');
-  const peta = { gf_bpp:'beli', gf_nonbpp:'beli', gf_sisa:'beli', gf_peng:'beli', gf_peng_harian:'beli', gf_posisi:'cash', gf_piutang:'cash', gf_lauk:'lauk' };
+  const peta = { gf_bpp:'beli', gf_nonbpp:'beli', gf_sisa:'beli', gf_laba:'beli', gf_peng:'beli', gf_peng_harian:'beli', gf_posisi:'cash', gf_piutang:'cash', gf_lauk:'lauk' };
   const secs = Array.from(document.querySelectorAll('#panel-grafik .gf-sec')).filter(el => peta[el.dataset.gf] && gfBoleh_(el.dataset.gf));
   if(!('IntersectionObserver' in window)){ secs.forEach(el => gfMuatGrup_(peta[el.dataset.gf])); return; }
   GF_OBS_ = new IntersectionObserver(es => es.forEach(e => { if(e.isIntersecting){ gfMuatGrup_(peta[e.target.dataset.gf]); GF_OBS_.unobserve(e.target); } }), { rootMargin: '400px 0px' });
