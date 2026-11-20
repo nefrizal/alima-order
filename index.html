@@ -1856,9 +1856,12 @@ async function handleGoogleCredential(resp){
       const j = await gasFetch(APP.GAS_URL + '?action=checkAuth&id_token=' + encodeURIComponent(resp.credential) + '&t=' + Date.now());
       if (j.success) {
         ID_TOKEN = resp.credential;
+        const aksesLama = JSON.stringify((CURRENT_USER && CURRENT_USER.aksesTab) || null);
         CURRENT_USER = { email:j.email, nama:j.nama, role:(j.role||'karyawan').toLowerCase(), aksesKeuanganLevel: j.aksesKeuanganLevel || '', aksesTab: j.aksesTab || null };
         simpanSesiLogin_(CURRENT_USER); // perpanjang lagi jendela 24 jam-nya
         terapkanMatriksTab_(); // segarkan hak akses tab dari sheet AksesTab (idempotent)
+        // hak akses grafik berubah di sheet → tampilkan/sembunyikan grafik & muat ulang tanpa harus login ulang
+        if(aksesLama !== JSON.stringify(CURRENT_USER.aksesTab || null)){ try{ if(typeof loadGrafikSemua_ === 'function' && document.getElementById('panel-grafik')) loadGrafikSemua_(); }catch(e){} }
       }
       // Kalau gagal (mis. akun dinonaktifkan admin di tengah jalan) — dibiarkan saja,
       // request2 API berikutnya yg bakal mulai gagal & kasih tahu user scr wajar,
