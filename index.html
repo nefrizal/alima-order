@@ -4453,11 +4453,45 @@ function renderGrafikLaba_(){
     const x = leftM + 10 + i*groupW, y0 = yOf(0), y1 = yOf(r.laba), warna = r.laba >= 0 ? '#1B7A4A' : '#C0392B';
     bars += `<rect x="${x}" y="${Math.min(y0,y1)}" width="${barW}" height="${Math.max(1,Math.abs(y1-y0))}" fill="${warna}" rx="1" style="cursor:pointer;" onclick="bukaLabaBulan_(${i})"><title>${formatBulanLabel_(r.b)}${r.berjalan?' (s.d. hari ini)':''}${r.masaDepan?' (perkiraan: BPP asumsi 70%)':''}\nOmset: ${cfRp_(r.omset)}\nVariable: ${cfRp_(r.variable)}\nFixcost: ${cfRp_(r.fix)}\nLaba kotor: ${cfRp_(r.laba)}</title></rect>`;
     const ty = r.laba >= 0 ? y1 - 4 : y1 + 11;
-    bars += `<text x="${x+barW/2}" y="${ty}" font-size="10" font-weight="700" fill="#5C4A35" text-anchor="middle">${r.laba<0?'-':''}${formatRupiahSingkat_(Math.abs(r.laba))}</text>`;
+    if(r.berjalan && r.laba > 0) bars += `<text x="${x+barW/2}" y="${ty}" font-size="10" font-weight="700" fill="#1B7A4A" text-anchor="middle" text-decoration="underline" style="cursor:pointer;" onclick="bukaHutangLaba_(${i})"><title>Klik: hutang bahan baku yang tercukupi laba berjalan</title>${formatRupiahSingkat_(Math.abs(r.laba))}</text>`;
+    else bars += `<text x="${x+barW/2}" y="${ty}" font-size="10" font-weight="700" fill="#5C4A35" text-anchor="middle">${r.laba<0?'-':''}${formatRupiahSingkat_(Math.abs(r.laba))}</text>`;
     bars += `<text x="${x+barW/2}" y="${barMaxH+38}" font-size="10" fill="#5C4A35" text-anchor="middle">${formatBulanLabel_(r.b)}</text>`;
   });
   el.innerHTML = `<div style="overflow-x:auto;background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:12px;box-shadow:var(--sh);"><svg width="${totalW}" height="${chartH}" viewBox="0 0 ${totalW} ${chartH}">${grid}${bars}</svg></div>
     <div style="font-size:10px;color:var(--inks);margin-top:4px;">Laba kotor = Omset − Fixcost (tab fixcost: ${cfRp_(fix.total)}/bulan, termasuk BBM) − Variable cost (bahan baku, gaji ${Math.round(GAJI_PCT_*100)}% omset, Sales Cost, Expenses, Pajak, Peralatan). Bulan berjalan = omset s.d. hari ini − semua pengeluaran tercatat s.d. hari ini (tunai maupun hutang) − gaji 20% × omset s.d. hari ini. Bulan yang akan datang: bahan baku diasumsikan ${Math.round(BPP_ASUMSI_*100)}% × omset (belum ada belanja). Klik batang utk rincian.</div>`;
+}
+// Laba kotor bulan berjalan > 0: daftar hutang supplier (nota berstatus Hutang) + centang otomatis yang tercukupi laba (terlama dulu)
+let LH_ = {rows:[], laba:0, i:-1};
+function bukaHutangLaba_(i){
+  const P = GF_LABA_ROWS_[i]; if(!P) return;
+  const nota = (typeof CF_DATA_ !== 'undefined' && CF_DATA_ && Array.isArray(CF_DATA_.hutangNota)) ? CF_DATA_.hutangNota : null;
+  tampilCfModal_('📋 Hutang bahan baku vs laba kotor berjalan', []);
+  if(!nota){ document.getElementById('cf-modal-body').innerHTML = '<div class="empty"><div class="eico">⏳</div><p>Data hutang supplier belum termuat. Buka grafik Cashflow / klik Refresh, lalu coba lagi.</p></div>'; return; }
+  const rows = nota.slice().sort((a,b)=> a.tgl<b.tgl ? -1 : a.tgl>b.tgl ? 1 : 0).map(x=>({no:x.no, tgl:x.tgl, supplier:x.supplier||'—', total:Number(x.total)||0, on:false}));
+  let sisa = P.laba;
+  rows.forEach(x=>{ if(x.total > 0 && x.total <= sisa){ x.on = true; sisa -= x.total; } });
+  LH_ = {rows, laba:P.laba, i};
+  renderHutangLaba_();
+}
+function lhToggle_(k, el){ if(LH_.rows[k]) LH_.rows[k].on = !!el.checked; renderHutangLabaTotal_(); }
+function renderHutangLabaTotal_(){
+  const el = document.getElementById('lh-ring'); if(!el) return;
+  const pilih = LH_.rows.filter(x=>x.on).reduce((t,x)=>t+x.total,0), sisa = LH_.laba - pilih;
+  el.innerHTML = `<div style="display:flex;justify-content:space-between;padding:3px 0;"><span>Dipilih untuk dibayar</span><b>${cfRp_(pilih)}</b></div>
+    <div style="display:flex;justify-content:space-between;padding:3px 0;font-weight:700;color:${sisa>=0?'#1B7A4A':'#C0392B'};"><span>${sisa>=0?'Sisa laba kotor':'Kurang dari laba kotor'}</span><span>${sisa<0?'− ':''}${cfRp_(Math.abs(sisa))}</span></div>`;
+}
+function renderHutangLaba_(){
+  const L = LH_, tot = L.rows.reduce((t,x)=>t+x.total,0);
+  const cb = 'style="-webkit-appearance:checkbox!important;appearance:checkbox!important;width:20px!important;height:20px!important;min-width:20px;padding:0!important;margin:0;accent-color:#1B7A4A;cursor:pointer;"';
+  const td = 'style="padding:5px 3px;border-bottom:1px solid var(--bdr);"', tdr = 'style="padding:5px 3px;border-bottom:1px solid var(--bdr);text-align:right;white-space:nowrap;"', tdc = 'style="padding:5px 3px;border-bottom:1px solid var(--bdr);text-align:center;"';
+  document.getElementById('cf-modal-body').innerHTML = `
+    <div style="font-size:12px;margin-bottom:6px;">Laba kotor berjalan: <b style="color:#1B7A4A;">${cfRp_(L.laba)}</b> · Total hutang supplier: <b>${cfRp_(tot)}</b></div>
+    ${L.rows.length ? `<div style="overflow-x:auto;"><table style="width:100%;font-size:11px;border-collapse:collapse;"><tr style="color:var(--inks);"><th style="text-align:left;">Tgl</th><th style="text-align:left;">Supplier / No Nota</th><th style="text-align:right;">Jumlah</th><th>✓</th></tr>
+    ${L.rows.map((x,k)=>`<tr><td ${td}>${fd(x.tgl)}</td><td ${td}>${x.supplier}<div style="font-size:10px;color:var(--inks);">${x.no}</div></td><td ${tdr}>${Math.round(x.total).toLocaleString('id-ID')}</td><td ${tdc}><input type="checkbox" ${cb} ${x.on?'checked':''} onchange="lhToggle_(${k},this)"></td></tr>`).join('')}</table></div>
+    <div id="lh-ring" style="margin-top:8px;font-size:12px;border-top:2px solid var(--bdr);padding-top:4px;"></div>`
+    : '<div class="empty"><div class="eico">✅</div><p>Tidak ada nota supplier berstatus Hutang.</p></div>'}
+    <div style="font-size:10px;color:var(--inks);margin-top:6px;">Centang otomatis = hutang terlama yang masih tercukupi laba kotor berjalan (nota yang melebihi sisa laba dilewati). Centang bisa diubah bebas; sisa laba dihitung ulang.</div>`;
+  renderHutangLabaTotal_();
 }
 function bukaLabaBulan_(i){
   const P = GF_LABA_ROWS_[i]; if(!P) return;
@@ -4476,6 +4510,7 @@ function bukaLabaBulan_(i){
     ${fix.items.map(x=>bar('&nbsp;&nbsp;'+x.nama, '− ' + cfRp_(x.nilai))).join('')}
     ${bar('Total fixcost', '− ' + cfRp_(P.fix), true)}
     ${bar('Laba kotor', r(P.laba), true)}</table>
+    ${(P.berjalan && P.laba>0) ? `<div style="margin-top:8px;"><a href="#" onclick="bukaHutangLaba_(${i});return false;" style="font-size:12px;color:var(--blu);">📋 Hutang bahan baku yang tercukupi laba ini →</a></div>` : ''}
     <div style="font-size:10px;color:var(--inks);margin-top:8px;">BBM termasuk fixcost (tidak dihitung lagi sebagai variable). Fixcost dihitung penuh satu bulan.</div>`;
 }
 
