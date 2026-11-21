@@ -5027,6 +5027,17 @@ async function bukaDetailHariGrafik_(tgl){
 // ══ GRAFIK HARIAN (jumlah total per produk per hari, 15 hari ke depan, dari cache) ═══
 // ── Grafik Lauk Utama: teori (order × gramasi) vs dibeli (PermintaanBahan) per bulan ──
 let GF_LAUK_ = null;
+async function loadGrafikLauk(paksa){
+  const el = document.getElementById('gf-lauk-chart');
+  const lama = gfCacheGet_('lauk');
+  if(lama){ GF_LAUK_ = lama; renderGrafikLauk_(); }
+  else el.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat…</div>';
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=getGrafikLauk' + (paksa ? '&paksa=1' : '') + '&t=' + Date.now());
+    if(!j.success){ if(!lama) el.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>${j.message}</p></div>`; return; }
+    gfCachePut_('lauk', j); GF_LAUK_ = j; renderGrafikLauk_();
+  }catch(e){ if(!lama) el.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>Gagal memuat: ${e.message}</p></div>`; }
+}
 function laukFmt_(v, butir, sat){
   if(butir) return Math.round(v).toLocaleString('id-ID') + ' btr';
   if(sat === 'ml') return (v/1000).toLocaleString('id-ID',{maximumFractionDigits:1}) + ' L';
