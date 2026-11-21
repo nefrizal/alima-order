@@ -5171,14 +5171,53 @@ let GF_LAUK_ = null;
 async function loadGrafikLauk(paksa){
   const el = document.getElementById('gf-lauk-chart');
   const lama = gfCacheGet_('lauk');
-  if(lama){ GF_LAUK_ = lama; renderGrafikLauk_(); }
+  if(lama){ GF_LAUK_ = lama; renderGrafikLauk_(); loadOpnameLauk_(); }
   else el.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat…</div>';
   try{
     const j = await gasFetch(APP.GAS_URL + '?action=getGrafikLauk' + (paksa ? '&paksa=1' : '') + '&t=' + Date.now());
     if(!j.success){ if(!lama) el.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>${j.message}</p></div>`; return; }
-    gfCachePut_('lauk', j); GF_LAUK_ = j; renderGrafikLauk_();
+    gfCachePut_('lauk', j); GF_LAUK_ = j; renderGrafikLauk_(); loadOpnameLauk_();
   }catch(e){ if(!lama) el.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>Gagal memuat: ${e.message}</p></div>`; }
 }
+// ── Stok opname (batang ke-4) untuk grafik Top 12: diisi admin / PIC Stok, disimpan di sheet OpnameTop12 ──
+let GF_OPN_ = null;
+async function loadOpnameLauk_(){
+  try{ const j = await gasFetch(APP.GAS_URL + '?action=getOpnameTop12&t=' + Date.now()); if(j.success){ GF_OPN_ = j; renderGrafikLauk_(); } }catch(e){}
+}
+function opnameFaktor_(b){ return (b.satuan === 'g' || b.satuan === 'ml') ? 1000 : 1; } // g/ml diisi dalam kg/L
+function opnameSatuan_(b){ return b.satuan === 'g' ? 'kg' : b.satuan === 'ml' ? 'L' : (b.satuan || ''); }
+function bukaOpnameLauk_(k){
+  const j = GF_LAUK_, o = GF_OPN_; if(!j || !o || !o.boleh) return;
+  const bulan = j.bulanBerjalan, b = (j.bahan||[]).filter(x => x.k === k)[0]; if(!b) return;
+  const d = ((j.data||{})[bulan]||{})[k] || {teori:0, beli:0}, op = (o.data||{})[k], f = opnameFaktor_(b), u = opnameSatuan_(b);
+  const stok = d.beli - d.teori, fmtN = v => (Math.round(v*100)/100).toLocaleString('id-ID');
+  document.getElementById('gf-lauk-title').textContent = '📦 Stok opname — ' + b.label;
+  document.getElementById('gf-lauk-body').innerHTML = `
+    <div style="font-size:12px;margin-bottom:8px;">Stok teori (dibeli − teori): <b>${stok < 0 ? '−' : ''}${laukFmt_(Math.abs(stok), b.butir, b.satuan)}</b>${op ? `<br>Opname terakhir: <b>${laukFmt_(op.nilai, b.butir, b.satuan)}</b> · ${op.tgl.split('-').reverse().join('/')}${op.oleh ? ' · ' + op.oleh : ''}` : '<br><span style="color:var(--inks);">Belum ada opname bulan ini.</span>'}</div>
+    <label style="font-size:12px;font-weight:700;">Stok fisik saat ini (${u})</label>
+    <input id="opn-nilai" type="number" inputmode="decimal" min="0" step="any" value="${op ? fmtN(op.nilai/f).replace(/\./g,'').replace(',','.') : ''}" style="width:100%;padding:8px;margin:4px 0 10px;border:1px solid var(--bdr);border-radius:8px;font-size:14px;" placeholder="mis. 120">
+    <label style="font-size:12px;font-weight:700;">Tanggal opname</label>
+    <input id="opn-tgl" type="date" max="${o.hariIni}" value="${o.hariIni}" style="width:100%;padding:8px;margin:4px 0 12px;border:1px solid var(--bdr);border-radius:8px;font-size:14px;">
+    <div style="display:flex;gap:8px;"><button class="bsub" style="flex:1;margin:0;" onclick="simpanOpnameLauk_('${k}', false)">Simpan</button><button class="bsub" style="flex:0 0 auto;margin:0;background:#9C8672;" onclick="simpanOpnameLauk_('${k}', true)">Hapus entri tgl ini</button></div>
+    <div style="font-size:10px;color:var(--inks);margin-top:8px;">Hanya admin &amp; PIC Stok Opname yang bisa mengisi (PIC: hari ini atau kemarin). Nilai terakhir bulan ini yang ditampilkan di grafik.</div>`;
+  document.getElementById('gf-lauk-modal').classList.remove('hide');
+}
+async function simpanOpnameLauk_(k, hapus){
+  const j = GF_LAUK_, b = ((j && j.bahan)||[]).filter(x => x.k === k)[0]; if(!b) return;
+  const raw = document.getElementById('opn-nilai').value, tgl = document.getElementById('opn-tgl').value;
+  if(!hapus && String(raw).trim() === ''){ toast('Isi jumlah stok fisik.', 'err'); return; }
+  const nilai = hapus ? '' : Number(String(raw).replace(',','.')) * opnameFaktor_(b);
+  if(!hapus && (isNaN(nilai) || nilai < 0)){ toast('Jumlah harus angka ≥ 0.', 'err'); return; }
+  try{
+    const qs = new URLSearchParams({action:'simpanOpnameTop12', k, tanggal:tgl, nilai:String(nilai)}).toString();
+    const r = await gasFetch(APP.GAS_URL + '?' + qs + '&t=' + Date.now());
+    if(!r.success) throw new Error(r.message);
+    document.getElementById('gf-lauk-modal').classList.add('hide');
+    toast(hapus ? 'Entri opname dihapus.' : 'Stok opname tersimpan.', 'ok');
+    await loadOpnameLauk_();
+  }catch(e){ toast('Gagal menyimpan: ' + e.message, 'err'); }
+}
+
 function laukFmt_(v, butir, sat){
   if(butir) return Math.round(v).toLocaleString('id-ID') + ' btr';
   if(sat === 'ml') return (v/1000).toLocaleString('id-ID',{maximumFractionDigits:1}) + ' L';
@@ -5199,29 +5238,44 @@ function renderGrafikLauk_(){
   const fmtL = (v, b) => laukFmt_(v, b.butir, b.satuan);
   let rows = '';
   (j.bahan||[]).forEach(b => {
-    const x0 = d[b.k] || {teori:0, beli:0, tak_terkonversi:0};
-    const x = x0;
-    const mx = Math.max(x.teori, x.beli, 1);
+    const x = d[b.k] || {teori:0, beli:0, tak_terkonversi:0, rp:0};
+    const stok = x.beli - x.teori;
+    const harga = x.beli > 0 && x.rp > 0 ? x.rp / x.beli : 0; // harga rata-rata per satuan (Rp belanja ÷ jumlah dibeli)
+    const rpT = harga ? x.teori * harga : null, rpB = x.rp > 0 ? x.rp : null, rpS = harga ? stok * harga : null;
+    const op = GF_OPN_ && GF_OPN_.data ? GF_OPN_.data[b.k] : null, bolehOp = !!(GF_OPN_ && GF_OPN_.boleh);
+    const mx = Math.max(x.teori, x.beli, Math.abs(stok), op ? op.nilai : 0, 1);
     const sel_ = x.teori > 0 ? (x.beli - x.teori) / x.teori * 100 : null;
     const abs = sel_ == null ? null : Math.abs(sel_);
     const warna = abs == null ? '#9C8672' : abs <= 10 ? '#2E7D32' : abs <= 25 ? '#E08A00' : '#C0392B';
     const teks = sel_ == null ? (x.beli > 0 ? 'tanpa order' : '—') : (sel_ >= 0 ? '+' : '') + Math.round(sel_) + '%';
-    rows += `<div data-k="${b.k}" onclick="bukaDetailLauk_('${pilih}', this.dataset.k)" style="display:grid;grid-template-columns:92px 1fr 54px;gap:8px;align-items:center;padding:7px 4px;border-bottom:1px solid var(--bdr);cursor:pointer;">
-      <div style="font-size:12px;font-weight:700;color:var(--ink);">${b.label}${b.rp ? `<div style="font-size:9px;font-weight:400;color:var(--inks);">${cfRp_(b.rp)}</div>` : ''}${x.tak_terkonversi ? `<div style="font-size:9px;font-weight:400;color:#C0392B;">⚠ ${x.tak_terkonversi} baris tak terkonversi</div>` : ''}</div>
+    const rpTeks = v => v == null ? '' : ' (' + (v < 0 ? '−' : '') + 'Rp ' + formatRupiahSingkat_(Math.abs(v)).replace(/^Rp\s*/,'') + ')';
+    const baris = (nilai, rp, warnaBar, warnaTeks, tanda) => `<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;"><div style="flex:1;min-width:24px;"><div style="height:11px;border-radius:2px;background:${warnaBar};width:${Math.abs(nilai)/mx*100}%;min-width:${nilai!==0?2:0}px;"></div></div><span style="font-size:10px;color:${warnaTeks};white-space:nowrap;min-width:96px;text-align:left;">${nilai !== 0 ? tanda : ''}${fmtL(Math.abs(nilai), b)}${rpTeks(rp)}</span></div>`;
+    const sPos = stok >= 0;
+    // batang ke-4: stok opname (diisi admin/PIC). Belum diisi → garis putus-putus transparan sepanjang batang stok teori.
+    const klikOp = bolehOp ? `onclick="event.stopPropagation();bukaOpnameLauk_('${b.k}')"` : '';
+    const barisOpname = op
+      ? `<div ${klikOp} style="display:flex;align-items:center;gap:6px;margin-bottom:3px;${bolehOp ? 'cursor:pointer;' : ''}"><div style="flex:1;min-width:24px;"><div style="height:11px;border-radius:2px;background:#1565C0;width:${op.nilai/mx*100}%;min-width:${op.nilai>0?2:0}px;"></div></div><span style="font-size:10px;color:#0D47A1;white-space:nowrap;min-width:96px;text-align:left;">${fmtL(op.nilai, b)}${rpTeks(harga ? op.nilai*harga : null)} · ${op.tgl.slice(8)}/${op.tgl.slice(5,7)}</span></div>`
+      : `<div ${klikOp} style="display:flex;align-items:center;gap:6px;margin-bottom:3px;${bolehOp ? 'cursor:pointer;' : ''}"><div style="flex:1;min-width:24px;"><div style="height:11px;box-sizing:border-box;border:1.5px dashed #1565C0;border-radius:2px;background:transparent;opacity:.6;width:${Math.abs(stok)/mx*100}%;min-width:${stok!==0?4:0}px;"></div></div><span style="font-size:10px;color:#1565C0;opacity:.8;white-space:nowrap;min-width:96px;text-align:left;">belum diisi${bolehOp ? ' · ketuk utk isi' : ''}</span></div>`;
+    rows += `<div data-k="${b.k}" onclick="bukaDetailLauk_('${pilih}', this.dataset.k)" style="display:grid;grid-template-columns:66px 1fr 48px;gap:8px;align-items:center;padding:7px 4px;border-bottom:1px solid var(--bdr);cursor:pointer;">
+      <div style="font-size:12px;font-weight:700;color:var(--ink);">${b.label}${x.tak_terkonversi ? `<div style="font-size:9px;font-weight:400;color:#C0392B;">⚠ ${x.tak_terkonversi} baris tak terkonversi</div>` : ''}</div>
       <div>
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;"><div style="height:11px;border-radius:2px;background:#7E57C2;width:${x.teori/mx*100}%;min-width:${x.teori>0?2:0}px;"></div><span style="font-size:10px;color:#5E3FA3;white-space:nowrap;">${fmtL(x.teori, b)}</span></div>
-        <div style="display:flex;align-items:center;gap:6px;"><div style="height:11px;border-radius:2px;background:#C8521A;width:${x.beli/mx*100}%;min-width:${x.beli>0?2:0}px;"></div><span style="font-size:10px;color:#C8521A;white-space:nowrap;">${fmtL(x.beli, b)}</span></div>
+        ${baris(x.teori, rpT, '#7E57C2', '#5E3FA3', '')}
+        ${baris(x.beli, rpB, '#C8521A', '#C8521A', '')}
+        ${baris(stok, rpS, sPos ? '#00897B' : '#C0392B', sPos ? '#00695C' : '#C0392B', sPos ? '+' : '−')}
+        ${barisOpname}
       </div>
       <div style="text-align:right;font-size:12px;font-weight:700;color:${warna};">${teks}</div>
     </div>`;
   });
   el.innerHTML = `<div style="background:var(--card);border:1px solid var(--bdr);border-radius:10px;padding:8px 10px;">
-    <div style="display:flex;gap:14px;font-size:11px;color:var(--inkm);margin-bottom:4px;">
+    <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--inkm);margin-bottom:4px;">
       <span><span style="display:inline-block;width:10px;height:10px;background:#7E57C2;border-radius:2px;margin-right:4px;"></span>Teori (order)</span>
       <span><span style="display:inline-block;width:10px;height:10px;background:#C8521A;border-radius:2px;margin-right:4px;"></span>Dibeli</span>
-      <span style="margin-left:auto;">selisih = (dibeli − teori) ÷ teori</span>
+      <span><span style="display:inline-block;width:10px;height:10px;background:#00897B;border-radius:2px;margin-right:4px;"></span>Stok teori <span style="font-size:9px;">(dibeli − teori)</span></span>
+      <span><span style="display:inline-block;width:10px;height:10px;background:#1565C0;border-radius:2px;margin-right:4px;"></span>Stok opname <span style="font-size:9px;">(fisik, diisi petugas)</span></span>
+      <span style="margin-left:auto;">% = (dibeli − teori) ÷ teori</span>
     </div>${rows}
-    <div style="font-size:10px;color:var(--inks);margin-top:6px;">Satuan = potong (ptg) / butir (btr) / porsi. Teori = jumlah porsi order dari tab Orders (menu yang mengandung bahan × qty; beras = porsi nasi, cabe = porsi sambal) 1 bulan berjalan s.d. hari ini. Dibeli = belanja BPP s.d. kemarin, dikonversi dari kg ke porsi (1 kg: ayam 9 ptg · ikan 20 · daging 20 · sotong 15 · udang 15 · dendeng 20 · cabe 70 · beras 10 porsi; ayam 1 karung = 120 ptg; beras 1 karung = 25 kg). Santan &amp; minyak goreng tetap satuan biasa (teori dari tab gramasi). Diurutkan dari nilai belanja (Rp) terbesar. Hijau ≤ 10%, kuning ≤ 25%, merah &gt; 25%.</div>
+    <div style="font-size:10px;color:var(--inks);margin-top:6px;">Satuan = potong (ptg) / butir (btr) / porsi. <b>Stok opname</b> = stok fisik yang diisi admin / PIC Stok (ketuk batang biru; garis putus-putus = belum diisi, panjangnya mengikuti stok teori; yang tampil opname terakhir bulan ini). <b>Stok teori = Dibeli − Teori</b> (hijau = belanja melebihi kebutuhan order → ada sisa; merah = belanja kurang dari kebutuhan). Angka dalam kurung = nilai rupiah, dihitung dari harga rata-rata belanja bahan itu bulan ini (Rp belanja ÷ jumlah dibeli); Dibeli = total Rp belanja sebenarnya. Teori = jumlah porsi order dari tab Orders (menu yang mengandung bahan × qty; beras = porsi nasi, cabe = porsi sambal) 1 bulan berjalan s.d. hari ini. Dibeli = belanja BPP s.d. kemarin, dikonversi dari kg ke porsi (1 kg: ayam 9 ptg · ikan 20 · daging 20 · sotong 15 · udang 15 · dendeng 20 · cabe 70 · beras 10 porsi; ayam 1 karung = 120 ptg; beras 1 karung = 25 kg). Santan &amp; minyak goreng tetap satuan biasa (teori dari tab gramasi). Diurutkan dari nilai belanja (Rp) terbesar. Hijau ≤ 10%, kuning ≤ 25%, merah &gt; 25%.</div>
   </div>`;
 }
 function bukaDetailLauk_(bulan, k){
@@ -5233,7 +5287,7 @@ function bukaDetailLauk_(bulan, k){
   const tb = rc.teori.length ? rc.teori.map(m => `<tr><td style="${td}">${m.nama}</td><td style="${td}text-align:right;">${laukFmt_(m.porsi, b.butir, b.satuan)}</td></tr>`).join('') : `<tr><td colspan="2" style="${td}color:var(--inks);">Tidak ada.</td></tr>`;
   const bb = rc.beli.length ? rc.beli.map(m => `<tr><td style="${td}">${m.nama}</td><td style="${td}text-align:right;white-space:nowrap;">${Number(m.qty).toLocaleString('id-ID',{maximumFractionDigits:2})} ${m.satuan}</td></tr>`).join('') : `<tr><td colspan="2" style="${td}color:var(--inks);">Tidak ada pembelian terhitung.</td></tr>`;
   document.getElementById('gf-lauk-body').innerHTML = `
-    <div style="font-size:12px;margin-bottom:8px;">Teori <b>${laukFmt_(d.teori, b.butir, b.satuan)}</b> · Dibeli <b>${laukFmt_(d.beli, b.butir, b.satuan)}</b>${d.rp ? ' · belanja <b>' + cfRp_(d.rp) + '</b>' : ''}</div>
+    <div style="font-size:12px;margin-bottom:8px;">Teori <b>${laukFmt_(d.teori, b.butir, b.satuan)}</b> · Dibeli <b>${laukFmt_(d.beli, b.butir, b.satuan)}</b>${d.rp ? ' · belanja <b>' + cfRp_(d.rp) + '</b>' : ''} · Stok teori <b>${d.beli - d.teori < 0 ? '−' : '+'}${laukFmt_(Math.abs(d.beli - d.teori), b.butir, b.satuan)}</b>${(d.rp > 0 && d.beli > 0) ? ' (' + ((d.beli - d.teori) < 0 ? '−' : '') + cfRp_(Math.abs(d.beli - d.teori) * d.rp / d.beli) + ')' : ''}</div>
     <div style="font-size:11px;font-weight:700;color:#5E3FA3;margin:6px 0 2px;">Kebutuhan teori per tanggal (dari order)</div>
     <table style="width:100%;border-collapse:collapse;">${tb}</table>
     <div style="font-size:11px;font-weight:700;color:#C8521A;margin:10px 0 2px;">Pembelian yang terhitung</div>
