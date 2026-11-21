@@ -403,16 +403,12 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
     <button class="bico" onclick="loadGrafikSemua_()" style="flex:1;">↻ Refresh Grafik</button>
   </div>
 
-  <div class="gf-sec" data-gf="gf_harian">
-  <div class="stitle">📅 Sales Harian (15 Hari ke Depan)  <button class="gf-rf" title="Refresh grafik ini" onclick="refreshGf_(['harian'],this)">↻</button> <span style="font-weight:400;font-size:10px;color:var(--inks);">· klik tanggal = daftar order · tombol 🧺 Bahan = kebutuhan bahan</span></div>
+  <div class="gf-sec" data-gf="gf_harian gf_bulanan">
+  <div class="stitle">📊 Sales: Bulanan (kiri) &amp; Harian 15 Hari ke Depan (kanan) <button class="gf-rf" title="Refresh grafik ini" onclick="refreshGf_(['jual','harian'],this)">↻</button> <span style="font-weight:400;font-size:10px;color:var(--inks);">· klik tanggal = daftar order · tombol 🧺 Bahan = kebutuhan bahan</span></div>
+  <div id="gf-updated" style="font-size:11px;color:var(--inks);text-align:center;margin-bottom:2px;"></div>
   <div id="gf-harian-updated" style="font-size:11px;color:var(--inks);text-align:center;margin-bottom:10px;"></div>
-  <div id="gf-harian-chart"><div class="empty"><div class="eico">📅</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
-  </div>
-
-  <div class="gf-sec" data-gf="gf_bulanan">
-  <div class="stitle" style="margin-top:20px;">📊 Sales Bulanan <button class="gf-rf" title="Refresh grafik ini" onclick="refreshGf_(['jual'],this)">↻</button></div>
-  <div id="gf-updated" style="font-size:11px;color:var(--inks);text-align:center;margin-bottom:10px;"></div>
-  <div id="gf-chart"><div class="empty"><div class="eico">📊</div><p>Klik Refresh untuk memuat grafik.</p></div></div>
+  <div id="gf-harian-chart"><div class="empty"><div class="eico">📊</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
+  <div id="gf-chart" style="display:none;"></div>
   </div>
 
   <div class="gf-sec" data-gf="gf_nonbpp">
@@ -3834,7 +3830,7 @@ function gfBoleh_(k){
   return a.includes('grafik') && !a.some(x => x.indexOf('gf_') === 0);
 }
 function terapkanAksesGrafik_(){
-  document.querySelectorAll('#panel-grafik .gf-sec').forEach(el => { el.style.display = gfBoleh_(el.dataset.gf) ? '' : 'none'; });
+  document.querySelectorAll('#panel-grafik .gf-sec').forEach(el => { el.style.display = String(el.dataset.gf).split(' ').some(k => gfBoleh_(k)) ? '' : 'none'; });
   const sec = document.getElementById('cf-section');
   if(sec) sec.style.display = (gfBoleh_('gf_posisi') || gfBoleh_('gf_piutang')) ? '' : 'none';
 }
@@ -3895,8 +3891,7 @@ async function loadGrafik(paksa){
       const d = new Date(j.lastUpdated);
       updEl.textContent = 'Data per: ' + d.toLocaleString('id-ID', {dateStyle:'medium', timeStyle:'short'}) + (lama ? ' · memperbarui…' : ' · otomatis tiap hari jam 13:00, atau klik ↻');
     }
-    renderGrafikChart(j);
-    GF_JUAL_ = j; renderGrafikBppSemua_();
+    GF_JUAL_ = j; renderSalesGabung_(); renderGrafikBppSemua_();
   };
   const lama = gfCacheGet_('jual');
   if(lama) tampil(lama, true); else chartEl.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat grafik…</div>';
@@ -5104,14 +5099,14 @@ async function loadGrafikHarian(diam){
   const chartEl = document.getElementById('gf-harian-chart');
   const updEl = document.getElementById('gf-harian-updated');
   const lama = diam ? null : gfCacheGet_('harian');
-  if(lama){ renderGrafikHarianChart(lama, 'gf-harian-chart', true); updEl.textContent = '⏳ Data tersimpan · memperbarui…'; }
+  if(lama){ GF_HARI_ = lama; renderSalesGabung_(); updEl.textContent = '⏳ Data tersimpan · memperbarui…'; }
   else if(!diam) chartEl.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat grafik harian…</div>';
   try{
     const j = await gasFetch(APP.GAS_URL + '?action=getGrafikHarian&t=' + Date.now());
     if(!j.success){ if(!lama) chartEl.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>${j.message}</p></div>`; return; }
     gfCachePut_('harian', j);
     updEl.textContent = '🟢 Realtime · diperbarui ' + new Date().toLocaleTimeString('id-ID') + ' · auto-refresh tiap 30 dtk';
-    renderGrafikHarianChart(j, 'gf-harian-chart', true);
+    GF_HARI_ = j; renderSalesGabung_();
   }catch(e){
     if(diam || lama) return;
     chartEl.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>Gagal memuat: ${e.message}</p></div>`;
@@ -5131,6 +5126,85 @@ document.addEventListener('visibilitychange', function(){
   const p = document.getElementById('panel-grafik');
   if(!document.hidden && p && p.classList.contains('on') && gfBoleh_('gf_harian')) loadGrafikHarian(true);
 });
+
+// ── Sales gabungan: batang BULANAN (kiri, sumbu Y kiri) + batang HARIAN 15 hari (kanan, sumbu Y kanan) dalam satu grafik.
+// Garis grid dipakai bersama; sumbu kiri = skala bulanan (kelipatan 25 jt), sumbu kanan = skala harian,
+// diatur supaya batang tertinggi bulanan & harian sama-sama mengisi tinggi grafik.
+let GF_HARI_ = null;
+function renderSalesGabung_(){
+  const el = document.getElementById('gf-harian-chart'); if(!el) return;
+  const M = (GF_JUAL_ && gfBoleh_('gf_bulanan')) ? GF_JUAL_ : null;
+  const H = (GF_HARI_ && gfBoleh_('gf_harian')) ? GF_HARI_ : null;
+  if(!M && !H) return;
+  const bulanList = M ? (M.bulanList||[]) : [], hariList = H ? (H.hariList||[]) : [];
+  if(!bulanList.length && !hariList.length){ el.innerHTML = '<div class="empty"><div class="eico">📊</div><p>Belum ada data order.</p></div>'; return; }
+  const dM = M ? (M.data||{}) : {}, dH = H ? (H.data||{}) : {};
+  const kat = []; [M && M.kategoriList, H && H.kategoriList].forEach(l => (l||[]).forEach(k => { if(kat.indexOf(k) < 0) kat.push(k); }));
+  const warna = k => GRAFIK_COLORS[kat.indexOf(k) % GRAFIK_COLORS.length];
+  const tot = (d, x) => kat.reduce((t,k)=> t + ((d[x]&&d[x][k])||0), 0);
+  let maxM = 1; bulanList.forEach(b => { maxM = Math.max(maxM, tot(dM,b)); });
+  let maxH = 1; hariList.forEach(h => { maxH = Math.max(maxH, tot(dH,h)); });
+  const stepM = 25000000, topM = Math.max(stepM, Math.ceil(maxM/stepM)*stepM);
+  const numGrid = bulanList.length ? topM/stepM : 4;
+  const NICE = [50000,100000,200000,250000,500000,1000000,2000000,2500000,5000000,10000000,20000000,25000000,50000000];
+  const rawH = maxH/numGrid, stepH = NICE.find(n => n >= rawH) || Math.ceil(rawH/25000000)*25000000, topH = stepH*numGrid;
+  const barMaxH = 160, leftM = 54, mW = 66, mBar = 46, hW = 30, hBar = 22;
+  const xM0 = leftM + 10, gap = (bulanList.length && hariList.length) ? 30 : 0;
+  const xH0 = xM0 + bulanList.length*mW + gap, xEnd = xH0 + hariList.length*hW;
+  const rightM = hariList.length ? 48 : 0, totalW = xEnd + rightM + 10, chartH = barMaxH + 50;
+  const yv = (v, top) => barMaxH - (v/top)*barMaxH + 20;
+  let grid = '';
+  for(let g=0; g<=numGrid; g++){
+    const y = yv(g, numGrid);
+    grid += `<line x1="${leftM}" y1="${y}" x2="${xEnd + (hariList.length ? 6 : 0)}" y2="${y}" stroke="#EDE3D8" stroke-width="1"/>`;
+    if(bulanList.length) grid += `<text x="${leftM-6}" y="${y+3}" font-size="9" fill="#9C8672" text-anchor="end">${formatRupiahSingkat_(g*stepM)}</text>`;
+    if(hariList.length) grid += `<text x="${xEnd+10}" y="${y+3}" font-size="9" fill="#1565C0" text-anchor="start">${formatRupiahSingkat_(g*stepH)}</text>`;
+  }
+  if(hariList.length) grid += `<line x1="${xEnd+6}" y1="20" x2="${xEnd+6}" y2="${barMaxH+20}" stroke="#B9CFEA" stroke-width="1"/>`;
+  if(bulanList.length && hariList.length){
+    const xs = xM0 + bulanList.length*mW + gap/2;
+    grid += `<line x1="${xs}" y1="14" x2="${xs}" y2="${barMaxH+34}" stroke="#CDBFAE" stroke-width="1" stroke-dasharray="3 3"/>`;
+    grid += `<text x="${xM0 + bulanList.length*mW/2}" y="11" font-size="9" font-weight="700" fill="#9C8672" text-anchor="middle">BULANAN · sumbu kiri</text>`;
+    grid += `<text x="${xH0 + hariList.length*hW/2}" y="11" font-size="9" font-weight="700" fill="#1565C0" text-anchor="middle">HARIAN 15 hari · sumbu kanan</text>`;
+  }
+  let bars = '';
+  bulanList.forEach((b, bi) => {
+    const x = xM0 + bi*mW; let st = 0;
+    kat.forEach(k => {
+      const v = (dM[b]&&dM[b][k]) || 0; if(v <= 0) return;
+      const h = (v/topM)*barMaxH, y = barMaxH - st - h + 20;
+      bars += `<rect x="${x}" y="${y}" width="${mBar}" height="${h}" fill="${warna(k)}" rx="1"><title>${k} ${formatBulanLabel_(b)}: ${formatRupiahSingkat_(v)}</title></rect>`;
+      st += h;
+    });
+    const t = tot(dM,b);
+    if(t > 0) bars += `<text x="${x + mBar/2}" y="${barMaxH - st + 20 - 4}" font-size="10" font-weight="700" fill="#5C4A35" text-anchor="middle">${formatRupiahSingkat_(t)}</text>`;
+    bars += `<text x="${x + mBar/2}" y="${barMaxH+38}" font-size="10" fill="#5C4A35" text-anchor="middle">${formatBulanLabel_(b)}</text>`;
+  });
+  const todayStr = Utilities_formatTodayId_();
+  hariList.forEach((h, hi) => {
+    const x = xH0 + hi*hW + 4; let st = 0;
+    kat.forEach(k => {
+      const v = (dH[h]&&dH[h][k]) || 0; if(v <= 0) return;
+      const hg = (v/topH)*barMaxH, y = barMaxH - st - hg + 20;
+      bars += `<rect x="${x}" y="${y}" width="${hBar}" height="${hg}" fill="${warna(k)}" rx="1"></rect>`;
+      st += hg;
+    });
+    const t = tot(dH,h);
+    if(t > 0) bars += `<text x="${x + hBar/2}" y="${barMaxH - st + 20 - 3}" font-size="8" font-weight="700" fill="#5C4A35" text-anchor="middle" style="pointer-events:none;">${formatRupiahSingkat_(t)}</text>`;
+    bars += `<rect x="${x-3}" y="12" width="${hBar+6}" height="${barMaxH+34}" fill="transparent" style="cursor:pointer;" onclick="klikHariGrafik_('${h}')"></rect>`;
+    const [, mm, dd] = h.split('-'), isToday = h === todayStr;
+    bars += `<text x="${x + hBar/2}" y="${barMaxH+38}" font-size="9" fill="${isToday?'#C8521A':'#5C4A35'}" font-weight="${isToday?'700':'400'}" text-anchor="middle">${dd}/${mm}</text>`;
+  });
+  const legend = kat.map(k => `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--inkm);margin:3px 10px 3px 0;"><span style="width:10px;height:10px;border-radius:2px;background:${warna(k)};display:inline-block;flex-shrink:0;"></span>${k}</div>`).join('');
+  const lama = el.firstElementChild, sl = lama && lama.scrollLeft ? lama.scrollLeft : 0;
+  el.innerHTML = `
+    <div style="overflow-x:auto;background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:12px;box-shadow:var(--sh);">
+      <svg width="${totalW}" height="${chartH}" viewBox="0 0 ${totalW} ${chartH}">${grid}${bars}</svg>
+    </div>
+    <div style="font-size:10px;color:var(--inks);margin-top:6px;">Batang kiri = penjualan per bulan (sumbu Y kiri, kelipatan 25 jt). Batang kanan = penjualan 15 hari ke depan (sumbu Y kanan, skalanya sendiri) — garis grid dipakai bersama sehingga tinggi batang bulanan dan harian sebanding.</div>
+    <div style="display:flex;flex-wrap:wrap;margin-top:8px;padding:0 4px;">${legend}</div>`;
+  const nu = el.firstElementChild; if(nu && sl) nu.scrollLeft = sl;
+}
 
 function renderGrafikHarianChart(j, elId, bisaKlik){
   const chartEl = document.getElementById(elId || 'gf-harian-chart');
