@@ -446,7 +446,6 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   <div class="gf-sec" data-gf="gf_lauk">
   <div class="stitle" style="margin-top:20px;">🍗 Top 12 Bahan Baku: Teori (Order) vs Dibeli <button class="gf-rf" title="Refresh grafik ini" onclick="refreshGf_(['lauk'],this)">↻</button> <span style="font-weight:400;font-size:10px;color:var(--inks);">· klik baris = rincian</span></div>
   <div style="display:flex;align-items:center;gap:8px;margin:4px 0 8px;flex-wrap:wrap;">
-    <span id="gf-lauk-mode" style="display:inline-flex;border:1px solid var(--bdr);border-radius:8px;overflow:hidden;font-size:11px;"><button type="button" data-m="total" onclick="setLaukMode_('total')" style="border:0;padding:4px 10px;cursor:pointer;">Total</button><button type="button" data-m="porsi" onclick="setLaukMode_('porsi')" style="border:0;padding:4px 10px;cursor:pointer;">Porsi</button></span>
     <select id="gf-lauk-bulan" style="display:none;"></select><b id="gf-lauk-bln-label" style="font-size:12px;"></b>
     <span id="gf-lauk-updated" style="font-size:10px;color:var(--inks);"></span>
   </div>
@@ -5028,34 +5027,10 @@ async function bukaDetailHariGrafik_(tgl){
 // ══ GRAFIK HARIAN (jumlah total per produk per hari, 15 hari ke depan, dari cache) ═══
 // ── Grafik Lauk Utama: teori (order × gramasi) vs dibeli (PermintaanBahan) per bulan ──
 let GF_LAUK_ = null;
-let GF_LAUK_MODE_ = 'total';
-function setLaukMode_(m){ GF_LAUK_MODE_ = m; renderGrafikLauk_(); }
-// Versi PORSI (jumlah potong / butir / porsi): 1 kg = N potong. Bahan tanpa konversi ( santan, minyak goreng) tetap satuan biasa.
-const LAUK_PORSI_ = { ayam:{n:9,u:'ptg'}, ikan:{n:20,u:'ptg'}, daging:{n:20,u:'ptg'}, sotong:{n:15,u:'porsi'}, udang:{n:15,u:'porsi'}, cabe:{n:70,u:'porsi'}, beras:{n:10,u:'porsi'}, dendeng:{n:20,u:'porsi'}, telur:{n:1,u:'btr',langsung:true} };
-function laukKePorsi_(v, b){ // → {v, u} atau null bila bahan tanpa konversi
-  const c = LAUK_PORSI_[b.k]; if(!c) return null;
-  if(c.langsung) return (b.satuan === 'g' || b.satuan === 'ml') ? null : {v:v, u:c.u}; // telur: 1 butir = 1 porsi
-  if(b.satuan !== 'g') return null;
-  return {v: v/1000*c.n, u:c.u};
-}
-function laukFmtPorsi_(v, b){
-  const p = laukKePorsi_(v, b); if(!p) return laukFmt_(v, b.butir, b.satuan);
-  return Math.round(p.v).toLocaleString('id-ID') + ' ' + p.u;
-}
-async function loadGrafikLauk(paksa){
-  const el = document.getElementById('gf-lauk-chart');
-  const lama = gfCacheGet_('lauk');
-  if(lama){ GF_LAUK_ = lama; renderGrafikLauk_(); }
-  else el.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat…</div>';
-  try{
-    const j = await gasFetch(APP.GAS_URL + '?action=getGrafikLauk' + (paksa ? '&paksa=1' : '') + '&t=' + Date.now());
-    if(!j.success){ if(!lama) el.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>${j.message}</p></div>`; return; }
-    gfCachePut_('lauk', j); GF_LAUK_ = j; renderGrafikLauk_();
-  }catch(e){ if(!lama) el.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>Gagal memuat: ${e.message}</p></div>`; }
-}
 function laukFmt_(v, butir, sat){
   if(butir) return Math.round(v).toLocaleString('id-ID') + ' btr';
   if(sat === 'ml') return (v/1000).toLocaleString('id-ID',{maximumFractionDigits:1}) + ' L';
+  if(sat === 'ptg' || sat === 'porsi' || sat === 'btr') return Math.round(v).toLocaleString('id-ID') + ' ' + sat;
   if(sat && sat !== 'g') return v.toLocaleString('id-ID',{maximumFractionDigits:1}) + ' ' + sat;
   return (v/1000).toLocaleString('id-ID',{maximumFractionDigits:1}) + ' kg';
 }
@@ -5069,9 +5044,7 @@ function renderGrafikLauk_(){
   sel.innerHTML = bl.map(b => `<option value="${b}"${b===pilih?' selected':''}>${formatBulanLabel_(b)}${b===j.bulanBerjalan?' (s.d. kemarin/hari ini)':''}</option>`).join('');
   document.getElementById('gf-lauk-updated').textContent = (j.snapshotWaktu||j.lastUpdated) ? 'diperbarui sekali sehari jam 13:00 · data per ' + new Date(j.snapshotWaktu||j.lastUpdated).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'}) : '';
   const d = (j.data||{})[pilih] || {};
-  const modePorsi = GF_LAUK_MODE_ === 'porsi';
-  document.querySelectorAll('#gf-lauk-mode button').forEach(bt => { const on = (bt.dataset.m === 'porsi') === modePorsi; bt.style.background = on ? '#7E57C2' : 'var(--card)'; bt.style.color = on ? '#fff' : 'var(--ink)'; });
-  const fmtL = (v, b) => modePorsi ? laukFmtPorsi_(v, b) : laukFmt_(v, b.butir, b.satuan);
+  const fmtL = (v, b) => laukFmt_(v, b.butir, b.satuan);
   let rows = '';
   (j.bahan||[]).forEach(b => {
     const x0 = d[b.k] || {teori:0, beli:0, tak_terkonversi:0};
@@ -5092,11 +5065,11 @@ function renderGrafikLauk_(){
   });
   el.innerHTML = `<div style="background:var(--card);border:1px solid var(--bdr);border-radius:10px;padding:8px 10px;">
     <div style="display:flex;gap:14px;font-size:11px;color:var(--inkm);margin-bottom:4px;">
-      <span><span style="display:inline-block;width:10px;height:10px;background:#7E57C2;border-radius:2px;margin-right:4px;"></span>Teori (order × gramasi)</span>
+      <span><span style="display:inline-block;width:10px;height:10px;background:#7E57C2;border-radius:2px;margin-right:4px;"></span>Teori (order)</span>
       <span><span style="display:inline-block;width:10px;height:10px;background:#C8521A;border-radius:2px;margin-right:4px;"></span>Dibeli</span>
-      <span style="margin-left:auto;">selisih = (dibeli − teori) ÷ teori${modePorsi ? ' · dalam potong/butir/porsi' : ''}</span>
+      <span style="margin-left:auto;">selisih = (dibeli − teori) ÷ teori</span>
     </div>${rows}
-    <div style="font-size:10px;color:var(--inks);margin-top:6px;">Bahan: beras, ayam, daging (sapi), telur, ikan, dendeng, cabe, santan, minyak goreng, udang, sotong (varian nama digabung), diurutkan dari nilai belanja (Rp) terbesar bulan ini. Teori = kebutuhan bahan dari order (tab gramasi × porsi) s.d. hari ini; Dibeli = belanja BPP s.d. kemarin. Hijau ≤ 10%, kuning ≤ 25%, merah &gt; 25%. Tombol <b>Porsi</b> = dalam potong/butir/porsi (1 kg: ayam 9 ptg · ikan 20 · daging 20 · sotong 15 · udang 15 · cabe 70 · beras 10 · dendeng 20 (sotong, udang, cabe, beras, dendeng: satuan &quot;porsi&quot;); telur 1 butir = 1 porsi. Santan dan minyak goreng tetap satuan biasa.</div>
+    <div style="font-size:10px;color:var(--inks);margin-top:6px;">Satuan = potong (ptg) / butir (btr) / porsi. Teori = jumlah porsi order dari tab Orders (menu yang mengandung bahan × qty; beras = porsi nasi, cabe = porsi sambal) 1 bulan berjalan s.d. hari ini. Dibeli = belanja BPP s.d. kemarin, dikonversi dari kg ke porsi (1 kg: ayam 9 ptg · ikan 20 · daging 20 · sotong 15 · udang 15 · dendeng 20 · cabe 70 · beras 10 porsi; ayam 1 karung = 120 ptg; beras 1 karung = 25 kg). Santan &amp; minyak goreng tetap satuan biasa (teori dari tab gramasi). Diurutkan dari nilai belanja (Rp) terbesar. Hijau ≤ 10%, kuning ≤ 25%, merah &gt; 25%.</div>
   </div>`;
 }
 function bukaDetailLauk_(bulan, k){
