@@ -417,26 +417,17 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   <div id="gf-nonbpp-chart"><div class="empty"><div class="eico">📊</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
   </div>
 
-  <div class="gf-sec" data-gf="gf_sisa">
-  <div class="stitle" style="margin-top:20px;">💹 Sisa: Penjualan − BPP − Non-BPP (per Bulan) <button class="gf-rf" title="Refresh grafik ini" onclick="refreshGf_(['jual','beli'],this)">↻</button></div>
-  <div id="gf-sisa-chart"><div class="empty"><div class="eico">💹</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
-  </div>
-
   <div class="gf-sec" data-gf="gf_laba">
   <div class="stitle" style="margin-top:20px;">💰 Laba Kotor: Omset − Fixcost − Variable Cost (per Bulan) <button class="gf-rf" title="Refresh grafik ini" onclick="refreshGf_(['jual','beli'],this)">↻</button></div>
   <div id="gf-laba-chart"><div class="empty"><div class="eico">💰</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
   </div>
 
-  <div class="gf-sec" data-gf="gf_peng">
-  <div class="stitle" style="margin-top:20px;">💸 Pengeluaran Bahan Baku (per Bulan) <button class="gf-rf" title="Refresh grafik ini" onclick="refreshGf_(['jual','beli'],this)">↻</button></div>
-  <div id="gf-peng-updated" style="font-size:11px;color:var(--inks);text-align:center;margin-bottom:10px;"></div>
-  <div id="gf-peng-chart"><div class="empty"><div class="eico">💸</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
-  </div>
-
-  <div class="gf-sec" data-gf="gf_peng_harian">
-  <div class="stitle" style="margin-top:20px;">💸 Pengeluaran Bahan Baku (Harian, Bulan Berjalan) <button class="gf-rf" title="Refresh grafik ini" onclick="refreshGf_(['beli'],this)">↻</button></div>
+  <div class="gf-sec" data-gf="gf_peng gf_peng_harian">
+  <div class="stitle" style="margin-top:20px;">💸 Pengeluaran Bahan Baku: Bulanan (kiri) &amp; Harian 15 Hari Terakhir (kanan) <button class="gf-rf" title="Refresh grafik ini" onclick="refreshGf_(['jual','beli'],this)">↻</button></div>
+  <div id="gf-peng-updated" style="font-size:11px;color:var(--inks);text-align:center;margin-bottom:2px;"></div>
   <div id="gf-harian-snap-note" style="font-size:10px;color:var(--inks);text-align:center;margin-bottom:6px;"></div>
-  <div id="gf-peng-harian-chart"><div class="empty"><div class="eico">💸</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
+  <div id="gf-peng-chart"><div class="empty"><div class="eico">💸</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
+  <div id="gf-peng-harian-chart" style="display:none;"></div>
   </div>
 
   <div class="gf-sec" data-gf="gf_lauk">
@@ -4288,7 +4279,7 @@ async function bukaRincianBahan_(i, bln){
 // Kategori NON-BPP (di luar COGS bahan baku). Sisanya = BPP/COGS.
 const NON_BPP_ = ['Bahan Bakar','Gaji','Sales Cost','Expenses','Pajak','Peralatan'];
 let GF_BPP_MODE_ = 'bpp';
-function renderGrafikBppSemua_(){ renderGrafikBpp_(false,'non'); renderGrafikSisa_(); renderGrafikLaba_(); renderPengBulanan_(); }
+function renderGrafikBppSemua_(){ renderGrafikBpp_(false,'non'); renderGrafikLaba_(); renderPengBulanan_(); }
 // Batang bulanan = hanya BPP (Sudah Dicetak/Baca Nota, bukan kategori non-BPP) + garis rasio BPP ÷ penjualan (sumbu kanan).
 // Rasio bulan berjalan = bahan baku yg sudah dieksekusi ÷ penjualan yg sudah dieksekusi (bulan lalu: penuh). Klik segmen = batang perbandingan 3 bulan per bahan.
 function renderPengBulanan_(){
@@ -4309,8 +4300,125 @@ function renderPengBulanan_(){
       if(jual > 0) pct[b] = isi / jual * 100;
     });
   }
-  renderGrafikChart({bulanList, kategoriList, data:dB}, 'gf-peng-chart', 'Belum ada pengeluaran BPP tercatat sejak Juli 2026.', {pct, klik:true, catatan:'👆 Klik salah satu warna = batang perbandingan bahan bulan itu vs 2 bulan sebelumnya (lacak abnormalitas pemakaian). Garis rasio: bulan berjalan = semua belanja BPP tercatat s.d. hari ini (tunai &amp; hutang) ÷ omset terlaksana s.d. hari ini (metode sama dengan grafik Laba Kotor).'});
+  renderPengGabung_({bulanList, kategoriList, data:dB}, pct);
 }
+// ── Pengeluaran bahan baku gabungan: BULANAN (kiri, sumbu Rp kiri) + HARIAN 15 hari terakhir (kanan, sumbu Rp kanan, skala sendiri).
+// Garis % (rasio BPP bulanan & akumulasi belanja harian ÷ omset) memakai satu sumbu % di celah antara dua bagian.
+let PENG_SCROLL_SUDAH_ = false;
+function renderPengGabung_(M, pct){
+  const el = document.getElementById('gf-peng-chart'), j = GF_BELI_; if(!el || !j) return;
+  const adaM = gfBoleh_('gf_peng') && (M.bulanList||[]).length, adaH = gfBoleh_('gf_peng_harian') && (j.hariList||[]).length;
+  if(!adaM && !adaH){ el.innerHTML = '<div class="empty"><div class="eico">💸</div><p>Belum ada pengeluaran BPP tercatat sejak Juli 2026.</p></div>'; return; }
+  const bulanList = adaM ? M.bulanList : [], dM = adaM ? M.data : {};
+  const katH = (j.kategoriHarianList||[]).filter(k => !NON_BPP_.includes(k)), dHall = j.dataHarian || {};
+  const hariAll = adaH ? j.hariList : [], hari = hariAll.slice(-15), rencana = j.rencanaHarian || null, omsetB = j.omsetBelanja || null;
+  const hariIni = (j.harianSnapshot && j.harianSnapshot.hariIni) || j.hariIniStr;
+  const adaRencana = !!rencana && hari.some(h => (rencana[h]||0) > 0);
+  const kat = []; [adaM ? M.kategoriList : [], adaH ? katH : []].forEach(l => l.forEach(k => { if(kat.indexOf(k) < 0) kat.push(k); }));
+  const warna = k => GRAFIK_COLORS[kat.indexOf(k) % GRAFIK_COLORS.length];
+  const totD = h => kat.reduce((t,k)=> t + ((dHall[h]&&dHall[h][k])||0), 0);
+  const totM = b => kat.reduce((t,k)=> t + ((dM[b]&&dM[b][k])||0), 0);
+  let maxM = 1; bulanList.forEach(b => { maxM = Math.max(maxM, totM(b)); });
+  let maxH = 1; hari.forEach(h => { maxH = Math.max(maxH, totD(h), adaRencana ? (rencana[h]||0) : 0); });
+  const stepM = 25000000, topM = Math.max(stepM, Math.ceil(maxM/stepM)*stepM), numGrid = bulanList.length ? topM/stepM : 4;
+  const NICE = [50000,100000,200000,250000,500000,1000000,2000000,2500000,5000000,10000000,20000000,25000000,50000000];
+  const rawH = maxH/numGrid, stepH = NICE.find(n => n >= rawH) || Math.ceil(rawH/25000000)*25000000, topH = stepH*numGrid;
+  // akumulasi harian (dari awal rentang data harian = awal bulan), lalu ambil 15 hari terakhir
+  let sp = 0, sa = 0, so = 0; const cumP = {}, cumA = {}, cumO = {};
+  const nOm = hariIni ? hariAll.filter(h => h < hariIni).length : hariAll.length;
+  hariAll.forEach((h,i) => { sp += (rencana && rencana[h]) || 0; sa += totD(h); if(i < nOm) so += (omsetB && omsetB[h]) || 0; cumP[h] = sp; cumA[h] = sa; cumO[h] = so; });
+  const pctH = (cum, h) => cumO[h] > 0 ? cum[h]/cumO[h]*100 : null;
+  const idxOm = h => hariAll.indexOf(h) < nOm;
+  const garisH = adaRencana && !!omsetB && so > 0 && nOm > 0;
+  const allP = []; bulanList.forEach(b => { if(pct && pct[b] > 0) allP.push(pct[b]); });
+  if(garisH) hari.forEach(h => { if(idxOm(h)){ const a = pctH(cumA,h), pp = pctH(cumP,h); if(a != null) allP.push(a); if(pp != null) allP.push(pp); } });
+  const maxP = Math.max(5, ...allP), NICE_P = [2,5,10,20,25,50,100], stepP = NICE_P.find(n => n*numGrid >= maxP) || 200, topP = stepP*numGrid;
+  const barMaxH = 160, leftM = 54, mW = 66, mBar = 46, hBar = adaRencana ? 17 : 22, hW = adaRencana ? 44 : 32, lebarG = adaRencana ? hBar*2+2 : hBar;
+  const xM0 = leftM + 10, blokM = bulanList.length*mW, gap = (bulanList.length && hari.length) ? 50 : 0;
+  const xH0 = xM0 + blokM + gap, xEnd = xH0 + hari.length*hW, rightM = hari.length ? 48 : 0, totalW = xEnd + rightM + 10, chartH = barMaxH + 50;
+  const yv = (v, top) => 20 + barMaxH - (v/top)*barMaxH;
+  let grid = adaRencana ? '<defs><pattern id="pola-rencana2" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="#EDE7F6"/><line x1="0" y1="0" x2="0" y2="5" stroke="#7E57C2" stroke-width="2.5"/></pattern></defs>' : '';
+  const xAxP = xM0 + blokM + gap/2;
+  for(let g=0; g<=numGrid; g++){
+    const y = yv(g, numGrid);
+    grid += `<line x1="${leftM}" y1="${y}" x2="${xEnd + (hari.length ? 6 : 0)}" y2="${y}" stroke="#EDE3D8"/>`;
+    if(bulanList.length) grid += `<text x="${leftM-6}" y="${y+3}" font-size="9" fill="#9C8672" text-anchor="end">${formatRupiahSingkat_(g*stepM)}</text>`;
+    if(hari.length) grid += `<text x="${xEnd+10}" y="${y+3}" font-size="9" fill="#1565C0" text-anchor="start">${formatRupiahSingkat_(g*stepH)}</text>`;
+    if(allP.length) grid += `<text x="${bulanList.length && hari.length ? xAxP : xEnd + (hari.length ? 0 : 0)}" y="${y+3}" font-size="9" fill="#C8521A" text-anchor="${bulanList.length && hari.length ? 'middle' : 'start'}">${g*stepP}%</text>`;
+  }
+  if(hari.length) grid += `<line x1="${xEnd+6}" y1="20" x2="${xEnd+6}" y2="${barMaxH+20}" stroke="#B9CFEA"/>`;
+  if(bulanList.length && hari.length){
+    grid += `<text x="${xM0 + blokM/2}" y="11" font-size="9" font-weight="700" fill="#9C8672" text-anchor="middle">BULANAN · sumbu kiri</text><text x="${xAxP}" y="11" font-size="9" font-weight="700" fill="#C8521A" text-anchor="middle">%</text><text x="${xH0 + hari.length*hW/2}" y="11" font-size="9" font-weight="700" fill="#1565C0" text-anchor="middle">HARIAN 15 hari · sumbu kanan</text>`;
+  }
+  let bars = '', garis = '';
+  bulanList.forEach((b, bi) => {
+    const x = xM0 + bi*mW; let st = 0;
+    kat.forEach(k => {
+      const v = (dM[b]&&dM[b][k]) || 0; if(v <= 0) return;
+      const h = (v/topM)*barMaxH, y = barMaxH - st - h + 20;
+      bars += `<rect x="${x}" y="${y}" width="${mBar}" height="${h}" fill="${warna(k)}" rx="1" style="cursor:pointer;" onclick="bukaPieBahan_('${b}','${k.replace(/'/g,"\\'")}',${kat.indexOf(k)})"><title>${k} ${formatBulanLabel_(b)}: ${formatRupiahSingkat_(v)} — klik utk perbandingan bahan</title></rect>`;
+      st += h;
+    });
+    const t = totM(b);
+    if(t > 0) bars += `<text x="${x+mBar/2}" y="${barMaxH - st + 20 - 4}" font-size="10" font-weight="700" fill="#5C4A35" text-anchor="middle">${formatRupiahSingkat_(t)}</text>`;
+    bars += `<text x="${x+mBar/2}" y="${barMaxH+38}" font-size="10" fill="#5C4A35" text-anchor="middle">${formatBulanLabel_(b)}</text>`;
+  });
+  if(pct){
+    const pts = bulanList.map((b,bi) => pct[b] > 0 ? [xM0 + bi*mW + mBar/2, yv(pct[b], topP), pct[b], b] : null).filter(Boolean);
+    if(pts.length){
+      garis += `<polyline points="${pts.map(q => q[0].toFixed(1)+','+q[1].toFixed(1)).join(' ')}" fill="none" stroke="#C8521A" stroke-width="2.4" style="pointer-events:none;"/>`;
+      pts.forEach(q => { garis += `<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="3.2" fill="#fff" stroke="#C8521A" stroke-width="2"><title>Rasio BPP ${formatBulanLabel_(q[3])}: ${q[2].toFixed(1)}%</title></circle><text x="${q[0].toFixed(1)}" y="${(q[1]-7).toFixed(1)}" font-size="9" font-weight="700" fill="#C8521A" text-anchor="middle">${q[2].toFixed(1)}%</text>`; });
+    }
+  }
+  const fp = v => v.toLocaleString('id-ID',{maximumFractionDigits:1}) + '%';
+  hari.forEach((h, hi) => {
+    const x = xH0 + hi*hW + 4; let st = 0;
+    kat.forEach(k => {
+      const v = (dHall[h]&&dHall[h][k]) || 0; if(v <= 0) return;
+      const hg = (v/topH)*barMaxH, y = barMaxH - st - hg + 20;
+      bars += `<rect x="${x}" y="${y}" width="${hBar}" height="${hg}" fill="${warna(k)}" rx="1"><title>${k} ${h}: ${cfRp_(v)}</title></rect>`;
+      st += hg;
+    });
+    const t = totD(h);
+    if(t > 0) bars += `<text x="${x+hBar/2}" y="${barMaxH - st + 20 - 3}" font-size="8" font-weight="700" fill="#5C4A35" text-anchor="middle" style="pointer-events:none;">${formatRupiahSingkat_(t)}</text>`;
+    if(adaRencana && (rencana[h]||0) > 0){
+      const rh = (rencana[h]/topH)*barMaxH, rx = x + hBar + 2;
+      bars += `<rect x="${rx}" y="${barMaxH - rh + 20}" width="${hBar}" height="${rh}" fill="url(#pola-rencana2)" stroke="#7E57C2" stroke-width="1" rx="1" style="cursor:pointer;" onclick="bukaRencanaBelanja_('${h}')"><title>Rencana ${h}: ${cfRp_(rencana[h])} — klik utk rincian</title></rect>`;
+      bars += `<text x="${rx+hBar/2}" y="${barMaxH - rh + 20 - 3}" font-size="8" font-weight="700" fill="#5E3FA3" text-anchor="middle" style="pointer-events:none;">${formatRupiahSingkat_(rencana[h])}</text>`;
+    }
+    const [, mm, dd] = h.split('-'), isT = h === hariIni;
+    bars += `<text x="${x+lebarG/2}" y="${barMaxH+38}" font-size="9" fill="${isT?'#C8521A':'#5C4A35'}" font-weight="${isT?'700':'400'}" text-anchor="middle">${dd}/${mm}</text>`;
+  });
+  if(garisH){
+    const tampil = hari.filter(h => idxOm(h)), px = h => xH0 + hari.indexOf(h)*hW + 4 + lebarG/2;
+    const pA = tampil.map(h => [px(h), yv(Math.min(pctH(cumA,h)||0, topP), topP), pctH(cumA,h), h]), pP = tampil.map(h => [px(h), yv(Math.min(pctH(cumP,h)||0, topP), topP), pctH(cumP,h), h]);
+    if(pA.length){
+      garis += `<polyline points="${pP.map(q => q[0].toFixed(1)+','+q[1].toFixed(1)).join(' ')}" fill="none" stroke="#7E57C2" stroke-width="2" stroke-dasharray="5 3" style="pointer-events:none;"/>`;
+      garis += `<polyline points="${pA.map(q => q[0].toFixed(1)+','+q[1].toFixed(1)).join(' ')}" fill="none" stroke="#C8521A" stroke-width="2.2" style="pointer-events:none;"/>`;
+      pA.forEach((q,i) => { garis += `<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="2.6" fill="#C8521A"><title>Akumulasi aktual s.d. ${q[3]}: ${fp(q[2])} (belanja ${cfRp_(cumA[q[3]])} ÷ omset ${cfRp_(cumO[q[3]])})</title></circle><circle cx="${pP[i][0].toFixed(1)}" cy="${pP[i][1].toFixed(1)}" r="2.6" fill="#fff" stroke="#7E57C2" stroke-width="1.5"><title>Akumulasi rencana s.d. ${q[3]}: ${fp(pP[i][2])} (belanja ${cfRp_(cumP[q[3]])} ÷ omset ${cfRp_(cumO[q[3]])})</title></circle>`; });
+      const l = pA.length-1;
+      garis += `<text x="${pP[l][0]-4}" y="${pP[l][1]-6}" font-size="8" font-weight="700" fill="#5E3FA3" text-anchor="end" style="pointer-events:none;">${fp(pP[l][2])}</text><text x="${pA[l][0]-4}" y="${pA[l][1]+12}" font-size="8" font-weight="700" fill="#C8521A" text-anchor="end" style="pointer-events:none;">${fp(pA[l][2])}</text>`;
+    }
+  }
+  const lg = (t, c) => `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--inkm);margin:3px 10px 3px 0;"><span style="width:10px;height:10px;border-radius:2px;background:${c};display:inline-block;flex-shrink:0;"></span>${t}</div>`;
+  const legend = kat.map(k => lg(k, warna(k))).join('')
+    + (pct ? `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--inkm);margin:3px 10px 3px 0;"><svg width="22" height="8"><line x1="0" y1="4" x2="22" y2="4" stroke="#C8521A" stroke-width="2.4"/></svg>Rasio BPP bulanan (%)</div>` : '')
+    + (adaRencana ? `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#5E3FA3;margin:3px 10px 3px 0;"><span style="width:10px;height:10px;border-radius:2px;background:#EDE7F6;border:1.5px solid #7E57C2;display:inline-block;"></span>Rencana belanja (kebutuhan order H+1)</div>` : '')
+    + (garisH ? `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--inkm);margin:3px 10px 3px 0;"><svg width="22" height="8"><line x1="0" y1="4" x2="22" y2="4" stroke="#7E57C2" stroke-width="2" stroke-dasharray="5 3"/></svg>Akumulasi rencana ÷ omset</div><div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--inkm);margin:3px 10px 3px 0;"><svg width="22" height="8"><line x1="0" y1="4" x2="22" y2="4" stroke="#C8521A" stroke-width="2.2"/></svg>Akumulasi aktual ÷ omset</div>` : '');
+  const lama = el.firstElementChild, sl = lama && lama.scrollLeft ? lama.scrollLeft : 0, perlu = !PENG_SCROLL_SUDAH_;
+  el.innerHTML = `
+    <div style="overflow-x:auto;background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:12px;box-shadow:var(--sh);">
+      <svg width="${totalW}" height="${chartH}" viewBox="0 0 ${totalW} ${chartH}">${grid}${bars}${garis}</svg>
+    </div>
+    <div style="font-size:10px;color:var(--inks);margin-top:6px;">Kiri = pengeluaran BPP per bulan (sumbu Rp kiri; klik warna = perbandingan bahan vs 2 bulan sebelumnya). Kanan = 15 hari terakhir (sumbu Rp kanan, skalanya sendiri; garis grid dipakai bersama). Garis % memakai sumbu % di tengah: rasio BPP bulanan (bulan berjalan = semua belanja BPP tercatat s.d. hari ini ÷ omset terlaksana s.d. hari ini) dan akumulasi belanja harian ÷ omset. Batang berpola = rencana belanja${(j.rencanaTanpaHarga||[]).length ? ' (ada bahan tanpa harga — dihitung Rp 0)' : ''}.</div>
+    <div style="display:flex;flex-wrap:wrap;margin-top:8px;padding:0 4px;">${legend}</div>`;
+  const nu = el.firstElementChild;
+  if(nu){
+    if(perlu && hari.length){ PENG_SCROLL_SUDAH_ = true; const geser = () => { nu.scrollLeft = nu.scrollWidth; }; geser(); requestAnimationFrame(geser); setTimeout(geser, 300); }
+    else if(sl) nu.scrollLeft = sl;
+  }
+}
+
 function renderGrafikBpp_(besar, modus){
   modus = modus || 'bpp'; const isNon = modus === 'non';
   if(!GF_JUAL_ || !GF_BELI_) return;
@@ -4669,21 +4777,60 @@ function renderHutangTagihan_(){
   const belumEks = j.orders.filter(o => !o.selesai && o.tgl.slice(0,7) === bIni);
   const tBelum = sum(belumEks, o=>o.total), tLaba = tBelum * LABA_KOTOR_PCT_;
   CF_HT_.belumEks = belumEks;
-  const mx = Math.max(tH, tT + tLaba, 1), barMaxH = 150, bw = 90, W = 280, y0 = 20 + barMaxH;
-  const hD = tDP/mx*barMaxH, hG = gaji/mx*barMaxH, hN = tNota/mx*barMaxH, hT = tT/mx*barMaxH, hL = tLaba/mx*barMaxH, x1 = 40, x2 = 160;
-  const jt = v => (v/1e6).toLocaleString('id-ID',{maximumFractionDigits:1}) + ' jt';
-  let svg = `<line x1="10" y1="${y0}" x2="${W-10}" y2="${y0}" stroke="#EDE3D8"/>`;
-  if(tDP>0) svg += `<rect x="${x1}" y="${y0-hD}" width="${bw}" height="${hD}" fill="#1D6FA5" style="cursor:pointer;" onclick="bukaHutangTagihan_('hutang','')"><title>DP: ${cfRp_(tDP)}</title></rect>`;
-  if(gaji>0) svg += `<rect x="${x1}" y="${y0-hD-hG}" width="${bw}" height="${hG}" fill="#7FB5DB" style="cursor:pointer;" onclick="bukaGajiTerutang_()"><title>Gaji terutang: ${cfRp_(gaji)}</title></rect>`;
-  if(tNota>0) svg += `<rect x="${x1}" y="${y0-hD-hG-hN}" width="${bw}" height="${hN}" fill="#E08A00" style="cursor:pointer;" onclick="bukaNotaHutang_()"><title>Hutang supplier: ${cfRp_(tNota)}</title></rect>`;
-  if(tH>0) svg += `<text x="${x1+bw/2}" y="${y0-hD-hG-hN-5}" font-size="11" font-weight="700" text-anchor="middle" fill="#1D6FA5">${jt(tH)}</text>`;
-  if(tT>0) svg += `<rect x="${x2}" y="${y0-hT}" width="${bw}" height="${hT}" fill="#C0392B" style="cursor:pointer;" onclick="bukaHutangTagihan_('tagihan','')"><title>Piutang: ${cfRp_(tT)}</title></rect>`;
-  if(tLaba>0) svg += `<rect x="${x2}" y="${y0-hT-hL}" width="${bw}" height="${hL}" fill="#2E7D32" style="cursor:pointer;" onclick="bukaLabaPerkiraan_()"><title>Perkiraan laba kotor: ${cfRp_(tLaba)}</title></rect>`;
-  if(tT+tLaba>0) svg += `<text x="${x2+bw/2}" y="${y0-hT-hL-5}" font-size="11" font-weight="700" text-anchor="middle" fill="#C0392B">${jt(tT)}${tLaba>0?' + '+jt(tLaba):''}</text>`;
-  svg += `<text x="${x1+bw/2}" y="${y0+16}" font-size="11" text-anchor="middle" fill="#3A2A1C">Hutang</text><text x="${x2+bw/2}" y="${y0+16}" font-size="11" text-anchor="middle" fill="#3A2A1C">Piutang + perkiraan laba</text>`;
-  el.innerHTML = ringkas + `<div style="font-size:11px;margin-bottom:4px;"><span style="color:#1D6FA5;">■</span> DP &nbsp;<span style="color:#7FB5DB;">■</span> gaji terutang &nbsp;<span style="color:#E08A00;">■</span> supplier (bahan baku, gas, kotak, dll) &nbsp;<span style="color:#C0392B;">■</span> piutang &nbsp;<span style="color:#2E7D32;">■</span> perkiraan laba kotor</div>
-    <div style="overflow-x:auto;text-align:center;"><svg width="${W}" height="${y0+26}" viewBox="0 0 ${W} ${y0+26}">${svg}</svg></div>
-    <div style="font-size:10px;color:var(--inks);margin-top:4px;">Hutang = DP / bayar di muka untuk acara yang belum dieksekusi + nota supplier berstatus Hutang (sheet NotaFoto) + gaji karyawan terutang bulan berjalan (20% omset berjalan dikurangi gaji yang sudah dicatat dibayar${beliAda?'':'; data pengeluaran belum termuat, jadi belum dikurangi'}). Piutang = sisa bayar acara yang sudah selesai tapi belum diterima. Perkiraan laba kotor = ${Math.round(LABA_KOTOR_PCT_*100)}% × total order bulan berjalan yang belum dieksekusi (${cfRp_(tBelum)}).</div>`;
+  // ── Grafik HARIAN 15 hari berjalan: bar Hutang (DP + gaji + supplier) vs bar Piutang + Perkiraan laba (sumbu kiri, juta Rp) + garis % = (Piutang + laba) ÷ Hutang (sumbu kanan).
+  // Riwayat harian direkonstruksi dari data order SAAT INI (pembayaran lama tidak punya jejak tanggal); titik HARI INI = angka kartu di atas.
+  // 15 hari berjalan: 14 hari sebelum hari ini s.d. hari ini
+  const hari = []; { const e = new Date(j.today + 'T12:00:00'); for(let i = 14; i >= 0; i--){ const d = new Date(e); d.setDate(e.getDate() - i); hari.push(d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0')); } }
+  const omsetS = d => sum(j.orders.filter(o => o.tgl.slice(0,7) === d.slice(0,7) && o.tgl <= d), o=>o.total);
+  const omsetBln = b => sum(j.orders.filter(o => o.tgl.slice(0,7) === b && (b !== bIni || o.tgl <= j.today)), o=>o.total);
+  const effGaji = b => { const om = omsetBln(b), gb = (GF_BELI_ && GF_BELI_.dataBpp && GF_BELI_.dataBpp[b]) ? (Number(GF_BELI_.dataBpp[b]['Gaji'])||0) : 0; return om > 0 ? (GAJI_PCT_ - gb/om) : GAJI_PCT_; }; // gaji dibayar dianggap merata sepanjang omset bulan itu
+  const seri = hari.map(d => {
+    if(d === j.today) return { d, dp:tDP, gj:gaji, nt:tNota, pt:tT, lb:tLaba };
+    return {
+      d,
+      dp: sum(j.orders.filter(o => o.tgl >= d && o.bayar > 0), o=>o.bayar),
+      gj: Math.max(0, omsetS(d) * effGaji(d.slice(0,7))),
+      nt: sum(nota.filter(n => (n.tgl||'') <= d), n=>n.total),
+      pt: sum(j.orders.filter(o => o.tgl < d && o.sisa > 0), o=>o.sisa),
+      lb: LABA_KOTOR_PCT_ * sum(j.orders.filter(o => o.tgl >= d && o.tgl.slice(0,7) === d.slice(0,7)), o=>o.total)
+    };
+  });
+  seri.forEach(x => { x.h = x.dp + x.gj + x.nt; x.k = x.pt + x.lb; x.r = x.h > 0 ? x.k / x.h * 100 : null; });
+  const NICE_J = [1,2,5,10,20,25,50,100,200], maxBar = Math.max(1e6, ...seri.map(x => Math.max(x.h, x.k)));
+  const stepJ = (NICE_J.find(n => n*1e6 >= maxBar/5) || 250) * 1e6, numGrid = Math.max(1, Math.ceil(maxBar/stepJ)), topJ = stepJ*numGrid;
+  const maxR = Math.max(10, ...seri.map(x => x.r || 0)), NICE_P = [10,20,25,50,100,200,250,500,1000,2000];
+  const stepP = NICE_P.find(n => n*numGrid >= maxR) || 5000, topP = stepP*numGrid;
+  const barMaxH = 160, leftM = 40, gW = 34, bW = 13, rightM = 46, W = leftM + seri.length*gW + 14 + rightM, H = barMaxH + 50;
+  const yJ = v => 20 + barMaxH - v/topJ*barMaxH, yP = v => 20 + barMaxH - v/topP*barMaxH;
+  const jt = v => (v/1e6).toLocaleString('id-ID',{maximumFractionDigits:1});
+  let svg = `<text x="${leftM-6}" y="11" font-size="9" font-weight="700" fill="#5C4A35" text-anchor="end">Rp juta</text><text x="${W-rightM+10}" y="11" font-size="9" font-weight="700" fill="#7E57C2" text-anchor="start">%</text>`;
+  for(let g=0; g<=numGrid; g++){
+    const y = yJ(g*stepJ);
+    svg += `<line x1="${leftM}" y1="${y}" x2="${W-rightM+6}" y2="${y}" stroke="#EDE3D8"/><text x="${leftM-6}" y="${y+3}" font-size="9" fill="#9C8672" text-anchor="end">${jt(g*stepJ)}</text><text x="${W-rightM+10}" y="${y+3}" font-size="9" fill="#7E57C2" text-anchor="start">${g*stepP}%</text>`;
+  }
+  if(topP >= 100) svg += `<line x1="${leftM}" y1="${yP(100)}" x2="${W-rightM+6}" y2="${yP(100)}" stroke="#7E57C2" stroke-width="1" stroke-dasharray="4 3" opacity=".6"/><text x="${leftM+3}" y="${yP(100)-3}" font-size="8" fill="#7E57C2">100% = impas</text>`;
+  seri.forEach((x,i) => {
+    const gx = leftM + 8 + i*gW, isT = x.d === j.today;
+    const stack = (cx, parts, tip) => { let acc = 0; return parts.map(([v,c]) => { if(v <= 0) return ''; const h = v/topJ*barMaxH, y = 20 + barMaxH - acc - h; acc += h; return `<rect x="${cx}" y="${y}" width="${bW}" height="${h}" fill="${c}" rx="1"><title>${tip}</title></rect>`; }).join(''); };
+    svg += stack(gx, [[x.dp,'#1D6FA5'],[x.gj,'#7FB5DB'],[x.nt,'#E08A00']], `${x.d} · Hutang ${cfRp_(x.h)} (DP ${cfRp_(x.dp)} · gaji ${cfRp_(x.gj)} · supplier ${cfRp_(x.nt)})`);
+    svg += stack(gx + bW + 1, [[x.pt,'#C0392B'],[x.lb,'#2E7D32']], `${x.d} · Piutang + laba ${cfRp_(x.k)} (piutang ${cfRp_(x.pt)} · perkiraan laba ${cfRp_(x.lb)})`);
+    svg += `<text x="${gx + bW}" y="${barMaxH+38}" font-size="9" fill="${isT?'#C8521A':'#5C4A35'}" font-weight="${isT?'700':'400'}" text-anchor="middle">${x.d.slice(8)}${(i===0 || x.d.slice(8)==='01') ? '/' + x.d.slice(5,7) : ''}</text>`;
+  });
+  const pts = seri.map((x,i) => x.r == null ? null : [leftM + 8 + i*gW + bW, yP(Math.min(x.r, topP)), x]).filter(Boolean);
+  if(pts.length){
+    svg += `<polyline points="${pts.map(q => q[0].toFixed(1)+','+q[1].toFixed(1)).join(' ')}" fill="none" stroke="#7E57C2" stroke-width="2.2" style="pointer-events:none;"/>`;
+    pts.forEach(q => { svg += `<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="2.8" fill="#fff" stroke="#7E57C2" stroke-width="1.8"><title>${q[2].d} · kemampuan bayar ${q[2].r.toLocaleString('id-ID',{maximumFractionDigits:0})}% = (piutang + laba) ÷ hutang</title></circle>`; });
+    const l = pts[pts.length-1]; svg += `<text x="${l[0]-4}" y="${l[1]-7}" font-size="9" font-weight="700" fill="#5E3FA3" text-anchor="end">${Math.round(l[2].r).toLocaleString('id-ID')}%</text>`;
+  }
+  const rAwal = seri.length ? seri[0].r : null, rAkhir = seri.length ? seri[seri.length-1].r : null;
+  const tren = (rAwal != null && rAkhir != null) ? (rAkhir > rAwal + 5 ? '📈 naik' : rAkhir < rAwal - 5 ? '📉 turun' : '➡️ relatif tetap') : '';
+  el.innerHTML = ringkas + `<div style="font-size:11px;margin-bottom:4px;"><span style="color:#1D6FA5;">■</span> DP &nbsp;<span style="color:#7FB5DB;">■</span> gaji terutang &nbsp;<span style="color:#E08A00;">■</span> supplier &nbsp;<span style="color:#C0392B;">■</span> piutang &nbsp;<span style="color:#2E7D32;">■</span> perkiraan laba kotor &nbsp;<span style="color:#7E57C2;">━●</span> (piutang + laba) ÷ hutang, %</div>
+    <div id="cf-hut-scroll" style="overflow-x:auto;background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:12px;"><svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${svg}</svg></div>
+    ${tren ? `<div style="font-size:12px;margin-top:6px;">Kemampuan bayar 15 hari terakhir: <b>${tren}</b> (${rAwal.toLocaleString('id-ID',{maximumFractionDigits:0})}% → ${rAkhir.toLocaleString('id-ID',{maximumFractionDigits:0})}%). Di atas 100% = piutang + perkiraan laba cukup menutup hutang.</div>` : ''}
+    <div style="font-size:10px;color:var(--inks);margin-top:4px;">15 hari berjalan (hari ini di sisi kanan). Per tanggal: batang kiri = Hutang (DP acara yang belum dieksekusi + gaji terutang + nota supplier berstatus Hutang); batang kanan = Piutang (sisa bayar acara yang sudah lewat) + perkiraan laba kotor (${Math.round(LABA_KOTOR_PCT_*100)}% × order bulan yang sama yang belum dieksekusi). Garis = (Piutang + perkiraan laba) ÷ Hutang × 100%, sumbu kanan. Titik tanggal sebelum hari ini direkonstruksi dari data order sekarang (pembayaran yang sudah lunas tidak punya jejak tanggal, jadi piutang hari lampau cenderung terhitung lebih kecil); titik hari ini = angka kartu di atas. Klik kartu untuk rincian.</div>`;
+  // tampilan awal: geser ke kanan supaya tanggal terakhir (hari ini) terlihat
+  const sc = document.getElementById('cf-hut-scroll');
+  if(sc){ const geser = () => { sc.scrollLeft = sc.scrollWidth; }; geser(); requestAnimationFrame(geser); setTimeout(geser, 300); }
 }
 // Hutang supplier: klik batang → diagram lingkaran per supplier → klik irisan/baris → daftar nota supplier itu
 let CF_NOTA_SUP_ = [];
@@ -4782,7 +4929,6 @@ async function loadGrafikPengeluaran(paksa){
   const tampil = (j, lama) => {
     if(j.lastUpdated) updEl.textContent = 'Sumber: sheet PermintaanBahan (tanpa status Batal) · ' + new Date(j.lastUpdated).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'}) + (lama ? ' · memperbarui…' : '');
     GF_BELI_ = j; renderPengBulanan_();
-    renderGrafikHarianChart({hariList:j.hariList, kategoriList:(j.kategoriHarianList||[]).filter(k=>!NON_BPP_.includes(k)), data:j.dataHarian, rencana:j.rencanaHarian, omset:j.omsetBelanja, hariIni:(j.harianSnapshot&&j.harianSnapshot.hariIni)||j.hariIniStr, tanpaHarga:j.rencanaTanpaHarga}, 'gf-peng-harian-chart');
     const sn = document.getElementById('gf-harian-snap-note'); if(sn && j.harianSnapshot) sn.textContent = 'Diperbarui sekali sehari jam 13:00 · data per ' + new Date(j.harianSnapshot.waktu).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'});
     renderGrafikBppSemua_(); if(typeof CF_DATA_ !== 'undefined' && CF_DATA_ && CF_DATA_.orders) renderHutangTagihan_();
   };
@@ -5130,7 +5276,7 @@ document.addEventListener('visibilitychange', function(){
 // ── Sales gabungan: batang BULANAN (kiri, sumbu Y kiri) + batang HARIAN 15 hari (kanan, sumbu Y kanan) dalam satu grafik.
 // Garis grid dipakai bersama; sumbu kiri = skala bulanan (kelipatan 25 jt), sumbu kanan = skala harian,
 // diatur supaya batang tertinggi bulanan & harian sama-sama mengisi tinggi grafik.
-let GF_HARI_ = null;
+let GF_HARI_ = null, SALES_SCROLL_SUDAH_ = false;
 function renderSalesGabung_(){
   const el = document.getElementById('gf-harian-chart'); if(!el) return;
   const M = (GF_JUAL_ && gfBoleh_('gf_bulanan')) ? GF_JUAL_ : null;
@@ -5203,7 +5349,11 @@ function renderSalesGabung_(){
     </div>
     <div style="font-size:10px;color:var(--inks);margin-top:6px;">Batang kiri = penjualan per bulan (sumbu Y kiri, kelipatan 25 jt). Batang kanan = penjualan 15 hari ke depan (sumbu Y kanan, skalanya sendiri) — garis grid dipakai bersama sehingga tinggi batang bulanan dan harian sebanding.</div>
     <div style="display:flex;flex-wrap:wrap;margin-top:8px;padding:0 4px;">${legend}</div>`;
-  const nu = el.firstElementChild; if(nu && sl) nu.scrollLeft = sl;
+  const nu = el.firstElementChild;
+  if(nu){
+    if(!SALES_SCROLL_SUDAH_ && hariList.length){ SALES_SCROLL_SUDAH_ = true; const geser = () => { nu.scrollLeft = nu.scrollWidth; }; geser(); requestAnimationFrame(geser); setTimeout(geser, 300); } // tampilan awal: geser ke kanan (bagian harian terlihat)
+    else if(sl) nu.scrollLeft = sl;
+  }
 }
 
 function renderGrafikHarianChart(j, elId, bisaKlik){
