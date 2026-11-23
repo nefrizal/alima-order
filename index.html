@@ -400,7 +400,7 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 <!-- ═══ GRAFIK ═══ -->
 <div class="panel" id="panel-grafik">
   <div class="lbar">
-    <button class="bico" onclick="loadGrafikSemua_()" style="flex:1;">↻ Refresh Grafik</button>
+    <button class="bico" onclick="loadGrafikSemua_(true)" style="flex:1;">↻ Refresh Grafik</button>
   </div>
 
   <div class="gf-sec" data-gf="gf_harian gf_bulanan">
@@ -409,12 +409,6 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
   <div id="gf-harian-updated" style="font-size:11px;color:var(--inks);text-align:center;margin-bottom:10px;"></div>
   <div id="gf-harian-chart"><div class="empty"><div class="eico">📊</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
   <div id="gf-chart" style="display:none;"></div>
-  </div>
-
-  <div class="gf-sec" data-gf="gf_nonbpp">
-  <div class="stitle" style="margin-top:20px;">📊 Rasio Biaya Non-BPP (÷ Penjualan, per Bulan) <button class="gf-rf" title="Refresh grafik ini" onclick="refreshGf_(['jual','beli'],this)">↻</button></div>
-  <div style="font-size:11px;color:var(--inks);text-align:center;margin-bottom:10px;">Bahan Bakar · Gaji · Sales Cost · Expenses · Pajak · Peralatan (sumber sama: PermintaanBahan Sudah Dicetak = Ya)</div>
-  <div id="gf-nonbpp-chart"><div class="empty"><div class="eico">📊</div><p>Klik Refresh Grafik untuk memuat.</p></div></div>
   </div>
 
   <div class="gf-sec" data-gf="gf_laba">
@@ -3835,27 +3829,55 @@ function gfCacheGet_(k){ try{ const s = localStorage.getItem(gfCacheKey_(k)); re
 function gfCachePut_(k, j){ try{ localStorage.setItem(gfCacheKey_(k), JSON.stringify(j)); }catch(e){} }
 function gfCacheHapus_(){ try{ Object.keys(localStorage).filter(x => x.indexOf('gfc1_') === 0).forEach(x => localStorage.removeItem(x)); }catch(e){} }
 
+// ── TIDAK ADA AUTO REFRESH: grafik hanya mengambil data baru dari server saat tombol ↻
+// (per grafik) atau "↻ Refresh Grafik" (semua) diklik. Saat tab dibuka, yang tampil adalah
+// data terakhir yang tersimpan di browser (cache); kalau belum ada, tampil ajakan klik ↻.
+// Parameter loader: (paksa, ambil) — ambil=true → ambil data dari server; paksa=true →
+// server menghitung ulang (bukan snapshot jam 13:00), otomatis juga mengambil.
+const GF_KOSONG_ = ico => `<div class="empty"><div class="eico">${ico||'📊'}</div><p>Klik ↻ untuk memuat grafik ini.</p></div>`;
+let GF_AMBIL_ = false;
+
+// ── Semua grafik yang bisa digeser horizontal default-nya tampil dari PALING KANAN (data terbaru).
+// Berlaku utk setiap kontainer overflow-x yang berisi <svg> grafik, di tab Grafik & popup grafik.
+function gfGeserKanan_(root){
+  root.querySelectorAll('div[style*="overflow-x:auto"]').forEach(d => {
+    if(d.dataset.gfKanan || !d.querySelector(':scope > svg')) return;
+    d.dataset.gfKanan = '1';
+    const geser = () => { d.scrollLeft = d.scrollWidth; };
+    geser(); requestAnimationFrame(geser); setTimeout(geser, 300);
+  });
+}
+function gfPasangGeserKanan_(){
+  ['panel-grafik','gf-bpp-modal','cf-modal'].forEach(id => {
+    const el = document.getElementById(id); if(!el) return;
+    new MutationObserver(() => gfGeserKanan_(el)).observe(el, { childList: true, subtree: true });
+  });
+}
+if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', gfPasangGeserKanan_); else gfPasangGeserKanan_();
+
 // ── Muat grafik bertahap: yang paling atas langsung, sisanya saat mendekati layar ──
 let GF_SUDAH_ = {};
 let GF_OBS_ = null;
 function gfMuatGrup_(grup){
   if(GF_SUDAH_[grup]) return; GF_SUDAH_[grup] = true;
-  const g = gfBoleh_;
-  if(grup === 'jual'){ if(g('gf_bulanan') || g('gf_bpp') || g('gf_nonbpp') || g('gf_sisa') || g('gf_laba') || g('gf_peng')) loadGrafik(); }
+  const g = gfBoleh_, a = GF_AMBIL_;
+  if(grup === 'jual'){ if(g('gf_bulanan') || g('gf_bpp') || g('gf_nonbpp') || g('gf_sisa') || g('gf_laba') || g('gf_peng')) loadGrafik(false, a); }
   else if(grup === 'beli'){
     // rasio BPP/non-BPP/sisa butuh data penjualan & pembelian sekaligus
     if(g('gf_bpp') || g('gf_nonbpp') || g('gf_sisa') || g('gf_laba') || g('gf_peng')) gfMuatGrup_('jual');
-    if(g('gf_peng') || g('gf_peng_harian') || g('gf_bpp') || g('gf_nonbpp') || g('gf_sisa') || g('gf_laba')) loadGrafikPengeluaran();
+    if(g('gf_peng') || g('gf_peng_harian') || g('gf_bpp') || g('gf_nonbpp') || g('gf_sisa') || g('gf_laba')) loadGrafikPengeluaran(false, a);
     if(g('gf_laba')) gfMuatGrup_('cash'); // popup hutang vs laba butuh data hutang supplier (cashflow)
   }
-  else if(grup === 'cash'){ if(g('gf_posisi') || g('gf_piutang') || g('gf_laba')) loadCashflow_(); }
-  else if(grup === 'lauk'){ if(g('gf_lauk')) loadGrafikLauk(); }
+  else if(grup === 'cash'){ if(g('gf_posisi') || g('gf_piutang') || g('gf_laba')) loadCashflow_(false, a); }
+  else if(grup === 'lauk'){ if(g('gf_lauk')) loadGrafikLauk(false, a); }
 }
-function loadGrafikSemua_(){
+// ambil=false (buka tab) → tampilkan cache saja; ambil=true (tombol "↻ Refresh Grafik") → ambil dari server
+function loadGrafikSemua_(ambil){
+  GF_AMBIL_ = !!ambil;
   terapkanAksesGrafik_();
   GF_SUDAH_ = {};
   if(GF_OBS_){ GF_OBS_.disconnect(); GF_OBS_ = null; }
-  if(gfBoleh_('gf_harian')) loadGrafikHarian();
+  if(gfBoleh_('gf_harian')) loadGrafikHarian(GF_AMBIL_);
   // dua grafik teratas langsung; sisanya menunggu mendekati layar (rootMargin 400px)
   gfMuatGrup_('jual');
   const peta = { gf_bpp:'beli', gf_nonbpp:'beli', gf_sisa:'beli', gf_laba:'beli', gf_peng:'beli', gf_peng_harian:'beli', gf_posisi:'cash', gf_piutang:'cash', gf_lauk:'lauk' };
@@ -3873,17 +3895,18 @@ async function refreshGf_(sumber, btn){
   catch(e){ console.warn(e); }
   finally{ if(btn){ btn.disabled = false; btn.classList.remove('spin'); } }
 }
-async function loadGrafik(paksa){
+async function loadGrafik(paksa, ambil){
   const chartEl = document.getElementById('gf-chart');
   const updEl = document.getElementById('gf-updated');
   const tampil = (j, lama) => {
     if(j.lastUpdated){
       const d = new Date(j.lastUpdated);
-      updEl.textContent = 'Data per: ' + d.toLocaleString('id-ID', {dateStyle:'medium', timeStyle:'short'}) + (lama ? ' · memperbarui…' : ' · otomatis tiap hari jam 13:00, atau klik ↻');
+      updEl.textContent = 'Data per: ' + d.toLocaleString('id-ID', {dateStyle:'medium', timeStyle:'short'}) + (lama ? ' · memperbarui…' : ' · klik ↻ untuk memperbarui');
     }
     GF_JUAL_ = j; renderSalesGabung_(); renderGrafikBppSemua_();
   };
   const lama = gfCacheGet_('jual');
+  if(!paksa && !ambil){ if(lama) tampil(lama, false); else chartEl.innerHTML = GF_KOSONG_('📊'); return; } // tanpa auto refresh
   if(lama) tampil(lama, true); else chartEl.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat grafik…</div>';
   try{
     const j = await gasFetch(APP.GAS_URL + '?action=getGrafikData' + (paksa ? '&paksa=1' : '') + '&t=' + Date.now());
@@ -4278,7 +4301,7 @@ async function bukaRincianBahan_(i, bln){
 // Kategori NON-BPP (di luar COGS bahan baku). Sisanya = BPP/COGS.
 const NON_BPP_ = ['Bahan Bakar','Gaji','Sales Cost','Expenses','Pajak','Peralatan'];
 let GF_BPP_MODE_ = 'bpp';
-function renderGrafikBppSemua_(){ renderGrafikBpp_(false,'non'); renderGrafikLaba_(); renderPengBulanan_(); }
+function renderGrafikBppSemua_(){ renderGrafikLaba_(); renderPengBulanan_(); } // grafik Rasio Non-BPP dihapus
 // Batang bulanan = hanya BPP (Sudah Dicetak/Baca Nota, bukan kategori non-BPP) + garis rasio BPP ÷ penjualan (sumbu kanan).
 // Rasio bulan berjalan = bahan baku yg sudah dieksekusi ÷ penjualan yg sudah dieksekusi (bulan lalu: penuh). Klik segmen = batang perbandingan 3 bulan per bahan.
 function renderPengBulanan_(){
@@ -4646,11 +4669,13 @@ const CF_KELAS_ = [
   {k:'piutang',  label:'Piutang (acara lewat, belum lunas)', warna:'#C0392B'},
   {k:'ke_depan', label:'Sisa tagihan (acara hari ini/ke depan)',   warna:'#B0A89E'}
 ];
-async function loadCashflow_(paksa){
+async function loadCashflow_(paksa, ambil){
   const ch = document.getElementById('cf-chart'), pi = document.getElementById('cf-piutang');
   const lama = gfCacheGet_('cash');
   if(lama){ CF_DATA_ = lama; renderCashflowChart_(); renderPiutang_(); renderHutangTagihan_(); }
+  else if(!paksa && !ambil){ ch.innerHTML = GF_KOSONG_('💰'); pi.innerHTML = ''; }
   else { ch.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat…</div>'; pi.innerHTML = ''; }
+  if(!paksa && !ambil) return; // tanpa auto refresh
   try{
     const j = await gasFetch(APP.GAS_URL + '?action=getCashflow' + (paksa ? '&paksa=1' : '') + '&t=' + Date.now());
     if(!j.success) throw new Error(j.message);
@@ -4922,16 +4947,17 @@ async function cfSimpanBayar_(no){
 function bukaCfAging_(i){ const g = CF_GRUP_[i]; CF_REOPEN_ = () => bukaCfAging_(i); tampilCfModal_('🧾 Piutang ' + g.label, CF_PT_.filter(g.f).sort((a,b)=>a.tgl<b.tgl?-1:1)); }
 function bukaCfPelanggan_(nama){ CF_REOPEN_ = () => bukaCfPelanggan_(nama); tampilCfModal_('🧾 Piutang — ' + nama, CF_PT_.filter(o=>(o.cust||'—')===nama).sort((a,b)=>a.tgl<b.tgl?-1:1)); }
 
-async function loadGrafikPengeluaran(paksa){
+async function loadGrafikPengeluaran(paksa, ambil){
   const chartEl = document.getElementById('gf-peng-chart');
   const updEl = document.getElementById('gf-peng-updated');
   const tampil = (j, lama) => {
-    if(j.lastUpdated) updEl.textContent = 'Sumber: sheet PermintaanBahan (tanpa status Batal) · ' + new Date(j.lastUpdated).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'}) + (lama ? ' · memperbarui…' : '');
+    if(j.lastUpdated) updEl.textContent = 'Sumber: sheet PermintaanBahan (tanpa status Batal) · ' + new Date(j.lastUpdated).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'}) + (lama ? ' · memperbarui…' : ' · klik ↻ untuk memperbarui');
     GF_BELI_ = j; renderPengBulanan_();
-    const sn = document.getElementById('gf-harian-snap-note'); if(sn && j.harianSnapshot) sn.textContent = 'Diperbarui sekali sehari jam 13:00 · data per ' + new Date(j.harianSnapshot.waktu).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'});
+    const sn = document.getElementById('gf-harian-snap-note'); if(sn && j.harianSnapshot) sn.textContent = 'Data per ' + new Date(j.harianSnapshot.waktu).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'}) + ' · klik ↻ untuk memperbarui';
     renderGrafikBppSemua_(); if(typeof CF_DATA_ !== 'undefined' && CF_DATA_ && CF_DATA_.orders) renderHutangTagihan_();
   };
   const lama = gfCacheGet_('beli');
+  if(!paksa && !ambil){ if(lama) tampil(lama, false); else chartEl.innerHTML = GF_KOSONG_('💸'); return; } // tanpa auto refresh
   if(lama) tampil(lama, true); else chartEl.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat pengeluaran…</div>';
   try{
     const j = await gasFetch(APP.GAS_URL + '?action=getGrafikPengeluaran' + (paksa ? '&paksa=1' : '') + '&t=' + Date.now());
@@ -5167,11 +5193,13 @@ async function bukaDetailHariGrafik_(tgl){
 // ══ GRAFIK HARIAN (jumlah total per produk per hari, 15 hari ke depan, dari cache) ═══
 // ── Grafik Lauk Utama: teori (order × gramasi) vs dibeli (PermintaanBahan) per bulan ──
 let GF_LAUK_ = null;
-async function loadGrafikLauk(paksa){
+async function loadGrafikLauk(paksa, ambil){
   const el = document.getElementById('gf-lauk-chart');
   const lama = gfCacheGet_('lauk');
-  if(lama){ GF_LAUK_ = lama; renderGrafikLauk_(); loadOpnameLauk_(); }
+  if(lama){ GF_LAUK_ = lama; renderGrafikLauk_(); if(paksa || ambil) loadOpnameLauk_(); }
+  else if(!paksa && !ambil) el.innerHTML = GF_KOSONG_('🍗');
   else el.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat…</div>';
+  if(!paksa && !ambil) return; // tanpa auto refresh
   try{
     const j = await gasFetch(APP.GAS_URL + '?action=getGrafikLauk' + (paksa ? '&paksa=1' : '') + '&t=' + Date.now());
     if(!j.success){ if(!lama) el.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>${j.message}</p></div>`; return; }
@@ -5294,37 +5322,33 @@ function bukaDetailLauk_(bulan, k){
     ${(rc.tak||[]).length ? `<div style="font-size:11px;color:#C0392B;margin-top:8px;">⚠ Tidak terhitung (satuan tak bisa dikonversi ke gram): ${rc.tak.map(t => t.nama + ' ' + t.qty).join('; ')}</div>` : ''}`;
   document.getElementById('gf-lauk-modal').classList.remove('hide');
 }
-async function loadGrafikHarian(diam){
+// ambil=false → tampilkan cache saja (tanpa auto refresh); ambil=true → ambil dari server (tombol ↻)
+async function loadGrafikHarian(ambil){
   const chartEl = document.getElementById('gf-harian-chart');
   const updEl = document.getElementById('gf-harian-updated');
-  const lama = diam ? null : gfCacheGet_('harian');
-  if(lama){ GF_HARI_ = lama; renderSalesGabung_(); updEl.textContent = '⏳ Data tersimpan · memperbarui…'; }
-  else if(!diam) chartEl.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat grafik harian…</div>';
+  const lama = gfCacheGet_('harian');
+  if(!ambil){
+    if(lama){ GF_HARI_ = lama; renderSalesGabung_(); updEl.textContent = 'Data tersimpan · klik ↻ untuk memperbarui'; }
+    else chartEl.innerHTML = GF_KOSONG_('📊');
+    return;
+  }
+  const sudahTampil = !!GF_HARI_;
+  if(sudahTampil) updEl.textContent = '⏳ Memperbarui…';
+  else chartEl.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat grafik harian…</div>';
   try{
     const j = await gasFetch(APP.GAS_URL + '?action=getGrafikHarian&t=' + Date.now());
-    if(!j.success){ if(!lama) chartEl.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>${j.message}</p></div>`; return; }
+    if(!j.success){ if(sudahTampil) updEl.textContent = '⚠️ Gagal memperbarui: ' + j.message; else chartEl.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>${j.message}</p></div>`; return; }
     gfCachePut_('harian', j);
-    updEl.textContent = '🟢 Realtime · diperbarui ' + new Date().toLocaleTimeString('id-ID') + ' · auto-refresh tiap 30 dtk';
+    updEl.textContent = '🟢 Diperbarui ' + new Date().toLocaleTimeString('id-ID') + ' · klik ↻ untuk memperbarui';
     GF_HARI_ = j; renderSalesGabung_();
   }catch(e){
-    if(diam || lama) return;
+    if(sudahTampil){ updEl.textContent = '⚠️ Gagal memperbarui: ' + e.message; return; }
     chartEl.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>Gagal memuat: ${e.message}</p></div>`;
   }
 }
 
-// Auto-refresh realtime grafik Sales Harian: hanya saat tab Grafik terbuka & halaman terlihat
-let GF_HARIAN_BUSY_ = false;
-setInterval(async function(){
-  const p = document.getElementById('panel-grafik');
-  if(!p || !p.classList.contains('on') || document.hidden || GF_HARIAN_BUSY_ || !gfBoleh_('gf_harian')) return;
-  if(document.querySelector('.modal-bg:not(.hide)')) return; // jangan ganggu popup yang sedang dibuka
-  GF_HARIAN_BUSY_ = true;
-  try{ await loadGrafikHarian(true); }finally{ GF_HARIAN_BUSY_ = false; }
-}, 30000);
-document.addEventListener('visibilitychange', function(){
-  const p = document.getElementById('panel-grafik');
-  if(!document.hidden && p && p.classList.contains('on') && gfBoleh_('gf_harian')) loadGrafikHarian(true);
-});
+// (Auto-refresh Sales Harian tiap 30 detik & saat aplikasi dibuka kembali sudah DIHAPUS —
+//  semua grafik hanya diperbarui lewat tombol ↻.)
 
 // ── Sales gabungan: batang BULANAN (kiri, sumbu Y kiri) + batang HARIAN 15 hari (kanan, sumbu Y kanan) dalam satu grafik.
 // Garis grid dipakai bersama; sumbu kiri = skala bulanan (kelipatan 25 jt), sumbu kanan = skala harian,
@@ -5535,13 +5559,7 @@ function renderGrafikHarianChart(j, elId, bisaKlik){
     </div>
     <div style="display:flex;flex-wrap:wrap;margin-top:10px;padding:0 4px;">${legend}${legendRencana}${legendGaris}</div>${catatRencana}
   `;
-  // Pengeluaran harian bulan berjalan: default tampilkan tanggal terakhir (hari ini) di sisi kanan
-  if(elId === 'gf-peng-harian-chart'){
-    const sc = chartEl.firstElementChild;
-    const idx = Math.max(0, hariList.indexOf(j.hariIni) >= 0 ? hariList.indexOf(j.hariIni) : hariList.length - 1);
-    const geser = () => { if(sc) sc.scrollLeft = Math.max(0, leftM + (idx + 1) * groupW + rightM + 30 - sc.clientWidth); };
-    geser(); requestAnimationFrame(geser); setTimeout(geser, 300);
-  }
+  // Posisi gulir: diatur gfGeserKanan_ (semua grafik default tampil dari paling kanan).
 }
 
 
