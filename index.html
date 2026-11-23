@@ -1385,7 +1385,6 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 // ══ KONFIGURASI ══════════════════════
 const APP = {
   GAS_URL:      "https://script.google.com/macros/s/AKfycbzqS_xoX-qvkzkk8nlCq-Urgh4v4dQDmaA5v4zmjNR1yWwSw7iJSs4RfBP-pHiY0UxL/exec",
-  FONNTE_TOKEN: "o3iKrUUBhRaF2qHHqsD7",
   WA_NOTIF:     "6282288175957",
   GOOGLE_CLIENT_ID: "437595495608-lksqd7ofcl1jo1ebaa75re48mn04mtkl.apps.googleusercontent.com"
 };
@@ -6291,12 +6290,10 @@ async function updStatus(no,st){
 
 // ══ FONNTE ════════════════════════════
 async function sendWASales(o,hp){
-  if(APP.FONNTE_TOKEN.includes('GANTI'))return;
   const msg=`📋 *Order Baru untuk Anda — ${o.no_order}*\n\n🏢 ${o.penerima||'—'} ${o.customer_id?'('+o.customer_id+')':''}\n📦 ${o.produk||'—'}${o.paket?' · '+o.paket:''}\n👥 ${o.qty} pax\n📅 ${fd(o.tgl_kirim)}${o.jam_sampai?' · '+o.jam_sampai:''}\n📍 ${o.alamat||'—'}\n💰 *Total: Rp ${(o.jumlah_total||0).toLocaleString('id-ID')}*\n${o.keterangan?'\n📝 '+o.keterangan:''}\n_Segera konfirmasi ke customer._`;
   await fPost(hp,msg);
 }
 async function sendWAKlien(o){
-  if(APP.FONNTE_TOKEN.includes('GANTI'))return;
   const cust = CUSTOMERS.find(c => c.no_hp === o.customer_id);
   const gender = cust?.gender || '';
   const sapaMap = {'bu':'Bu','bp.':'Bp.','bp':'Bp.','kak':'Kak','mba':'Mba'};
@@ -6356,11 +6353,22 @@ Salam, *KSM Katering* 🍱`;
 
   await fPost(o.hp_penerima, msg);
 }
+// Kirim WA lewat backend GAS (action kirimWa). Token Fonnte disimpan di Script
+// Properties server, TIDAK pernah ada di browser.
+async function kirimWaViaGas_(payload){
+  await pastikanTokenSegar_();
+  if(!ID_TOKEN) throw new Error('Belum login.');
+  const res = await fetch(APP.GAS_URL, {method:'POST', redirect:'follow', headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify(Object.assign({action:'kirimWa', id_token: ID_TOKEN}, payload))});
+  const text = await res.text();
+  if(text.trim().startsWith('<')) throw new Error('GAS return HTML');
+  const j = JSON.parse(text);
+  if(!j.success){ if(/Gagal verifikasi token|invalid_token|kedaluwarsa|Token login/i.test(j.message||'')) loginUlangPaksa_(); throw new Error(j.message || 'Gagal kirim WA'); }
+  return j;
+}
 async function fPost(target,message){
-  console.log('Fonnte →',target);
-  const res=await fetch('https://api.fonnte.com/send',{method:'POST',headers:{'Authorization':APP.FONNTE_TOKEN,'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({target,message})});
-  const j=await res.json();console.log('Fonnte response:',JSON.stringify(j));
-  if(!j.status)throw new Error('Fonnte: '+(j.reason||'Gagal'));
+  console.log('WA →',target);
+  await kirimWaViaGas_({target, message});
 }
 
 // ══ HELPERS ═══════════════════════════
@@ -6859,13 +6867,7 @@ async function kirimLaporanViaWA(){
 
 // Kirim file (bukan cuma teks) via Fonnte — dipakai khusus utk kirim PDF laporan.
 async function fPostFile(target, fileUrl, caption){
-  const res = await fetch('https://api.fonnte.com/send', {
-    method: 'POST',
-    headers: { 'Authorization': APP.FONNTE_TOKEN, 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ target: normalizeWA(target), url: fileUrl, message: caption })
-  });
-  const j = await res.json();
-  if(!j.status) throw new Error('Fonnte: ' + (j.reason || 'Gagal kirim file'));
+  await kirimWaViaGas_({ target: normalizeWA(target), url: fileUrl, message: caption });
 }
 
 let LAP_DATA_ = [];

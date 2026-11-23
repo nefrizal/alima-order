@@ -407,8 +407,9 @@ input[readonly]{background:#f5f0ea;color:var(--inks);cursor:default;}
 <script>
 // ══ KONFIGURASI ══════════════════════
 const APP = {
-  GAS_URL:      "https://script.google.com/macros/s/AKfycbyPgnhHNpbAWQbt4sNQiLFaDTRN-emDLn_rV68GVpvkdFAbFd41fyZxdMJUMqHdI1Zp/exec",
-  FONNTE_TOKEN: "CeRWm6bXYHAZRumRroUE",
+  // Sama dengan index.html — backend project gas/ (spreadsheet 12XL2M…, tab Orders).
+  // URL lama AKfycbyPg… menyimpan order ke backend lain, sehingga order tidak muncul di tab Orders.
+  GAS_URL:      "https://script.google.com/macros/s/AKfycbzqS_xoX-qvkzkk8nlCq-Urgh4v4dQDmaA5v4zmjNR1yWwSw7iJSs4RfBP-pHiY0UxL/exec",
   WA_NOTIF:     "6282288175957",
   GOOGLE_CLIENT_ID: "437595495608-lksqd7ofcl1jo1ebaa75re48mn04mtkl.apps.googleusercontent.com"
 };
@@ -848,7 +849,7 @@ async function submitRevisi() {
     if (!j.success) { hideOvl(); toast(j.message || 'Revisi ditolak server.', 'err'); return; }
     // Revisi sudah tersimpan di titik ini. Kegagalan kirim WA di bawah TIDAK membatalkan revisi.
     let waError = null;
-    if (!APP.FONNTE_TOKEN.includes('GANTI')) {
+    { // kirim WA lewat backend (kirimWa)
       try {
         const perubahan = bangunDaftarPerubahan_(revisiData, d);
         const daftarStr = perubahan.length ? perubahan.map(p=>'• '+p).join('\n') : '(tidak ada perubahan terdeteksi)';
@@ -2067,17 +2068,18 @@ async function updStatus(no,st){
 
 // ══ FONNTE ════════════════════════════
 async function sendWASales(o,hp){
-  if(APP.FONNTE_TOKEN.includes('GANTI'))return;
   const msg=`📋 *Order Baru untuk Anda — ${o.no_order}*\n\n🏢 ${o.penerima||'—'} ${o.customer_id?'('+o.customer_id+')':''}\n📦 ${o.produk||'—'}${o.paket?' · '+o.paket:''}\n👥 ${o.qty} pax\n📅 ${fd(o.tgl_kirim)}${o.jam_sampai?' · '+o.jam_sampai:''}\n📍 ${o.alamat||'—'}\n💰 *Total: Rp ${(o.jumlah_total||0).toLocaleString('id-ID')}*\n${o.keterangan?'\n📝 '+o.keterangan:''}\n_Segera konfirmasi ke customer._`;
   await fPost(hp,msg);
 }
 
 // Broadcast notifikasi order baru ke seluruh karyawan role admin/sales/finance yang punya No. HP.
 async function sendWABroadcastKaryawan(o){
-  if(APP.FONNTE_TOKEN.includes('GANTI'))return;
   try{
-    const j = await gasFetch(APP.GAS_URL + '?action=getNomorNotifikasiOrder&t=' + Date.now());
-    if(!j.success || !j.data) return;
+    // Backend gas/ menyediakan getNotifRecipients (dipakai juga oleh index.html): daftar
+    // nomor WA aktif role admin/sales/finance dari tab Karyawan, berupa array string.
+    const j = await gasFetch(APP.GAS_URL + '?action=getNotifRecipients&t=' + Date.now());
+    if(!j.success || !Array.isArray(j.data)) return;
+    j.data = j.data.map(x => typeof x === 'string' ? {nama: x, no_hp: x} : x);
     const msg=`🍽️ *ORDER BARU — ${o.no_order}*\n\n👤 Sales: ${o.sales||'—'}\n🏢 ${o.penerima||'—'}\n📦 ${o.produk||'—'}${o.paket?' · '+o.paket:''}\n👥 ${o.qty} pax\n📅 ${fd(o.tgl_kirim)}${o.jam_sampai?' · '+o.jam_sampai:''}\n📍 ${o.alamat||'—'}\n💰 *Total: Rp ${(o.jumlah_total||0).toLocaleString('id-ID')}*`;
     for(const k of j.data){
       if(!k.no_hp) continue;
@@ -2090,7 +2092,6 @@ async function sendWABroadcastKaryawan(o){
 }
 
 async function sendWAKlien(o){
-  if(APP.FONNTE_TOKEN.includes('GANTI'))return;
   const cust = CUSTOMERS.find(c => c.no_hp === o.customer_id);
   const gender = cust?.gender || '';
   const sapaMap = {'bu':'Bu','bp.':'Bp.','bp':'Bp.','kak':'Kak','mba':'Mba'};
@@ -2150,11 +2151,18 @@ Salam, *KSM Katering* 🍱`;
 
   await fPost(o.hp_penerima, msg);
 }
+// Kirim WA lewat backend GAS (action kirimWa). Token Fonnte disimpan di Script
+// Properties server, TIDAK pernah ada di browser. pengirim:'app' → backend pakai
+// FONNTE_TOKEN_APP kalau diisi (perangkat WA kedua), selain itu FONNTE_TOKEN.
 async function fPost(target,message){
-  console.log('Fonnte →',target);
-  const res=await fetch('https://api.fonnte.com/send',{method:'POST',headers:{'Authorization':APP.FONNTE_TOKEN,'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({target,message})});
-  const j=await res.json();console.log('Fonnte response:',JSON.stringify(j));
-  if(!j.status)throw new Error('Fonnte: '+(j.reason||'Gagal'));
+  console.log('WA →',target);
+  if(!ID_TOKEN) throw new Error('Belum login.');
+  const res = await fetch(APP.GAS_URL, {method:'POST', redirect:'follow', headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({action:'kirimWa', id_token: ID_TOKEN, pengirim:'app', target, message})});
+  const text = await res.text();
+  if(text.trim().startsWith('<')) throw new Error('GAS return HTML');
+  const j = JSON.parse(text);
+  if(!j.success) throw new Error(j.message || 'Gagal kirim WA');
 }
 
 // ══ HELPERS ═══════════════════════════
