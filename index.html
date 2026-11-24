@@ -1754,9 +1754,21 @@ const SESI_LOGIN_KEY = 'alima_sesi_login_v1';
 const SESI_LOGIN_DURASI_MS = 24 * 60 * 60 * 1000; // 24 jam
 let SESI_SUDAH_AKTIF_DARI_CACHE = false; // true kalau app ini dibuka lewat sesi tersimpan (bukan login baru)
 
+// TOKEN SESI HARIAN: setelah login Google, server (checkAuth) memberi token sesi sendiri
+// ("ses.…") yg berlaku sampai 23:59 WIB. Selama token itu masih berlaku, app langsung masuk
+// TANPA verifikasi Google sama sekali → verifikasi cukup sekali sehari.
 function simpanSesiLogin_(user){
-  try{ localStorage.setItem(SESI_LOGIN_KEY, JSON.stringify({ user, waktu: Date.now() })); }
-  catch(e){ /* localStorage penuh/diblokir browser, tidak fatal */ }
+  try{
+    const token = (ID_TOKEN && adalahTokenSesi_(ID_TOKEN)) ? ID_TOKEN : null;
+    localStorage.setItem(SESI_LOGIN_KEY, JSON.stringify({ user, waktu: Date.now(), token }));
+  }catch(e){ /* localStorage penuh/diblokir browser, tidak fatal */ }
+}
+function adalahTokenSesi_(tok){ return String(tok||'').indexOf('ses.') === 0; }
+function expTokenSesi_(tok){
+  try{
+    const b = tok.slice(4).split('.')[0].replace(/-/g,'+').replace(/_/g,'/');
+    return Number(atob(b + '==='.slice((b.length + 3) % 4)).split('|')[1]) || 0;
+  }catch(e){ return 0; }
 }
 function ambilSesiLoginTersimpan_(){
   try{
@@ -1764,8 +1776,12 @@ function ambilSesiLoginTersimpan_(){
     if(!raw) return null;
     const data = JSON.parse(raw);
     if(!data || !data.user || !data.waktu) return null;
-    if(Date.now() - data.waktu > SESI_LOGIN_DURASI_MS) return null; // sudah lewat 24 jam, minta login ulang
-    return data.user;
+    if(data.token && adalahTokenSesi_(data.token)){
+      if(expTokenSesi_(data.token) <= Date.now()) return null; // sudah ganti hari → login Google lagi
+      return { user: data.user, token: data.token };
+    }
+    if(Date.now() - data.waktu > SESI_LOGIN_DURASI_MS) return null; // sesi lama (tanpa token sesi), batas 24 jam
+    return { user: data.user, token: null };
   }catch(e){ return null; }
 }
 function hapusSesiLoginTersimpan_(){
@@ -1775,14 +1791,16 @@ function hapusSesiLoginTersimpan_(){
 
 // Masuk LANGSUNG pakai identitas dari sesi tersimpan (tanpa nunggu/nampilin layar login),
 // sambil diam-diam ambil token Google yg fresh di belakang layar lewat initGoogleAuth().
-function masukLangsungDenganSesiTersimpan_(user){
+function masukLangsungDenganSesiTersimpan_(sesi){
   SESI_SUDAH_AKTIF_DARI_CACHE = true;
-  CURRENT_USER = user;
+  CURRENT_USER = sesi.user;
+  if (sesi.token) ID_TOKEN = sesi.token; // token sesi harian → request langsung jalan, tanpa Google
   document.getElementById('login-gate').classList.add('hide');
   document.getElementById('app-content').classList.remove('hide');
   document.getElementById('who-badge').textContent = `${CURRENT_USER.nama} · ${CURRENT_USER.role}`;
   terapkanAksesRole_();
-  initGoogleAuth(); // ambil token asli di background, TIDAK menampilkan apapun ke user
+  if (sesi.token) { segarkanDataUserDiamDiam_(sesi.token); return; }
+  initGoogleAuth(); // sesi lama tanpa token sesi: ambil token Google di background
 
   // Jaga-jaga: kalau dlm beberapa detik token asli tetap tidak berhasil didapat diam-diam
   // (mis. sesi Google di HP ini sudah tidak ada lagi / auto-select gagal), munculkan lagi
@@ -1796,6 +1814,22 @@ function masukLangsungDenganSesiTersimpan_(user){
       document.getElementById('login-status').textContent = 'Sesi login perlu diperbarui — silakan login lagi.';
     }
   }, 5000);
+}
+
+// Cek ulang akun di belakang layar (role/hak akses terbaru dari sheet) tanpa mengganggu tampilan.
+// token = token sesi harian ATAU token Google. Kalau token ditolak server, gasFetch otomatis
+// mengarahkan ke login ulang; kegagalan lain (mis. offline) dibiarkan.
+async function segarkanDataUserDiamDiam_(token){
+  const j = await gasFetch(APP.GAS_URL + '?action=checkAuth&id_token=' + encodeURIComponent(token) + '&t=' + Date.now());
+  if (!j || !j.success) return;
+  ID_TOKEN = j.session_token || token;
+  const aksesLama = JSON.stringify((CURRENT_USER && CURRENT_USER.aksesTab) || null);
+  CURRENT_USER = { email:j.email, nama:j.nama, role:(j.role||'karyawan').toLowerCase(), aksesKeuanganLevel: j.aksesKeuanganLevel || '', aksesTab: j.aksesTab || null };
+  simpanSesiLogin_(CURRENT_USER);
+  document.getElementById('who-badge').textContent = `${CURRENT_USER.nama} · ${CURRENT_USER.role}`;
+  terapkanMatriksTab_(); // segarkan hak akses tab dari sheet AksesTab (idempotent)
+  // hak akses grafik berubah di sheet → tampilkan/sembunyikan grafik & muat ulang tanpa harus login ulang
+  if(aksesLama !== JSON.stringify(CURRENT_USER.aksesTab || null)){ try{ if(typeof loadGrafikSemua_ === 'function' && document.getElementById('panel-grafik')) loadGrafikSemua_(); }catch(e){} }
 }
 
 // ══ LOGIN GMAIL (Google Identity Services) ═══════════
@@ -1832,21 +1866,8 @@ async function handleGoogleCredential(resp){
   // user, JANGAN jalankan ulang initAppContent()/dst supaya tampilan yg sedang dibuka
   // user tidak keganggu/ke-reset tiba-tiba.
   if (SESI_SUDAH_AKTIF_DARI_CACHE) {
-    try{
-      const j = await gasFetch(APP.GAS_URL + '?action=checkAuth&id_token=' + encodeURIComponent(resp.credential) + '&t=' + Date.now());
-      if (j.success) {
-        ID_TOKEN = resp.credential;
-        const aksesLama = JSON.stringify((CURRENT_USER && CURRENT_USER.aksesTab) || null);
-        CURRENT_USER = { email:j.email, nama:j.nama, role:(j.role||'karyawan').toLowerCase(), aksesKeuanganLevel: j.aksesKeuanganLevel || '', aksesTab: j.aksesTab || null };
-        simpanSesiLogin_(CURRENT_USER); // perpanjang lagi jendela 24 jam-nya
-        terapkanMatriksTab_(); // segarkan hak akses tab dari sheet AksesTab (idempotent)
-        // hak akses grafik berubah di sheet → tampilkan/sembunyikan grafik & muat ulang tanpa harus login ulang
-        if(aksesLama !== JSON.stringify(CURRENT_USER.aksesTab || null)){ try{ if(typeof loadGrafikSemua_ === 'function' && document.getElementById('panel-grafik')) loadGrafikSemua_(); }catch(e){} }
-      }
-      // Kalau gagal (mis. akun dinonaktifkan admin di tengah jalan) — dibiarkan saja,
-      // request2 API berikutnya yg bakal mulai gagal & kasih tahu user scr wajar,
-      // tidak perlu paksa logout mendadak cuma krn refresh token diam2 ini gagal.
-    }catch(e){ console.warn('Gagal refresh token diam-diam:', e.message); }
+    try{ await segarkanDataUserDiamDiam_(resp.credential); }
+    catch(e){ console.warn('Gagal refresh token diam-diam:', e.message); }
     return;
   }
 
@@ -1857,7 +1878,7 @@ async function handleGoogleCredential(resp){
     const j = await gasFetch(APP.GAS_URL + '?action=checkAuth&id_token=' + encodeURIComponent(resp.credential) + '&t=' + Date.now());
     if (!j.success) { showLoginDenied(j.message || 'Akun tidak terdaftar.'); return; }
 
-    ID_TOKEN = resp.credential; // simpan token supaya request selanjutnya ikut terautentikasi
+    ID_TOKEN = j.session_token || resp.credential; // token sesi harian (berlaku s/d 23:59 WIB) kalau backend sudah mendukung
     CURRENT_USER = { email:j.email, nama:j.nama, role:(j.role||'karyawan').toLowerCase(), aksesKeuanganLevel: j.aksesKeuanganLevel || '', aksesTab: j.aksesTab || null };
     simpanSesiLogin_(CURRENT_USER); // sesi ini bisa dipakai lagi tanpa layar login selama 24 jam ke depan
     document.getElementById('login-gate').classList.add('hide');
@@ -2168,6 +2189,7 @@ async function pickSalesContact(){
 // kedaluwarsa → server jawab "invalid_token". Fungsi ini cek masa berlakunya & minta token baru
 // (diam-diam via Google One Tap) sebelum request dikirim; tunggu maks ±10 detik.
 function tokenKedaluwarsa_(tok){
+  if(adalahTokenSesi_(tok)) return expTokenSesi_(tok) <= Date.now(); // token sesi harian: habis saat ganti hari
   try{
     const exp = JSON.parse(atob(tok.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))).exp;
     return !exp || (exp*1000 - Date.now()) < 120000; // sisa < 2 menit dianggap habis
@@ -2181,6 +2203,7 @@ function loginUlangPaksa_(){
 function adalahErrorToken_(msg){ return /invalid_token|Token login|kedaluwarsa|Unauthorized/i.test(String(msg||'')); }
 async function pastikanTokenSegar_(){
   if(!ID_TOKEN || !tokenKedaluwarsa_(ID_TOKEN)) return;
+  if(adalahTokenSesi_(ID_TOKEN)){ loginUlangPaksa_(); throw new Error('Sesi hari ini sudah berakhir — memuat ulang untuk login…'); }
   const lama = ID_TOKEN;
   try{ google.accounts.id.prompt(); }catch(e){}
   for(let i=0;i<20 && ID_TOKEN===lama;i++) await new Promise(r=>setTimeout(r,500));
