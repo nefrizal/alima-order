@@ -885,8 +885,58 @@ function cGet(k){ return MEM[k]||null; }
 
 // ══ INIT ══════════════════════════════
 document.addEventListener('DOMContentLoaded',()=>{
-  initGoogleAuth();
+  const sesi = ambilSesiHarian_();
+  if (sesi) {
+    // Token sesi hari ini masih berlaku → langsung masuk, tanpa verifikasi Google.
+    ID_TOKEN = sesi.token;
+    masukApp_(sesi.user);
+    segarkanUserDiamDiam_();
+  } else {
+    initGoogleAuth(); // belum login hari ini → login Google sekali
+  }
 });
+
+// ══ SESI HARIAN (sama dgn index.html, kunci localStorage yg sama) ══
+// Setelah login Google, backend (checkAuth) memberi token sesi "ses.…" yg berlaku s/d 23:59 WIB.
+// Selama masih berlaku, app langsung masuk tanpa verifikasi Google → verifikasi cukup sekali sehari.
+const SESI_LOGIN_KEY = 'alima_sesi_login_v1';
+function adalahTokenSesi_(tok){ return String(tok||'').indexOf('ses.') === 0; }
+function expTokenSesi_(tok){
+  try{
+    const b = tok.slice(4).split('.')[0].replace(/-/g,'+').replace(/_/g,'/');
+    return Number(atob(b + '==='.slice((b.length + 3) % 4)).split('|')[1]) || 0;
+  }catch(e){ return 0; }
+}
+function ambilSesiHarian_(){
+  try{
+    const data = JSON.parse(localStorage.getItem(SESI_LOGIN_KEY) || 'null');
+    if(!data || !data.user || !adalahTokenSesi_(data.token)) return null;
+    if(expTokenSesi_(data.token) <= Date.now()) return null; // sudah ganti hari
+    return { user: data.user, token: data.token };
+  }catch(e){ return null; }
+}
+function simpanSesiHarian_(user){
+  if(!adalahTokenSesi_(ID_TOKEN)) return; // backend lama (tanpa token sesi): tidak disimpan
+  try{ localStorage.setItem(SESI_LOGIN_KEY, JSON.stringify({ user, waktu: Date.now(), token: ID_TOKEN })); }catch(e){}
+}
+function hapusSesiHarian_(){ try{ localStorage.removeItem(SESI_LOGIN_KEY); }catch(e){} }
+function loginUlangPaksa_(){
+  try{ toast('Sesi login habis — memuat ulang untuk login lagi…','err'); }catch(e){}
+  hapusSesiHarian_();
+  setTimeout(()=>location.reload(), 1200);
+}
+// Cek ulang akun di belakang layar (role terbaru dari sheet). Token ditolak → gasFetch arahkan ke login ulang.
+async function segarkanUserDiamDiam_(){
+  try{
+    const j = await gasFetch(APP.GAS_URL + '?action=checkAuth&t=' + Date.now());
+    if(!j || !j.success) return;
+    const user = Object.assign({}, CURRENT_USER, { email:j.email, nama:j.nama, role:(j.role||'karyawan').toLowerCase() });
+    if(user.role !== CURRENT_USER.role){ simpanSesiHarian_(user); location.reload(); return; } // role berubah → muat ulang tampilan
+    CURRENT_USER = user;
+    simpanSesiHarian_(user);
+    document.getElementById('who-badge').textContent = `${CURRENT_USER.nama} · ${CURRENT_USER.role}`;
+  }catch(e){ console.warn('Gagal cek akun diam-diam:', e.message); }
+}
 
 // Daftarkan service worker — WAJIB supaya Chrome mau menawarkan "Add to Home screen"/"Install app"
 if ('serviceWorker' in navigator) {
@@ -948,21 +998,28 @@ async function handleGoogleCredential(resp){
     const j = await gasFetch(APP.GAS_URL + '?action=checkAuth&id_token=' + encodeURIComponent(resp.credential) + '&t=' + Date.now());
     if (!j.success) { showLoginDenied(j.message || 'Akun tidak terdaftar.'); return; }
 
-    ID_TOKEN = resp.credential; // simpan token supaya request selanjutnya ikut terautentikasi
-    CURRENT_USER = { email:j.email, nama:j.nama, role:(j.role||'karyawan').toLowerCase() };
-    document.getElementById('login-gate').classList.add('hide');
-    document.getElementById('app-content').classList.remove('hide');
-    document.getElementById('who-badge').textContent = `${CURRENT_USER.nama} · ${CURRENT_USER.role}`;
-
-    if (isFullAccessRole(CURRENT_USER.role)) {
-      initAppContent(); // admin / sales: akses penuh (Order Baru, Revisi, Jadwal, Masak, Absensi)
-    } else if (CURRENT_USER.role === 'snack') {
-      applySnackAccess(); // role snack: HANYA tab Jadwal, difilter khusus produk kategori Snack
-    } else {
-      applyKaryawanAccess(); // role lain (Dapur, Finance, Pembelian, Service, dst): Jadwal, Masak, Absensi saja
-    }
+    ID_TOKEN = j.session_token || resp.credential; // token sesi harian (s/d 23:59 WIB) kalau backend mendukung
+    const user = { email:j.email, nama:j.nama, role:(j.role||'karyawan').toLowerCase(), aksesKeuanganLevel: j.aksesKeuanganLevel || '', aksesTab: j.aksesTab || null };
+    simpanSesiHarian_(user);
+    masukApp_(user);
   }catch(e){
     showLoginDenied('Gagal menghubungi server: ' + e.message);
+  }
+}
+
+// Tampilkan app sesuai role (dipakai login Google maupun sesi harian tersimpan).
+function masukApp_(user){
+  CURRENT_USER = user;
+  document.getElementById('login-gate').classList.add('hide');
+  document.getElementById('app-content').classList.remove('hide');
+  document.getElementById('who-badge').textContent = `${CURRENT_USER.nama} · ${CURRENT_USER.role}`;
+
+  if (isFullAccessRole(CURRENT_USER.role)) {
+    initAppContent(); // admin / sales: akses penuh (Order Baru, Revisi, Jadwal, Masak, Absensi)
+  } else if (CURRENT_USER.role === 'snack') {
+    applySnackAccess(); // role snack: HANYA tab Jadwal, difilter khusus produk kategori Snack
+  } else {
+    applyKaryawanAccess(); // role lain (Dapur, Finance, Pembelian, Service, dst): Jadwal, Masak, Absensi saja
   }
 }
 
@@ -980,6 +1037,7 @@ function showLoginDenied(msg){
 }
 
 function retryLogin(){
+  hapusSesiHarian_(); // buang sesi lama biar tidak nyangkut ke akun sebelumnya
   document.getElementById('login-denied').style.display = 'none';
   const btnBox = document.getElementById('g_id_signin_container');
   if (btnBox) btnBox.style.display = 'block';
@@ -1114,13 +1172,18 @@ async function pickSalesContact(){
 
 // ══ GAS FETCH ═════════════════════════
 async function gasFetch(url){
+  const pakaiSesi = adalahTokenSesi_(ID_TOKEN) && !url.includes('id_token=');
+  if (pakaiSesi && expTokenSesi_(ID_TOKEN) <= Date.now()) { loginUlangPaksa_(); throw new Error('Sesi hari ini sudah berakhir — memuat ulang untuk login…'); }
   if (ID_TOKEN && !url.includes('id_token=')) {
     url += (url.includes('?') ? '&' : '?') + 'id_token=' + encodeURIComponent(ID_TOKEN);
   }
   const res=await fetch(url,{method:'GET',redirect:'follow'});
   const text=await res.text();
   if(text.trim().startsWith('<')) throw new Error('GAS return HTML');
-  return JSON.parse(text);
+  const hasil = JSON.parse(text);
+  // Token sesi ditolak server (kedaluwarsa/tidak sah) → login Google lagi
+  if (pakaiSesi && hasil && hasil.success === false && /Unauthorized|kedaluwarsa|Token login/i.test(hasil.message || '')) loginUlangPaksa_();
+  return hasil;
 }
 
 // ══ MASTER (hanya Paket dari GAS) ═════
