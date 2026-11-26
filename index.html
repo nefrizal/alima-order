@@ -3933,7 +3933,10 @@ async function loadGrafik(paksa, ambil){
   if(lama) tampil(lama, true); else chartEl.innerHTML = '<div class="swrap"><div class="sp"></div>Memuat grafik…</div>';
   try{
     const j = await gasFetch(APP.GAS_URL + '?action=getGrafikData' + (paksa ? '&paksa=1' : '') + '&t=' + Date.now());
-    if(!j.success){ if(!lama) chartEl.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>${j.message}</p></div>`; return; }
+    if(!j.success){
+      if(lama){ updEl.textContent = '⚠️ Gagal memperbarui grafik bulanan: ' + (j.message || 'server menolak'); return; } // jangan diam: tampilkan alasannya
+      chartEl.innerHTML = `<div class="empty"><div class="eico">⚠️</div><p>${j.message}</p></div>`; return;
+    }
     gfCachePut_('jual', j); tampil(j, false);
   }catch(e){
     if(lama){ updEl.textContent += ' (gagal memperbarui)'; return; }
