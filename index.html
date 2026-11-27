@@ -5447,17 +5447,26 @@ function renderSalesGabung_(){
     grid += `<text x="${xH0 + hariList.length*hW/2}" y="11" font-size="9" font-weight="700" fill="#1565C0" text-anchor="middle">HARIAN 15 hari · sumbu kanan</text>`;
   }
   let bars = '';
+  // Qty per bulan × produk (dari backend, field qty). Data cache lama belum punya → Qty tidak ditampilkan.
+  const qM = (M && M.qty) || null;
+  const fQty = n => Number(n || 0).toLocaleString('id-ID');
   bulanList.forEach((b, bi) => {
     const x = xM0 + bi*mW; let st = 0;
+    const t = tot(dM,b);
+    const qTot = qM ? kat.reduce((s,k)=> s + ((qM[b]&&qM[b][k])||0), 0) : null;
+    // Satu grup per bulan: hover segmen = rincian produk itu; hover bagian lain batang/label = total bulan.
+    bars += `<g><title>${formatBulanLabel_(b)}: ${formatRupiahSingkat_(t)}${qTot !== null ? ' · Qty ' + fQty(qTot) : ''}</title>`;
+    bars += `<rect x="${x-4}" y="12" width="${mBar+8}" height="${barMaxH+34}" fill="transparent"></rect>`;
     kat.forEach(k => {
       const v = (dM[b]&&dM[b][k]) || 0; if(v <= 0) return;
       const h = (v/topM)*barMaxH, y = barMaxH - st - h + 20;
-      bars += `<rect x="${x}" y="${y}" width="${mBar}" height="${h}" fill="${warna(k)}" rx="1"><title>${k} ${formatBulanLabel_(b)}: ${formatRupiahSingkat_(v)}</title></rect>`;
+      const q = qM ? ((qM[b]&&qM[b][k])||0) : null;
+      bars += `<rect x="${x}" y="${y}" width="${mBar}" height="${h}" fill="${warna(k)}" rx="1"><title>${k} ${formatBulanLabel_(b)}: ${formatRupiahSingkat_(v)}${q !== null ? ' · Qty ' + fQty(q) : ''}</title></rect>`;
       st += h;
     });
-    const t = tot(dM,b);
     if(t > 0) bars += `<text x="${x + mBar/2}" y="${barMaxH - st + 20 - 4}" font-size="10" font-weight="700" fill="#5C4A35" text-anchor="middle">${formatRupiahSingkat_(t)}</text>`;
     bars += `<text x="${x + mBar/2}" y="${barMaxH+38}" font-size="10" fill="#5C4A35" text-anchor="middle">${formatBulanLabel_(b)}</text>`;
+    bars += `</g>`;
   });
   const todayStr = Utilities_formatTodayId_();
   hariList.forEach((h, hi) => {
