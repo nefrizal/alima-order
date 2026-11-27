@@ -5455,7 +5455,7 @@ function renderSalesGabung_(){
     const t = tot(dM,b);
     const qTot = qM ? kat.reduce((s,k)=> s + ((qM[b]&&qM[b][k])||0), 0) : null;
     // Satu grup per bulan: hover segmen = rincian produk itu; hover bagian lain batang/label = total bulan.
-    bars += `<g><title>${formatBulanLabel_(b)}: ${formatRupiahSingkat_(t)}${qTot !== null ? ' · Qty ' + fQty(qTot) : ''}</title>`;
+    bars += `<g style="cursor:pointer;" onclick="tapBulanSales_('${b}')"><title>${formatBulanLabel_(b)}: ${formatRupiahSingkat_(t)}${qTot !== null ? ' · Qty ' + fQty(qTot) : ''}</title>`;
     bars += `<rect x="${x-4}" y="12" width="${mBar+8}" height="${barMaxH+34}" fill="transparent"></rect>`;
     kat.forEach(k => {
       const v = (dM[b]&&dM[b][k]) || 0; if(v <= 0) return;
@@ -5489,6 +5489,7 @@ function renderSalesGabung_(){
     <div style="overflow-x:auto;background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:12px;box-shadow:var(--sh);">
       <svg width="${totalW}" height="${chartH}" viewBox="0 0 ${totalW} ${chartH}">${grid}${bars}</svg>
     </div>
+    <div id="gf-sales-info" style="display:none;margin-top:8px;background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:10px 12px;font-size:12px;color:var(--inkm);"></div>
     <div style="font-size:10px;color:var(--inks);margin-top:6px;">Batang kiri = penjualan per bulan (sumbu Y kiri, kelipatan 25 jt). Batang kanan = penjualan 15 hari ke depan (sumbu Y kanan, skalanya sendiri) — garis grid dipakai bersama sehingga tinggi batang bulanan dan harian sebanding.</div>
     <div style="display:flex;flex-wrap:wrap;margin-top:8px;padding:0 4px;">${legend}</div>`;
   const nu = el.firstElementChild;
@@ -5496,6 +5497,24 @@ function renderSalesGabung_(){
     if(!SALES_SCROLL_SUDAH_ && hariList.length){ SALES_SCROLL_SUDAH_ = true; const geser = () => { nu.scrollLeft = nu.scrollWidth; }; geser(); requestAnimationFrame(geser); setTimeout(geser, 300); } // tampilan awal: geser ke kanan (bagian harian terlihat)
     else if(sl) nu.scrollLeft = sl;
   }
+}
+
+// Sentuh/klik batang Sales bulanan → kotak rincian di bawah grafik (tooltip kursor tidak muncul di HP).
+// Sentuh bulan yang sama lagi → tutup.
+let GF_SALES_INFO_BULAN_ = '';
+function tapBulanSales_(b){
+  const box = document.getElementById('gf-sales-info'); if(!box) return;
+  if(GF_SALES_INFO_BULAN_ === b && box.style.display !== 'none'){ box.style.display = 'none'; GF_SALES_INFO_BULAN_ = ''; return; }
+  const M = GF_JUAL_ || {}, d = (M.data||{})[b] || {}, q = M.qty ? (M.qty[b] || {}) : null;
+  const fQ = n => Number(n || 0).toLocaleString('id-ID');
+  const kat = (M.kategoriList || Object.keys(d)).filter(k => (d[k]||0) > 0).sort((x,y) => d[y]-d[x]);
+  const tot = kat.reduce((s,k) => s + d[k], 0), qTot = q ? kat.reduce((s,k) => s + (q[k]||0), 0) : null;
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const baris = kat.map(k => `<tr><td style="padding:2px 8px 2px 0;">${esc(k)}</td><td style="text-align:right;padding:2px 8px;">${formatRupiahSingkat_(d[k])}</td>${q ? `<td style="text-align:right;padding:2px 0 2px 8px;">Qty ${fQ(q[k])}</td>` : ''}</tr>`).join('');
+  box.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><b style="color:var(--ink,#5C4A35);">${formatBulanLabel_(b)}: ${formatRupiahSingkat_(tot)}${qTot !== null ? ' · Qty ' + fQ(qTot) : ''}</b><span style="cursor:pointer;padding:0 4px;" onclick="tapBulanSales_('${b}')">✕</span></div>`
+    + (kat.length ? `<table style="border-collapse:collapse;width:100%;">${baris}</table>` : '<div>Belum ada penjualan.</div>')
+    + (q ? '' : '<div style="margin-top:6px;font-size:10px;color:var(--inks);">Qty belum tersedia — klik ↻ untuk memperbarui data.</div>');
+  box.style.display = 'block'; GF_SALES_INFO_BULAN_ = b;
 }
 
 function renderGrafikHarianChart(j, elId, bisaKlik){
